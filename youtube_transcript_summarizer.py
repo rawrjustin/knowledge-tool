@@ -12,21 +12,88 @@ import argparse
 import tempfile
 from pathlib import Path
 
+from typing import Optional, Sequence
+
 import yt_dlp
 import assemblyai as aai
+from dotenv import load_dotenv
 from openai import OpenAI
 
 
-def download_youtube_audio(video_url: str, output_dir: str = None) -> str:
+# Load environment variables from a .env file if present
+load_dotenv()
+
+
+def sanitize_filename(name: str) -> str:
+    """
+    Create a filesystem-friendly filename slug from a string.
+    """
+    sanitized = ''.join(
+        c if c.isalnum() or c in ('-', '_') else '_'
+        for c in name.strip()
+    )
+    sanitized = sanitized.strip('_')
+    return sanitized or "youtube_video"
+
+
+def format_timestamp(ms: Optional[int]) -> str:
+    """
+    Convert millisecond timestamps to HH:MM:SS (or MM:SS) strings.
+    """
+    if ms is None:
+        return ""
+
+    total_seconds = max(int(ms / 1000), 0)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if hours:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes:02d}:{seconds:02d}"
+
+
+def format_speaker_labeled_transcript(transcript_obj: aai.Transcript) -> str:
+    """
+    Build a human-readable transcript with speaker labels from utterances.
+    """
+    utterances = getattr(transcript_obj, "utterances", None) or []
+    if not utterances:
+        return transcript_obj.text
+
+    formatted_lines = []
+    for utterance in utterances:
+        speaker = getattr(utterance, "speaker", "Unknown")
+        text = (getattr(utterance, "text", "") or "").strip()
+        start = format_timestamp(getattr(utterance, "start", None))
+        end = format_timestamp(getattr(utterance, "end", None))
+
+        if start and end:
+            timestamp = f"[{start} - {end}] "
+        elif start:
+            timestamp = f"[{start}] "
+        else:
+            timestamp = ""
+
+        formatted_lines.append(f"{timestamp}Speaker {speaker}: {text}")
+
+    return "\n".join(formatted_lines)
+
+
+def download_youtube_audio(
+    video_url: str,
+    output_dir: str = None,
+    remote_components: Optional[Sequence[str] | str] = "ejs:github"
+) -> tuple[str, dict]:
     """
     Download audio from a YouTube video.
 
     Args:
         video_url: YouTube video URL
         output_dir: Directory to save the audio file (defaults to temp directory)
+        remote_components: yt-dlp remote components spec (e.g., "ejs:github")
 
     Returns:
-        Path to the downloaded audio file
+        Tuple containing the downloaded audio file path and the extracted metadata
     """
     if output_dir is None:
         output_dir = tempfile.gettempdir()
@@ -44,6 +111,14 @@ def download_youtube_audio(video_url: str, output_dir: str = None) -> str:
         'no_warnings': False,
     }
 
+    if remote_components:
+        if isinstance(remote_components, str):
+            components = [comp.strip() for comp in remote_components.split(",") if comp.strip()]
+        else:
+            components = [comp for comp in remote_components if comp]
+        if components:
+            ydl_opts['remote_components'] = components
+
     print(f"Downloading audio from: {video_url}")
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -52,10 +127,10 @@ def download_youtube_audio(video_url: str, output_dir: str = None) -> str:
         audio_file = os.path.join(output_dir, f"{video_id}.m4a")
 
     print(f"Audio downloaded to: {audio_file}")
-    return audio_file
+    return audio_file, info
 
 
-def transcribe_audio(audio_file: str, assemblyai_api_key: str) -> str:
+def transcribe_audio(audio_file: str, assemblyai_api_key: str) -> dict:
     """
     Transcribe audio file using AssemblyAI.
 
@@ -64,30 +139,36 @@ def transcribe_audio(audio_file: str, assemblyai_api_key: str) -> str:
         assemblyai_api_key: AssemblyAI API key
 
     Returns:
-        Transcript text
+        Dictionary with raw transcript text, speaker-labeled transcript, and utterances
     """
     print(f"Transcribing audio file: {audio_file}")
 
     aai.settings.api_key = assemblyai_api_key
     transcriber = aai.Transcriber()
+    config = aai.TranscriptionConfig(speaker_labels=True)
 
-    transcript = transcriber.transcribe(audio_file)
+    transcript = transcriber.transcribe(audio_file, config=config)
 
     if transcript.status == aai.TranscriptStatus.error:
         raise Exception(f"Transcription failed: {transcript.error}")
 
     print("Transcription completed successfully")
-    return transcript.text
+    speaker_formatted = format_speaker_labeled_transcript(transcript)
+    return {
+        "raw_text": transcript.text,
+        "speaker_transcript": speaker_formatted,
+        "utterances": getattr(transcript, "utterances", None) or []
+    }
 
 
-def summarize_transcript(transcript: str, openai_api_key: str, model: str = "gpt-4o") -> str:
+def summarize_transcript(transcript: str, openai_api_key: str, model: str = "gpt-5") -> str:
     """
     Summarize transcript using OpenAI's GPT models.
 
     Args:
         transcript: The transcript text to summarize
         openai_api_key: OpenAI API key
-        model: OpenAI model to use (default: gpt-4o, can also use gpt-4, gpt-3.5-turbo, etc.)
+    model: OpenAI model to use (default: gpt-5, can also use other GPT series models)
 
     Returns:
         Summary text
@@ -101,14 +182,13 @@ def summarize_transcript(transcript: str, openai_api_key: str, model: str = "gpt
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant that creates concise and informative summaries of video transcripts."
+                "content": "You are a helpful assistant that creates informative summaries of video transcripts. Try not to leave too much information out and capture as much vivid detail and useful information as possible. The more unique detail, the better as this detail will be surfaced later on."
             },
             {
                 "role": "user",
-                "content": f"Please provide a comprehensive summary of the following video transcript:\n\n{transcript}"
+                "content": f"Please provide a comprehensive summary of the following video transcript formatted in a way that's optimied for Retrieval-Augmented Generation (RAG) systems to retain context and user information:\n\n{transcript}"
             }
         ],
-        temperature=0.7,
     )
 
     summary = response.choices[0].message.content
@@ -120,9 +200,10 @@ def process_youtube_video(
     video_url: str,
     assemblyai_api_key: str,
     openai_api_key: str,
-    model: str = "gpt-4o",
+    model: str = "gpt-5",
     keep_audio: bool = False,
-    output_dir: str = None
+    output_dir: str = None,
+    remote_components: Optional[Sequence[str] | str] = "ejs:github"
 ) -> dict:
     """
     Process a YouTube video: download, transcribe, and summarize.
@@ -134,25 +215,34 @@ def process_youtube_video(
         model: OpenAI model to use for summarization
         keep_audio: Whether to keep the downloaded audio file
         output_dir: Directory for temporary files
+        remote_components: yt-dlp remote components spec or None to disable
 
     Returns:
         Dictionary with transcript and summary
     """
     audio_file = None
+    video_metadata = {}
 
     try:
         # Download audio
-        audio_file = download_youtube_audio(video_url, output_dir)
+        audio_file, video_metadata = download_youtube_audio(
+            video_url,
+            output_dir,
+            remote_components=remote_components
+        )
 
         # Transcribe
-        transcript = transcribe_audio(audio_file, assemblyai_api_key)
+        transcript_data = transcribe_audio(audio_file, assemblyai_api_key)
 
         # Summarize
-        summary = summarize_transcript(transcript, openai_api_key, model)
+        summary = summarize_transcript(transcript_data["speaker_transcript"], openai_api_key, model)
 
         return {
             "video_url": video_url,
-            "transcript": transcript,
+            "video_title": video_metadata.get("title", "Unknown Title"),
+            "transcript": transcript_data["speaker_transcript"],
+            "transcript_raw": transcript_data["raw_text"],
+            "utterances": transcript_data["utterances"],
             "summary": summary,
             "audio_file": audio_file if keep_audio else None
         }
@@ -165,6 +255,19 @@ def process_youtube_video(
                 print(f"Cleaned up audio file: {audio_file}")
             except Exception as e:
                 print(f"Warning: Could not remove audio file: {e}")
+
+
+def write_output_file(path: Path, title: str, url: str, heading: str, content: str) -> None:
+    """
+    Write a formatted text file containing the video title, URL, and content.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(f"Title: {title}\n")
+        f.write(f"Original URL: {url}\n\n")
+        f.write(f"{heading}\n")
+        f.write("=" * len(heading) + "\n\n")
+        f.write(content)
 
 
 def main():
@@ -187,8 +290,8 @@ def main():
     )
     parser.add_argument(
         "--model",
-        help="OpenAI model to use (default: gpt-4o)",
-        default="gpt-4o"
+        help="OpenAI model to use (default: gpt-5)",
+        default="gpt-5"
     )
     parser.add_argument(
         "--keep-audio",
@@ -199,6 +302,11 @@ def main():
         "--output-dir",
         help="Directory for output files (default: temp directory)",
         default=None
+    )
+    parser.add_argument(
+        "--remote-components",
+        help="Comma-separated yt-dlp remote components specs (set to '' to disable; default: ejs:github)",
+        default="ejs:github"
     )
     parser.add_argument(
         "--save-transcript",
@@ -230,30 +338,38 @@ def main():
             openai_api_key=args.openai_key,
             model=args.model,
             keep_audio=args.keep_audio,
-            output_dir=args.output_dir
+            output_dir=args.output_dir,
+            remote_components=(args.remote_components or None)
         )
 
         # Display results
         print("\n" + "=" * 80)
-        print("TRANSCRIPT")
+        print("VIDEO")
         print("=" * 80)
-        print(result["transcript"])
+        print(f"Title: {result['video_title']}")
+        print(f"Original URL: {result['video_url']}")
         print("\n" + "=" * 80)
         print("SUMMARY")
         print("=" * 80)
         print(result["summary"])
+        print("\n" + "=" * 80)
+        print("TRANSCRIPT")
+        print("=" * 80)
+        print(result["transcript"])
         print("=" * 80)
 
-        # Save to files if requested
-        if args.save_transcript:
-            with open(args.save_transcript, 'w') as f:
-                f.write(result["transcript"])
-            print(f"\nTranscript saved to: {args.save_transcript}")
+        # Determine output locations
+        script_dir = Path(__file__).resolve().parent
+        base_name = sanitize_filename(result["video_title"])
+        summary_path = Path(args.save_summary) if args.save_summary else script_dir / f"{base_name}_summary.txt"
+        transcript_path = Path(args.save_transcript) if args.save_transcript else script_dir / f"{base_name}_transcript.txt"
 
-        if args.save_summary:
-            with open(args.save_summary, 'w') as f:
-                f.write(result["summary"])
-            print(f"Summary saved to: {args.save_summary}")
+        # Save summary and transcript files (always generate .txt files)
+        write_output_file(summary_path, result["video_title"], result["video_url"], "Summary", result["summary"])
+        print(f"\nSummary saved to: {summary_path}")
+
+        write_output_file(transcript_path, result["video_title"], result["video_url"], "Transcript", result["transcript"])
+        print(f"Transcript saved to: {transcript_path}")
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
