@@ -1,4 +1,21 @@
-# YouTube Transcript Summarizer
+# Knowledge Tool
+
+A comprehensive toolkit for transcribing videos, summarizing articles, and analyzing text using AI. Available as both a native macOS app and a Python command-line tool.
+
+## 📱 macOS App (NEW!)
+
+A beautiful, native macOS application built with SwiftUI that provides:
+- **Video Transcription**: From URLs (YouTube, Vimeo, etc.) or file uploads
+- **Article Summarization**: Extract and summarize web articles
+- **Text Snippet Analysis**: Analyze any text with AI insights
+- **Secure API Key Storage**: Keys stored in macOS Keychain
+- **Modern UI**: Follows Apple Human Interface Guidelines
+
+**[→ View macOS App Documentation](./KnowledgeTool/README.md)**
+
+Requirements: macOS 14.0+, Xcode 16.0+
+
+## 🐍 Python Script
 
 A Python script that downloads YouTube videos, extracts transcripts using AssemblyAI, and generates summaries using OpenAI's GPT models.
 
