@@ -1,8 +1,28 @@
 # Knowledge Tool
 
-A comprehensive toolkit for transcribing videos, summarizing articles, and analyzing text using AI. Available as both a native macOS app and a Python command-line tool.
+A comprehensive toolkit for transcribing videos, summarizing articles, and analyzing text using AI. Available as a web app, native macOS app, and Python command-line tool.
 
-## 📱 macOS App (NEW!)
+## 🌐 Web App (NEW!)
+
+A Flask-based web application that processes both YouTube videos and news articles!
+
+**Features:**
+- **YouTube Videos**: Download, transcribe, and summarize
+- **News Articles**: Extract and summarize from any URL
+- **Auto-detection**: Automatically detects content type
+- **Beautiful UI**: Modern, responsive interface
+- **Railway Ready**: One-click deployment to Railway
+
+**[→ View Web App Documentation](./WEB_APP_README.md)**
+**[→ Railway Deployment Guide](./RAILWAY_DEPLOYMENT.md)**
+
+Quick start:
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+## 📱 macOS App
 
 A beautiful, native macOS application built with SwiftUI that provides:
 - **Video Transcription**: From URLs (YouTube, Vimeo, etc.) or file uploads

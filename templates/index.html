@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Tool - Video & Article Summarizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+        }
+
+        .result.active {
+            display: block;
+        }
+
+        .result-header {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-header h2 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .result-header .url {
+            color: #667eea;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .result-section {
+            margin-bottom: 25px;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .result-section .content {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            line-height: 1.6;
+            color: #444;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .error {
+            display: none;
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box h4 {
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #555;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Knowledge Tool</h1>
+            <p>Transcribe YouTube videos and summarize news articles with AI</p>
+        </div>
+
+        <div class="card">
+            <div class="info-box">
+                <h4>Supported Content:</h4>
+                <ul>
+                    <li><strong>YouTube Videos:</strong> Transcribes audio and generates summaries</li>
+                    <li><strong>News Articles:</strong> Extracts text and creates summaries</li>
+                </ul>
+            </div>
+
+            <form id="processForm">
+                <div class="input-group">
+                    <label for="url">URL (YouTube or News Article)</label>
+                    <input
+                        type="text"
+                        id="url"
+                        name="url"
+                        placeholder="https://www.youtube.com/watch?v=... or https://news-site.com/article"
+                        required
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label for="contentType">Content Type</label>
+                    <select id="contentType" name="contentType">
+                        <option value="auto">Auto-detect</option>
+                        <option value="youtube">YouTube Video</option>
+                        <option value="article">News Article</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="model">AI Model</label>
+                    <select id="model" name="model">
+                        <option value="gpt-4o-mini">GPT-4o Mini (Fast & Affordable)</option>
+                        <option value="gpt-4o">GPT-4o (Best Quality)</option>
+                        <option value="gpt-4">GPT-4</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">Process Content</button>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing your content... This may take a few minutes.</p>
+            </div>
+
+            <div class="error" id="error"></div>
+        </div>
+
+        <div class="card result" id="result">
+            <div class="result-header">
+                <h2 id="resultTitle"></h2>
+                <a href="#" id="resultUrl" class="url" target="_blank"></a>
+            </div>
+
+            <div class="result-section">
+                <h3>📝 Summary</h3>
+                <div class="content" id="resultSummary"></div>
+            </div>
+
+            <div class="result-section" id="transcriptSection">
+                <h3>📄 Transcript</h3>
+                <div class="content" id="resultTranscript"></div>
+            </div>
+
+            <div class="result-section" id="articleSection" style="display: none;">
+                <h3>📰 Full Article Text</h3>
+                <div class="content" id="resultArticle"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('processForm');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const url = document.getElementById('url').value.trim();
+            const contentType = document.getElementById('contentType').value;
+            const model = document.getElementById('model').value;
+
+            // Hide previous results/errors
+            error.classList.remove('active');
+            result.classList.remove('active');
+
+            // Show loading
+            loading.classList.add('active');
+
+            // Disable form
+            form.querySelector('button').disabled = true;
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        type: contentType,
+                        model: model
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to process content');
+                }
+
+                // Display results
+                displayResults(data);
+
+            } catch (err) {
+                error.textContent = 'Error: ' + err.message;
+                error.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+                form.querySelector('button').disabled = false;
+            }
+        });
+
+        function displayResults(data) {
+            document.getElementById('resultTitle').textContent = data.title;
+            document.getElementById('resultUrl').textContent = data.url;
+            document.getElementById('resultUrl').href = data.url;
+            document.getElementById('resultSummary').textContent = data.summary;
+
+            if (data.type === 'youtube') {
+                document.getElementById('resultTranscript').textContent = data.transcript;
+                document.getElementById('transcriptSection').style.display = 'block';
+                document.getElementById('articleSection').style.display = 'none';
+            } else if (data.type === 'article') {
+                document.getElementById('resultArticle').textContent = data.text;
+                document.getElementById('transcriptSection').style.display = 'none';
+                document.getElementById('articleSection').style.display = 'block';
+            }
+
+            result.classList.add('active');
+            result.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
