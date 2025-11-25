@@ -44,6 +44,7 @@ final class CharacterCreationViewModel {
     // Services
     private let localRepository: LocalCharacterRepository
     private let openAIService: OpenAIService?
+    private let perplexityService: PerplexityService?
     private let asp1Template: String
 
     init(localRepository: LocalCharacterRepository, apiKeyManager: APIKeyManager) {
@@ -54,6 +55,13 @@ final class CharacterCreationViewModel {
             self.openAIService = OpenAIService(apiKey: apiKey)
         } else {
             self.openAIService = nil
+        }
+
+        // Get Perplexity service for deep research
+        if let apiKey = apiKeyManager.getAPIKey(for: .perplexity) {
+            self.perplexityService = PerplexityService(apiKey: apiKey)
+        } else {
+            self.perplexityService = nil
         }
 
         // Load ASP-1 template
@@ -122,30 +130,83 @@ final class CharacterCreationViewModel {
             return
         }
 
+        guard let perplexityService = perplexityService else {
+            error = "Perplexity API key not configured. Deep research requires Perplexity."
+            return
+        }
+
         error = nil
         currentStep = .generating
         progressLogs = []
+        sources = []
 
         do {
             // Use cached content if available, otherwise fetch
-            let content: String
+            let wikiContent: String
             if let cached = wikipediaContent {
-                content = cached
+                wikiContent = cached
                 addLog("Using cached Wikipedia content...")
             } else {
                 addLog("Fetching Wikipedia content...")
-                content = try await fetchWikipediaContent(url: wikipediaURL)
+                wikiContent = try await fetchWikipediaContent(url: wikipediaURL)
             }
 
-            addLog("Retrieved \(content.count) characters from Wikipedia")
-            addLog("Generating character using ASP-1 template...")
+            addLog("Retrieved \(wikiContent.count) characters from Wikipedia")
 
-            // Generate character using OpenAI
-            let prompt = buildWikipediaPrompt(wikipediaContent: content)
+            // Extract character name for research query
+            let characterName = previewCharacterName ?? extractWikipediaTitle(from: wikipediaURL)?.replacingOccurrences(of: "_", with: " ") ?? "Unknown"
+
+            // Step 1: Deep research with Perplexity
+            addLog("Starting deep research on \(characterName) with Perplexity...")
+            addLog("This may take 1-2 minutes for comprehensive research...")
+
+            let researchResult = try await perplexityService.deepResearch(
+                query: """
+                Research everything about \(characterName) for building a comprehensive AI character profile.
+
+                Include:
+                - Complete biography and background
+                - Personality traits and psychological profile
+                - Communication style, catchphrases, and speech patterns
+                - Core values and beliefs
+                - Key relationships (family, friends, rivals, partners)
+                - Career milestones and achievements
+                - Recent news and current situation
+                - Physical appearance and style
+                - Behavioral mannerisms
+                - Transformative life moments
+                - Cultural impact and legacy
+                - Controversies and challenges
+                - Direct quotes that reveal character
+                - Interests and passions
+
+                Wikipedia context:
+                \(wikiContent.prefix(3000))
+                """,
+                onProgress: { [weak self] message in
+                    Task { @MainActor in
+                        self?.addLog(message)
+                    }
+                }
+            )
+
+            sources = researchResult.citations
+            addLog("Deep research complete with \(researchResult.citations.count) sources")
+            addLog("Research content: \(researchResult.content.count) characters")
+
+            // Step 2: Generate character using OpenAI with the research
+            addLog("Generating rich character profile using ASP-1 template...")
+
+            let prompt = buildResearchBasedPrompt(
+                characterName: characterName,
+                research: researchResult.content,
+                citations: researchResult.citations
+            )
+
             generatedContent = try await openAIService.chat(messages: [
-                ["role": "system", "content": "You are a character generation assistant that creates detailed character personas following the ASP-1 template."],
+                ["role": "system", "content": "You are an expert character designer that creates incredibly detailed, rich character personas. Your characters feel alive, with deep backstories, nuanced personalities, and authentic voices. Follow the ASP-1 template structure exactly."],
                 ["role": "user", "content": prompt]
-            ], model: "gpt-4o-mini")
+            ], model: "gpt-4o")
 
             addLog("Character generated successfully!")
             addLog("Word count: \(generatedContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)")
@@ -177,17 +238,77 @@ final class CharacterCreationViewModel {
         error = nil
         currentStep = .generating
         progressLogs = []
+        sources = []
 
         do {
-            addLog("Expanding character description...")
-            addLog("Generating character using ASP-1 template...")
+            // Check if description mentions a real person we can research
+            let isRealPerson = await checkIfRealPerson(originalDescription)
 
-            // Generate character using OpenAI
-            let prompt = buildOriginalPrompt(description: originalDescription)
-            generatedContent = try await openAIService.chat(messages: [
-                ["role": "system", "content": "You are a creative character generation assistant that creates detailed character personas following the ASP-1 template."],
-                ["role": "user", "content": prompt]
-            ], model: "gpt-4o-mini")
+            if isRealPerson, let perplexityService = perplexityService {
+                // Deep research path for real people
+                addLog("Detected real person. Starting deep research with Perplexity...")
+                addLog("This may take 1-2 minutes for comprehensive research...")
+
+                let researchResult = try await perplexityService.deepResearch(
+                    query: """
+                    Research everything about the following person for building a comprehensive AI character profile:
+
+                    \(originalDescription)
+
+                    Include:
+                    - Complete biography and background
+                    - Personality traits and psychological profile
+                    - Communication style, catchphrases, and speech patterns
+                    - Core values and beliefs
+                    - Key relationships (family, friends, rivals, partners)
+                    - Career milestones and achievements
+                    - Recent news and current situation
+                    - Physical appearance and style
+                    - Behavioral mannerisms
+                    - Transformative life moments
+                    - Cultural impact and legacy
+                    - Controversies and challenges
+                    - Direct quotes that reveal character
+                    - Interests and passions
+                    """,
+                    onProgress: { [weak self] message in
+                        Task { @MainActor in
+                            self?.addLog(message)
+                        }
+                    }
+                )
+
+                sources = researchResult.citations
+                addLog("Deep research complete with \(researchResult.citations.count) sources")
+
+                // Extract name from description or research
+                let characterName = extractNameFromDescription(originalDescription) ?? "Character"
+
+                // Generate with research
+                addLog("Generating rich character profile using ASP-1 template...")
+
+                let prompt = buildResearchBasedPrompt(
+                    characterName: characterName,
+                    research: researchResult.content,
+                    citations: researchResult.citations
+                )
+
+                generatedContent = try await openAIService.chat(messages: [
+                    ["role": "system", "content": "You are an expert character designer that creates incredibly detailed, rich character personas. Your characters feel alive, with deep backstories, nuanced personalities, and authentic voices. Follow the ASP-1 template structure exactly."],
+                    ["role": "user", "content": prompt]
+                ], model: "gpt-4o")
+
+            } else {
+                // Creative generation path for fictional characters
+                addLog("Creating original fictional character...")
+                addLog("Generating character using ASP-1 template...")
+
+                let prompt = buildOriginalPrompt(description: originalDescription)
+                generatedContent = try await openAIService.chat(messages: [
+                    ["role": "system", "content": "You are a creative character generation assistant that creates detailed character personas following the ASP-1 template. Make the character feel real with rich backstory and authentic voice."],
+                    ["role": "user", "content": prompt]
+                ], model: "gpt-4o")
+            }
 
             addLog("Character generated successfully!")
             addLog("Word count: \(generatedContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)")
@@ -198,6 +319,37 @@ final class CharacterCreationViewModel {
             self.error = "Failed to generate character: \(error.localizedDescription)"
             currentStep = .originalInput
         }
+    }
+
+    /// Check if the description refers to a real person using quick heuristics
+    private func checkIfRealPerson(_ description: String) async -> Bool {
+        // Simple heuristics: look for indicators of real people
+        let realPersonIndicators = [
+            "celebrity", "athlete", "actor", "actress", "singer", "musician",
+            "politician", "president", "ceo", "founder", "influencer",
+            "youtuber", "tiktoker", "boxer", "fighter", "player",
+            "born in", "famous for", "known for", "real person"
+        ]
+
+        let lowercased = description.lowercased()
+        return realPersonIndicators.contains { lowercased.contains($0) }
+    }
+
+    /// Extract a name from the description
+    private func extractNameFromDescription(_ description: String) -> String? {
+        // Look for patterns like "Create a character for X" or names at the start
+        let lines = description.components(separatedBy: .newlines)
+        if let firstLine = lines.first {
+            // If it starts with a capitalized name pattern
+            let words = firstLine.components(separatedBy: " ")
+            if words.count >= 2 {
+                let potentialName = words.prefix(3).joined(separator: " ")
+                if potentialName.first?.isUppercase == true {
+                    return potentialName
+                }
+            }
+        }
+        return nil
     }
 
     // MARK: - Save
@@ -313,6 +465,48 @@ final class CharacterCreationViewModel {
         \(description)
 
         Generate the complete character persona now:
+        """
+    }
+
+    private func buildResearchBasedPrompt(characterName: String, research: String, citations: [String]) -> String {
+        let sourcesSection = citations.isEmpty ? "" : """
+
+        RESEARCH SOURCES:
+        \(citations.enumerated().map { "[\($0.offset + 1)] \($0.element)" }.joined(separator: "\n"))
+        """
+
+        return """
+        You are creating a comprehensive AI character persona for \(characterName).
+
+        You have been provided with EXHAUSTIVE RESEARCH from multiple sources. Your job is to transform this research into an incredibly rich, detailed, and authentic character profile following the ASP-1 template structure.
+
+        CRITICAL REQUIREMENTS:
+        - MINIMUM 2000 words (aim for 2500+)
+        - Use EVERY relevant detail from the research
+        - Include specific dates, numbers, names, and facts
+        - Write vivid, active prose that brings the character to life
+        - Make the "Current Situation" feel immediate and urgent
+        - Include at least 5 key relationships with specific dynamics
+        - Include at least 5 transformative story moments
+        - The "Communication & Speech" section should include actual quotes and speech patterns
+        - Include physical details, mannerisms, and behavioral quirks
+        - Make the character feel like they're in the middle of action RIGHT NOW
+
+        QUALITY STANDARDS:
+        - No placeholder text - every section must be fully realized
+        - No generic descriptions - be specific and concrete
+        - No repetition - each section should add new information
+        - Write like you're creating a character bible for a major production
+        - The result should feel as rich as "Here's to the crazy ones" manifesto - every word intentional
+
+        ASP-1 TEMPLATE STRUCTURE TO FOLLOW:
+        \(asp1Template)
+
+        COMPREHENSIVE RESEARCH ON \(characterName.uppercased()):
+        \(research)
+        \(sourcesSection)
+
+        Generate the complete, production-ready character persona now. Make it extraordinary:
         """
     }
 

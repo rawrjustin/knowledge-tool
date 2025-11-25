@@ -7,6 +7,7 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
+    @State private var perplexityKey: String = ""
     @State private var gitHubPATKey: String = ""
     @State private var showingError: String?
     @FocusState private var focusedField: Field?
@@ -14,6 +15,7 @@ struct OnboardingView: View {
     enum Field {
         case assemblyAI
         case openAI
+        case perplexity
         case gitHubPAT
     }
 
@@ -54,6 +56,12 @@ struct OnboardingView: View {
                         focusedField: $focusedField
                     )
                 case 3:
+                    PerplexityKeyPage(
+                        perplexityKey: $perplexityKey,
+                        showingError: $showingError,
+                        focusedField: $focusedField
+                    )
+                case 4:
                     GitHubPATKeyPage(
                         gitHubPATKey: $gitHubPATKey,
                         showingError: $showingError,
@@ -72,7 +80,7 @@ struct OnboardingView: View {
             HStack {
                 // Page indicators
                 HStack(spacing: 8) {
-                    ForEach(0..<4, id: \.self) { index in
+                    ForEach(0..<5, id: \.self) { index in
                         Circle()
                             .fill(currentPage == index ? Color.accentColor : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
@@ -102,7 +110,7 @@ struct OnboardingView: View {
                     }
                 }
 
-                if currentPage < 3 {
+                if currentPage < 4 {
                     Button("Next") {
                         withAnimation {
                             currentPage += 1
@@ -126,23 +134,26 @@ struct OnboardingView: View {
     private var canContinue: Bool {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedGitHubPATKey.isEmpty
+        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedPerplexityKey.isEmpty && !trimmedGitHubPATKey.isEmpty
     }
 
     private var missingKeysMessage: String? {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         var missing: [String] = []
         if trimmedAssemblyAIKey.isEmpty { missing.append("AssemblyAI") }
         if trimmedOpenAIKey.isEmpty { missing.append("OpenAI") }
+        if trimmedPerplexityKey.isEmpty { missing.append("Perplexity") }
         if trimmedGitHubPATKey.isEmpty { missing.append("GitHub PAT") }
 
         if missing.isEmpty {
             return nil
-        } else if missing.count == 3 {
+        } else if missing.count == 4 {
             return "All API keys are required"
         } else {
             return "\(missing.joined(separator: ", ")) API key\(missing.count > 1 ? "s" : "") required"
@@ -157,10 +168,11 @@ struct OnboardingView: View {
 
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Validate that ALL keys are provided
-        if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty || trimmedGitHubPATKey.isEmpty {
+        if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty || trimmedPerplexityKey.isEmpty || trimmedGitHubPATKey.isEmpty {
             showingError = missingKeysMessage
             return
         }
@@ -169,6 +181,7 @@ struct OnboardingView: View {
             // Save API keys
             try apiKeyManager.setAPIKey(trimmedAssemblyAIKey, for: .assemblyAI)
             try apiKeyManager.setAPIKey(trimmedOpenAIKey, for: .openAI)
+            try apiKeyManager.setAPIKey(trimmedPerplexityKey, for: .perplexity)
             try apiKeyManager.setAPIKey(trimmedGitHubPATKey, for: .gitHubPAT)
 
             // Mark onboarding as complete
@@ -369,6 +382,86 @@ struct OpenAIKeyPage: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.body)
                         .focused(focusedField, equals: .openAI)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+
+                        Text("Your API key is securely stored in the macOS Keychain")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(20)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(12)
+                .frame(maxWidth: 500)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Perplexity Key Page
+struct PerplexityKeyPage: View {
+    @Binding var perplexityKey: String
+    @Binding var showingError: String?
+    var focusedField: FocusState<OnboardingView.Field?>.Binding
+
+    private var isKeyEntered: Bool {
+        !perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 24) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "magnifyingglass.circle.fill")
+                        .font(.system(size: 72))
+                        .foregroundStyle(.blue)
+
+                    if isKeyEntered {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.green)
+                            .offset(x: 10, y: -10)
+                    }
+                }
+
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Text("Perplexity API Key")
+                            .font(.largeTitle.bold())
+
+                        Text("Required")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(isKeyEntered ? Color.green : Color.red)
+                            .cornerRadius(4)
+                    }
+
+                    Text("Powers deep research for rich character creation using sonar-deep-research")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Enter your Perplexity API key")
+                        .font(.headline)
+
+                    SecureField("API Key", text: $perplexityKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body)
+                        .focused(focusedField, equals: .perplexity)
 
                     HStack(spacing: 8) {
                         Image(systemName: "lock.shield.fill")

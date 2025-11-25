@@ -20,12 +20,14 @@ final class APIKeyManager {
     enum APIService: String, CaseIterable {
         case assemblyAI = "AssemblyAI"
         case openAI = "OpenAI"
+        case perplexity = "Perplexity"
         case gitHubPAT = "GitHub PAT"
 
         var keychainKey: String {
             switch self {
             case .assemblyAI: return "assemblyai_api_key"
             case .openAI: return "openai_api_key"
+            case .perplexity: return "perplexity_api_key"
             case .gitHubPAT: return "github_pat"
             }
         }
