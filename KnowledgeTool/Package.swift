@@ -17,7 +17,7 @@ let package = Package(
             name: "KnowledgeTool",
             path: "KnowledgeTool",
             resources: [
-                .process("Resources")
+                .copy("Resources/KnowledgeTool.entitlements")
             ],
             swiftSettings: [
                 .enableUpcomingFeature("BareSlashRegexLiterals"),

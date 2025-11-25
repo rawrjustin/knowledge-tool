@@ -1,0 +1,605 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		81A843A22ED5A15D00DF8A99 /* LocalCharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */; };
+		81A843A32ED5A15D00DF8A99 /* GitHubAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */; };
+		81A843A52ED5A15D00DF8A99 /* GitHubAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */; };
+		81A843A72ED5A15D00DF8A99 /* GitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439E2ED5A15D00DF8A99 /* GitService.swift */; };
+		81A843A92ED5A15D00DF8A99 /* CharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */; };
+		A100 /* KnowledgeToolApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100 /* KnowledgeToolApp.swift */; };
+		A101 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B101 /* ContentView.swift */; };
+		A102 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B102 /* Models.swift */; };
+		A103 /* APIKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B103 /* APIKeyManager.swift */; };
+		A104 /* VideoViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B104 /* VideoViewModel.swift */; };
+		A105 /* ArticleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B105 /* ArticleViewModel.swift */; };
+		A106 /* TextSnippetViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B106 /* TextSnippetViewModel.swift */; };
+		A107 /* VideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B107 /* VideoView.swift */; };
+		A108 /* ArticleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B108 /* ArticleView.swift */; };
+		A109 /* TextSnippetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B109 /* TextSnippetView.swift */; };
+		A110 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B110 /* SettingsView.swift */; };
+		A111 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B111 /* SharedViews.swift */; };
+		A112 /* VideoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B112 /* VideoService.swift */; };
+		A113 /* ArticleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B113 /* ArticleService.swift */; };
+		A114 /* AssemblyAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B114 /* AssemblyAIService.swift */; };
+		A115 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B115 /* OpenAIService.swift */; };
+		A116 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C100 /* Assets.xcassets */; };
+		A117 /* Character.swift in Sources */ = {isa = PBXBuildFile; fileRef = B117 /* Character.swift */; };
+		A118 /* GitHubModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B118 /* GitHubModels.swift */; };
+		A119 /* PromptTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B119 /* PromptTest.swift */; };
+		A120 /* DiffHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120 /* DiffHighlighter.swift */; };
+		A121 /* CharacterChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B121 /* CharacterChatViewModel.swift */; };
+		A122 /* CharacterCreationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B122 /* CharacterCreationViewModel.swift */; };
+		A123 /* CharacterEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B123 /* CharacterEditorViewModel.swift */; };
+		A124 /* KnowledgeBaseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B124 /* KnowledgeBaseViewModel.swift */; };
+		A125 /* PromptTestingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B125 /* PromptTestingViewModel.swift */; };
+		A126 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B126 /* OnboardingView.swift */; };
+		A127 /* CharacterChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B127 /* CharacterChatView.swift */; };
+		A128 /* CharacterCreationWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B128 /* CharacterCreationWizard.swift */; };
+		A129 /* CharacterEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B129 /* CharacterEditorView.swift */; };
+		A130 /* CharacterOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B130 /* CharacterOverviewView.swift */; };
+		A131 /* CharacterSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B131 /* CharacterSelectorView.swift */; };
+		A132 /* KnowledgeBaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B132 /* KnowledgeBaseView.swift */; };
+		A133 /* ChatVariantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B133 /* ChatVariantView.swift */; };
+		A134 /* PromptTestingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B134 /* PromptTestingView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterRepository.swift; sourceTree = "<group>"; };
+		81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAPIService.swift; sourceTree = "<group>"; };
+		81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAuthService.swift; sourceTree = "<group>"; };
+		81A8439E2ED5A15D00DF8A99 /* GitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitService.swift; sourceTree = "<group>"; };
+		81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCharacterRepository.swift; sourceTree = "<group>"; };
+		B100 /* KnowledgeToolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeToolApp.swift; sourceTree = "<group>"; };
+		B101 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		B102 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B103 /* APIKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeyManager.swift; sourceTree = "<group>"; };
+		B104 /* VideoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoViewModel.swift; sourceTree = "<group>"; };
+		B105 /* ArticleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleViewModel.swift; sourceTree = "<group>"; };
+		B106 /* TextSnippetViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSnippetViewModel.swift; sourceTree = "<group>"; };
+		B107 /* VideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoView.swift; sourceTree = "<group>"; };
+		B108 /* ArticleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleView.swift; sourceTree = "<group>"; };
+		B109 /* TextSnippetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSnippetView.swift; sourceTree = "<group>"; };
+		B110 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B111 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
+		B112 /* VideoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoService.swift; sourceTree = "<group>"; };
+		B113 /* ArticleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleService.swift; sourceTree = "<group>"; };
+		B114 /* AssemblyAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssemblyAIService.swift; sourceTree = "<group>"; };
+		B115 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
+		B117 /* Character.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Character.swift; sourceTree = "<group>"; };
+		B118 /* GitHubModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubModels.swift; sourceTree = "<group>"; };
+		B119 /* PromptTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTest.swift; sourceTree = "<group>"; };
+		B120 /* DiffHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffHighlighter.swift; sourceTree = "<group>"; };
+		B121 /* CharacterChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterChatViewModel.swift; sourceTree = "<group>"; };
+		B122 /* CharacterCreationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterCreationViewModel.swift; sourceTree = "<group>"; };
+		B123 /* CharacterEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterEditorViewModel.swift; sourceTree = "<group>"; };
+		B124 /* KnowledgeBaseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeBaseViewModel.swift; sourceTree = "<group>"; };
+		B125 /* PromptTestingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTestingViewModel.swift; sourceTree = "<group>"; };
+		B126 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		B127 /* CharacterChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterChatView.swift; sourceTree = "<group>"; };
+		B128 /* CharacterCreationWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterCreationWizard.swift; sourceTree = "<group>"; };
+		B129 /* CharacterEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterEditorView.swift; sourceTree = "<group>"; };
+		B130 /* CharacterOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterOverviewView.swift; sourceTree = "<group>"; };
+		B131 /* CharacterSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterSelectorView.swift; sourceTree = "<group>"; };
+		B132 /* KnowledgeBaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeBaseView.swift; sourceTree = "<group>"; };
+		B133 /* ChatVariantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatVariantView.swift; sourceTree = "<group>"; };
+		B134 /* PromptTestingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTestingView.swift; sourceTree = "<group>"; };
+		C100 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C101 /* KnowledgeTool.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KnowledgeTool.entitlements; sourceTree = "<group>"; };
+		D100 /* KnowledgeTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KnowledgeTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E100 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F100 = {
+			isa = PBXGroup;
+			children = (
+				F101 /* KnowledgeTool */,
+				F102 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F101 /* KnowledgeTool */ = {
+			isa = PBXGroup;
+			children = (
+				F103 /* App */,
+				F104 /* Views */,
+				F105 /* ViewModels */,
+				F106 /* Models */,
+				F107 /* Services */,
+				F108 /* Utilities */,
+				F109 /* Resources */,
+			);
+			name = KnowledgeTool;
+			sourceTree = "<group>";
+		};
+		F102 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D100 /* KnowledgeTool.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F103 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B100 /* KnowledgeToolApp.swift */,
+			);
+			name = App;
+			path = KnowledgeTool/App;
+			sourceTree = SOURCE_ROOT;
+		};
+		F104 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B101 /* ContentView.swift */,
+				B111 /* SharedViews.swift */,
+				B126 /* OnboardingView.swift */,
+				F110 /* Video */,
+				F111 /* Article */,
+				F112 /* TextSnippet */,
+				F113 /* Settings */,
+				F114 /* Characters */,
+				F115 /* PromptTesting */,
+				F116 /* KnowledgeBase */,
+			);
+			name = Views;
+			path = KnowledgeTool/Views;
+			sourceTree = SOURCE_ROOT;
+		};
+		F105 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				B104 /* VideoViewModel.swift */,
+				B105 /* ArticleViewModel.swift */,
+				B106 /* TextSnippetViewModel.swift */,
+				B121 /* CharacterChatViewModel.swift */,
+				B122 /* CharacterCreationViewModel.swift */,
+				B123 /* CharacterEditorViewModel.swift */,
+				B124 /* KnowledgeBaseViewModel.swift */,
+				B125 /* PromptTestingViewModel.swift */,
+			);
+			name = ViewModels;
+			path = KnowledgeTool/ViewModels;
+			sourceTree = SOURCE_ROOT;
+		};
+		F106 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B102 /* Models.swift */,
+				B117 /* Character.swift */,
+				B118 /* GitHubModels.swift */,
+				B119 /* PromptTest.swift */,
+			);
+			name = Models;
+			path = KnowledgeTool/Models;
+			sourceTree = SOURCE_ROOT;
+		};
+		F107 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				B112 /* VideoService.swift */,
+				B113 /* ArticleService.swift */,
+				B114 /* AssemblyAIService.swift */,
+				B115 /* OpenAIService.swift */,
+				81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */,
+				81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */,
+				81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */,
+				81A8439E2ED5A15D00DF8A99 /* GitService.swift */,
+				81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */,
+			);
+			name = Services;
+			path = KnowledgeTool/Services;
+			sourceTree = SOURCE_ROOT;
+		};
+		F108 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				B103 /* APIKeyManager.swift */,
+				B120 /* DiffHighlighter.swift */,
+			);
+			name = Utilities;
+			path = KnowledgeTool/Utilities;
+			sourceTree = SOURCE_ROOT;
+		};
+		F109 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C100 /* Assets.xcassets */,
+				C101 /* KnowledgeTool.entitlements */,
+			);
+			name = Resources;
+			path = KnowledgeTool/Resources;
+			sourceTree = SOURCE_ROOT;
+		};
+		F110 /* Video */ = {
+			isa = PBXGroup;
+			children = (
+				B107 /* VideoView.swift */,
+			);
+			path = Video;
+			sourceTree = "<group>";
+		};
+		F111 /* Article */ = {
+			isa = PBXGroup;
+			children = (
+				B108 /* ArticleView.swift */,
+			);
+			path = Article;
+			sourceTree = "<group>";
+		};
+		F112 /* TextSnippet */ = {
+			isa = PBXGroup;
+			children = (
+				B109 /* TextSnippetView.swift */,
+			);
+			path = TextSnippet;
+			sourceTree = "<group>";
+		};
+		F113 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B110 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		F114 /* Characters */ = {
+			isa = PBXGroup;
+			children = (
+				B127 /* CharacterChatView.swift */,
+				B128 /* CharacterCreationWizard.swift */,
+				B129 /* CharacterEditorView.swift */,
+				B130 /* CharacterOverviewView.swift */,
+				B131 /* CharacterSelectorView.swift */,
+			);
+			path = Characters;
+			sourceTree = "<group>";
+		};
+		F115 /* PromptTesting */ = {
+			isa = PBXGroup;
+			children = (
+				B133 /* ChatVariantView.swift */,
+				B134 /* PromptTestingView.swift */,
+			);
+			path = PromptTesting;
+			sourceTree = "<group>";
+		};
+		F116 /* KnowledgeBase */ = {
+			isa = PBXGroup;
+			children = (
+				B132 /* KnowledgeBaseView.swift */,
+			);
+			path = KnowledgeBase;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		G100 /* KnowledgeTool */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = H100 /* Build configuration list for PBXNativeTarget "KnowledgeTool" */;
+			buildPhases = (
+				I100 /* Sources */,
+				E100 /* Frameworks */,
+				J100 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KnowledgeTool;
+			productName = KnowledgeTool;
+			productReference = D100 /* KnowledgeTool.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		K100 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					G100 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = L100 /* Build configuration list for PBXProject "KnowledgeTool" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = F100;
+			productRefGroup = F102 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				G100 /* KnowledgeTool */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		J100 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A116 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		I100 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100 /* KnowledgeToolApp.swift in Sources */,
+				A101 /* ContentView.swift in Sources */,
+				A102 /* Models.swift in Sources */,
+				A103 /* APIKeyManager.swift in Sources */,
+				A104 /* VideoViewModel.swift in Sources */,
+				A105 /* ArticleViewModel.swift in Sources */,
+				A106 /* TextSnippetViewModel.swift in Sources */,
+				A107 /* VideoView.swift in Sources */,
+				81A843A22ED5A15D00DF8A99 /* LocalCharacterRepository.swift in Sources */,
+				81A843A32ED5A15D00DF8A99 /* GitHubAPIService.swift in Sources */,
+				81A843A52ED5A15D00DF8A99 /* GitHubAuthService.swift in Sources */,
+				81A843A72ED5A15D00DF8A99 /* GitService.swift in Sources */,
+				81A843A92ED5A15D00DF8A99 /* CharacterRepository.swift in Sources */,
+				A108 /* ArticleView.swift in Sources */,
+				A109 /* TextSnippetView.swift in Sources */,
+				A110 /* SettingsView.swift in Sources */,
+				A111 /* SharedViews.swift in Sources */,
+				A112 /* VideoService.swift in Sources */,
+				A113 /* ArticleService.swift in Sources */,
+				A114 /* AssemblyAIService.swift in Sources */,
+				A115 /* OpenAIService.swift in Sources */,
+				A117 /* Character.swift in Sources */,
+				A118 /* GitHubModels.swift in Sources */,
+				A119 /* PromptTest.swift in Sources */,
+				A120 /* DiffHighlighter.swift in Sources */,
+				A121 /* CharacterChatViewModel.swift in Sources */,
+				A122 /* CharacterCreationViewModel.swift in Sources */,
+				A123 /* CharacterEditorViewModel.swift in Sources */,
+				A124 /* KnowledgeBaseViewModel.swift in Sources */,
+				A125 /* PromptTestingViewModel.swift in Sources */,
+				A126 /* OnboardingView.swift in Sources */,
+				A127 /* CharacterChatView.swift in Sources */,
+				A128 /* CharacterCreationWizard.swift in Sources */,
+				A129 /* CharacterEditorView.swift in Sources */,
+				A130 /* CharacterOverviewView.swift in Sources */,
+				A131 /* CharacterSelectorView.swift in Sources */,
+				A132 /* KnowledgeBaseView.swift in Sources */,
+				A133 /* ChatVariantView.swift in Sources */,
+				A134 /* PromptTestingView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		M100 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		M101 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		N100 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = KnowledgeTool/Resources/KnowledgeTool.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.knowledgetool.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		N101 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = KnowledgeTool/Resources/KnowledgeTool.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.knowledgetool.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		H100 /* Build configuration list for PBXNativeTarget "KnowledgeTool" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				N100 /* Debug */,
+				N101 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		L100 /* Build configuration list for PBXProject "KnowledgeTool" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				M100 /* Debug */,
+				M101 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = K100 /* Project object */;
+}
