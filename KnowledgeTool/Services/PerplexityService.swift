@@ -8,17 +8,12 @@ actor PerplexityService {
         self.apiKey = apiKey
     }
 
-    // MARK: - Deep Research for Character Creation
+    // MARK: - Deep Research for Character Creation (Async API)
 
     /// Performs deep research on a person/character using sonar-deep-research model
+    /// Uses async API endpoints with polling as required by the sonar-deep-research model
     /// Returns comprehensive research with citations for building rich character profiles
     func deepResearch(query: String, onProgress: ((String) -> Void)? = nil) async throws -> PerplexityResearchResult {
-        let endpoint = "\(baseURL)/chat/completions"
-
-        guard let url = URL(string: endpoint) else {
-            throw PerplexityError.invalidURL
-        }
-
         let systemPrompt = """
         You are an expert researcher helping build comprehensive AI character profiles. Your research should be:
 
@@ -47,13 +42,36 @@ actor PerplexityService {
         - Interests, hobbies, and passions
         """
 
-        struct ChatRequest: Codable {
+        // Step 1: Create async research job
+        onProgress?("Creating deep research job with Perplexity sonar-deep-research...")
+
+        let requestId = try await createAsyncRequest(
+            systemPrompt: systemPrompt,
+            userQuery: query
+        )
+
+        onProgress?("Research job created (ID: \(requestId.prefix(8))...). Polling for results...")
+
+        // Step 2: Poll for completion
+        let result = try await pollForCompletion(requestId: requestId, onProgress: onProgress)
+
+        onProgress?("Research complete. Processing \(result.citations.count) citations...")
+
+        return result
+    }
+
+    /// Creates an async chat completion job for sonar-deep-research
+    private func createAsyncRequest(systemPrompt: String, userQuery: String) async throws -> String {
+        let endpoint = "\(baseURL)/async/chat/completions"
+
+        guard let url = URL(string: endpoint) else {
+            throw PerplexityError.invalidURL
+        }
+
+        struct AsyncRequest: Codable {
             let model: String
             let messages: [Message]
-            let temperature: Double
-            let max_tokens: Int
-            let return_citations: Bool
-            let search_recency_filter: String
+            let reasoning_effort: String
 
             struct Message: Codable {
                 let role: String
@@ -61,16 +79,13 @@ actor PerplexityService {
             }
         }
 
-        let requestBody = ChatRequest(
+        let requestBody = AsyncRequest(
             model: "sonar-deep-research",
             messages: [
-                ChatRequest.Message(role: "system", content: systemPrompt),
-                ChatRequest.Message(role: "user", content: query)
+                AsyncRequest.Message(role: "system", content: systemPrompt),
+                AsyncRequest.Message(role: "user", content: userQuery)
             ],
-            temperature: 0.2,
-            max_tokens: 8000,
-            return_citations: true,
-            search_recency_filter: "month"
+            reasoning_effort: "high"
         )
 
         let requestData = try JSONEncoder().encode(requestBody)
@@ -80,9 +95,6 @@ actor PerplexityService {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = requestData
-        request.timeoutInterval = 300 // 5 minute timeout for deep research
-
-        onProgress?("Starting deep research with Perplexity sonar-deep-research...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -90,27 +102,90 @@ actor PerplexityService {
             throw PerplexityError.networkError
         }
 
-        guard httpResponse.statusCode == 200 else {
+        guard httpResponse.statusCode == 200 || httpResponse.statusCode == 201 || httpResponse.statusCode == 202 else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw PerplexityError.apiError("Perplexity request failed (\(httpResponse.statusCode)): \(errorMessage)")
+            throw PerplexityError.apiError("Failed to create async request (\(httpResponse.statusCode)): \(errorMessage)")
         }
 
-        let perplexityResponse = try JSONDecoder().decode(PerplexityResponse.self, from: data)
-
-        guard let content = perplexityResponse.choices.first?.message.content else {
-            throw PerplexityError.noContent
+        struct AsyncCreateResponse: Codable {
+            let id: String
+            let status: String?
         }
 
-        onProgress?("Research complete. Processing \(perplexityResponse.citations?.count ?? 0) citations...")
-
-        return PerplexityResearchResult(
-            content: content,
-            citations: perplexityResponse.citations ?? [],
-            model: perplexityResponse.model
-        )
+        let createResponse = try JSONDecoder().decode(AsyncCreateResponse.self, from: data)
+        return createResponse.id
     }
 
+    /// Polls for async request completion with exponential backoff
+    private func pollForCompletion(requestId: String, onProgress: ((String) -> Void)? = nil) async throws -> PerplexityResearchResult {
+        let endpoint = "\(baseURL)/async/chat/completions/\(requestId)"
+
+        guard let url = URL(string: endpoint) else {
+            throw PerplexityError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+
+        // Poll with exponential backoff: start at 5 seconds, max 30 seconds
+        var pollInterval: UInt64 = 5_000_000_000 // 5 seconds in nanoseconds
+        let maxPollInterval: UInt64 = 30_000_000_000 // 30 seconds
+        let maxAttempts = 60 // Max ~10 minutes of polling
+        var attempts = 0
+
+        while attempts < maxAttempts {
+            attempts += 1
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw PerplexityError.networkError
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                throw PerplexityError.apiError("Failed to get async result (\(httpResponse.statusCode)): \(errorMessage)")
+            }
+
+            let pollResponse = try JSONDecoder().decode(AsyncPollResponse.self, from: data)
+
+            switch pollResponse.status {
+            case "completed":
+                // Extract content and citations from the completed response
+                guard let content = pollResponse.choices?.first?.message.content else {
+                    throw PerplexityError.noContent
+                }
+
+                return PerplexityResearchResult(
+                    content: content,
+                    citations: pollResponse.citations ?? [],
+                    model: pollResponse.model ?? "sonar-deep-research"
+                )
+
+            case "failed":
+                throw PerplexityError.apiError("Research job failed: \(pollResponse.error ?? "Unknown error")")
+
+            case "pending", "in_progress", "processing":
+                onProgress?("Research in progress... (attempt \(attempts), status: \(pollResponse.status))")
+                try await Task.sleep(nanoseconds: pollInterval)
+
+                // Exponential backoff with cap
+                pollInterval = min(pollInterval * 3 / 2, maxPollInterval)
+
+            default:
+                onProgress?("Unknown status: \(pollResponse.status), continuing to poll...")
+                try await Task.sleep(nanoseconds: pollInterval)
+            }
+        }
+
+        throw PerplexityError.timeout
+    }
+
+    // MARK: - Quick Research (Sync API)
+
     /// Performs quick research using sonar model for faster responses
+    /// Uses standard synchronous chat completions endpoint
     func quickResearch(query: String) async throws -> String {
         let endpoint = "\(baseURL)/chat/completions"
 
@@ -183,6 +258,25 @@ struct PerplexityResponse: Codable {
     }
 }
 
+struct AsyncPollResponse: Codable {
+    let id: String
+    let status: String
+    let model: String?
+    let choices: [Choice]?
+    let citations: [String]?
+    let error: String?
+
+    struct Choice: Codable {
+        let message: Message
+        let finish_reason: String?
+
+        struct Message: Codable {
+            let role: String
+            let content: String
+        }
+    }
+}
+
 struct PerplexityResearchResult {
     let content: String
     let citations: [String]
@@ -204,6 +298,7 @@ enum PerplexityError: LocalizedError {
     case networkError
     case apiError(String)
     case noContent
+    case timeout
 
     var errorDescription: String? {
         switch self {
@@ -215,6 +310,8 @@ enum PerplexityError: LocalizedError {
             return message
         case .noContent:
             return "No content received from Perplexity"
+        case .timeout:
+            return "Research request timed out after 10 minutes"
         }
     }
 }
