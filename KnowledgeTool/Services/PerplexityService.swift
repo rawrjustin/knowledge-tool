@@ -128,10 +128,11 @@ actor PerplexityService {
         request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 
-        // Poll with exponential backoff: start at 5 seconds, max 30 seconds
+        // Poll with exponential backoff: start at 5 seconds, max 60 seconds
+        // sonar-deep-research can take 2-4 minutes typically, up to 30+ minutes for complex research
         var pollInterval: UInt64 = 5_000_000_000 // 5 seconds in nanoseconds
-        let maxPollInterval: UInt64 = 30_000_000_000 // 30 seconds
-        let maxAttempts = 60 // Max ~10 minutes of polling
+        let maxPollInterval: UInt64 = 60_000_000_000 // 60 seconds max between polls
+        let maxAttempts = 120 // Max ~30 minutes of polling
         var attempts = 0
 
         while attempts < maxAttempts {
@@ -311,7 +312,7 @@ enum PerplexityError: LocalizedError {
         case .noContent:
             return "No content received from Perplexity"
         case .timeout:
-            return "Research request timed out after 10 minutes"
+            return "Research request timed out after 30 minutes"
         }
     }
 }

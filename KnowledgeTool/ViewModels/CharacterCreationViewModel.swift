@@ -158,7 +158,7 @@ final class CharacterCreationViewModel {
 
             // Step 1: Deep research with Perplexity
             addLog("Starting deep research on \(characterName) with Perplexity...")
-            addLog("This may take 1-2 minutes for comprehensive research...")
+            addLog("This typically takes 2-5 minutes, but may take longer for complex research...")
 
             let researchResult = try await perplexityService.deepResearch(
                 query: """
@@ -247,7 +247,7 @@ final class CharacterCreationViewModel {
             if isRealPerson, let perplexityService = perplexityService {
                 // Deep research path for real people
                 addLog("Detected real person. Starting deep research with Perplexity...")
-                addLog("This may take 1-2 minutes for comprehensive research...")
+                addLog("This typically takes 2-5 minutes, but may take longer for complex research...")
 
                 let researchResult = try await perplexityService.deepResearch(
                     query: """
