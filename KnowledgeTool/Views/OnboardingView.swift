@@ -7,12 +7,14 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
+    @State private var gitHubPATKey: String = ""
     @State private var showingError: String?
     @FocusState private var focusedField: Field?
 
     enum Field {
         case assemblyAI
         case openAI
+        case gitHubPAT
     }
 
     var body: some View {
@@ -51,6 +53,12 @@ struct OnboardingView: View {
                         showingError: $showingError,
                         focusedField: $focusedField
                     )
+                case 3:
+                    GitHubPATKeyPage(
+                        gitHubPATKey: $gitHubPATKey,
+                        showingError: $showingError,
+                        focusedField: $focusedField
+                    )
                 default:
                     WelcomePage()
                 }
@@ -64,7 +72,7 @@ struct OnboardingView: View {
             HStack {
                 // Page indicators
                 HStack(spacing: 8) {
-                    ForEach(0..<3, id: \.self) { index in
+                    ForEach(0..<4, id: \.self) { index in
                         Circle()
                             .fill(currentPage == index ? Color.accentColor : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
@@ -94,7 +102,7 @@ struct OnboardingView: View {
                     }
                 }
 
-                if currentPage < 2 {
+                if currentPage < 3 {
                     Button("Next") {
                         withAnimation {
                             currentPage += 1
@@ -118,21 +126,27 @@ struct OnboardingView: View {
     private var canContinue: Bool {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty
+        let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedGitHubPATKey.isEmpty
     }
 
     private var missingKeysMessage: String? {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if trimmedAssemblyAIKey.isEmpty && trimmedOpenAIKey.isEmpty {
-            return "Both API keys are required"
-        } else if trimmedAssemblyAIKey.isEmpty {
-            return "AssemblyAI API key is required"
-        } else if trimmedOpenAIKey.isEmpty {
-            return "OpenAI API key is required"
+        var missing: [String] = []
+        if trimmedAssemblyAIKey.isEmpty { missing.append("AssemblyAI") }
+        if trimmedOpenAIKey.isEmpty { missing.append("OpenAI") }
+        if trimmedGitHubPATKey.isEmpty { missing.append("GitHub PAT") }
+
+        if missing.isEmpty {
+            return nil
+        } else if missing.count == 3 {
+            return "All API keys are required"
+        } else {
+            return "\(missing.joined(separator: ", ")) API key\(missing.count > 1 ? "s" : "") required"
         }
-        return nil
     }
 
     private func completeOnboarding() {
@@ -143,9 +157,10 @@ struct OnboardingView: View {
 
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Validate that BOTH keys are provided
-        if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty {
+        // Validate that ALL keys are provided
+        if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty || trimmedGitHubPATKey.isEmpty {
             showingError = missingKeysMessage
             return
         }
@@ -154,6 +169,7 @@ struct OnboardingView: View {
             // Save API keys
             try apiKeyManager.setAPIKey(trimmedAssemblyAIKey, for: .assemblyAI)
             try apiKeyManager.setAPIKey(trimmedOpenAIKey, for: .openAI)
+            try apiKeyManager.setAPIKey(trimmedGitHubPATKey, for: .gitHubPAT)
 
             // Mark onboarding as complete
             UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
@@ -182,28 +198,28 @@ struct WelcomePage: View {
                     Text("Welcome to KnowledgeTool")
                         .font(.largeTitle.bold())
 
-                    Text("Transform interviews into structured knowledge")
+                    Text("Build and manage AI character prompts")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(alignment: .leading, spacing: 16) {
                     FeatureRow(
+                        icon: "person.text.rectangle",
+                        title: "Character Management",
+                        description: "Create, edit, and organize AI character prompts with GitHub sync"
+                    )
+
+                    FeatureRow(
                         icon: "waveform.circle.fill",
-                        title: "Transcribe Videos",
-                        description: "Extract audio and transcribe with speaker identification"
+                        title: "Content Processing",
+                        description: "Transcribe videos, articles, and text to build knowledge bases"
                     )
 
                     FeatureRow(
-                        icon: "doc.text.fill",
-                        title: "Generate Knowledge Bases",
-                        description: "Create structured summaries optimized for AI retrieval"
-                    )
-
-                    FeatureRow(
-                        icon: "quote.bubble.fill",
-                        title: "Extract Dialogue",
-                        description: "Capture characteristic speech patterns and examples"
+                        icon: "bubble.left.and.bubble.right.fill",
+                        title: "Prompt Testing",
+                        description: "Chat with characters and compare prompt variations side-by-side"
                     )
                 }
                 .padding()
@@ -360,6 +376,86 @@ struct OpenAIKeyPage: View {
                             .font(.caption)
 
                         Text("Your API key is securely stored in the macOS Keychain")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(20)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(12)
+                .frame(maxWidth: 500)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - GitHub PAT Key Page
+struct GitHubPATKeyPage: View {
+    @Binding var gitHubPATKey: String
+    @Binding var showingError: String?
+    var focusedField: FocusState<OnboardingView.Field?>.Binding
+
+    private var isKeyEntered: Bool {
+        !gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 24) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "person.badge.key")
+                        .font(.system(size: 72))
+                        .foregroundStyle(.blue)
+
+                    if isKeyEntered {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.green)
+                            .offset(x: 10, y: -10)
+                    }
+                }
+
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Text("GitHub Personal Access Token")
+                            .font(.largeTitle.bold())
+
+                        Text("Required")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(isKeyEntered ? Color.green : Color.red)
+                            .cornerRadius(4)
+                    }
+
+                    Text("Required for accessing and syncing character prompts from the repository")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Enter your GitHub Personal Access Token")
+                        .font(.headline)
+
+                    SecureField("Personal Access Token", text: $gitHubPATKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body)
+                        .focused(focusedField, equals: .gitHubPAT)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+
+                        Text("Your token is securely stored in the macOS Keychain")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

@@ -11,8 +11,12 @@ struct GitHubConfig {
     static let appID = "2332856"
 
     // Read-only PAT for unauthenticated users (Option A - Fallback)
-    // Set via environment variable GITHUB_PAT or replace with your own token
-    static let readOnlyPAT = ProcessInfo.processInfo.environment["GITHUB_PAT"] ?? ""
+    // Loaded from Keychain via APIKeyManager, falls back to environment variable
+    static var readOnlyPAT: String {
+        // Try keychain first, then environment variable
+        let keyManager = APIKeyManager()
+        return keyManager.getAPIKey(for: .gitHubPAT) ?? ProcessInfo.processInfo.environment["GITHUB_PAT"] ?? ""
+    }
 
     // Repository info
     static let owner = "geniesinc"
