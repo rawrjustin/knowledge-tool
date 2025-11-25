@@ -85,7 +85,7 @@ actor PerplexityService {
                 AsyncRequest.Message(role: "system", content: systemPrompt),
                 AsyncRequest.Message(role: "user", content: userQuery)
             ],
-            reasoning_effort: "high"
+            reasoning_effort: "medium"
         )
 
         let requestData = try JSONEncoder().encode(requestBody)
