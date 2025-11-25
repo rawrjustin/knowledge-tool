@@ -232,6 +232,35 @@ struct WikipediaPreviewView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                // High effort research toggle
+                VStack(spacing: 4) {
+                    Toggle(isOn: $viewModel.useHighEffort) {
+                        HStack(spacing: 4) {
+                            Text("Deep Research Mode")
+                                .font(.subheadline)
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+
+                    if viewModel.useHighEffort {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                            Text("May take 5-30+ minutes for exhaustive research")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    } else {
+                        Text("Standard research typically takes 2-5 minutes")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
+
                 if let error = viewModel.error {
                     Text(error)
                         .font(.caption)
@@ -285,6 +314,35 @@ struct OriginalInputView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: 500)
+
+                // High effort research toggle (shown for real person detection)
+                VStack(spacing: 4) {
+                    Toggle(isOn: $viewModel.useHighEffort) {
+                        HStack(spacing: 4) {
+                            Text("Deep Research Mode")
+                                .font(.subheadline)
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+
+                    if viewModel.useHighEffort {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                            Text("May take 5-30+ minutes for exhaustive research")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    } else {
+                        Text("For real people, enables deeper research (2-5 min standard)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
 
                 if let error = viewModel.error {
                     Text(error)

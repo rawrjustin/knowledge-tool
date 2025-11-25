@@ -24,6 +24,7 @@ final class CharacterCreationViewModel {
     // Input state
     var wikipediaURL: String = ""
     var originalDescription: String = ""
+    var useHighEffort: Bool = false
 
     // Preview state
     private(set) var previewCharacterName: String?
@@ -157,8 +158,9 @@ final class CharacterCreationViewModel {
             let characterName = previewCharacterName ?? extractWikipediaTitle(from: wikipediaURL)?.replacingOccurrences(of: "_", with: " ") ?? "Unknown"
 
             // Step 1: Deep research with Perplexity
+            let effort: ReasoningEffort = useHighEffort ? .high : .medium
             addLog("Starting deep research on \(characterName) with Perplexity...")
-            addLog("This typically takes 2-5 minutes, but may take longer for complex research...")
+            addLog("Reasoning effort: \(effort.displayName)")
 
             let researchResult = try await perplexityService.deepResearch(
                 query: """
@@ -183,6 +185,7 @@ final class CharacterCreationViewModel {
                 Wikipedia context:
                 \(wikiContent.prefix(3000))
                 """,
+                effort: effort,
                 onProgress: { [weak self] message in
                     Task { @MainActor in
                         self?.addLog(message)
@@ -246,8 +249,9 @@ final class CharacterCreationViewModel {
 
             if isRealPerson, let perplexityService = perplexityService {
                 // Deep research path for real people
+                let effort: ReasoningEffort = useHighEffort ? .high : .medium
                 addLog("Detected real person. Starting deep research with Perplexity...")
-                addLog("This typically takes 2-5 minutes, but may take longer for complex research...")
+                addLog("Reasoning effort: \(effort.displayName)")
 
                 let researchResult = try await perplexityService.deepResearch(
                     query: """
@@ -271,6 +275,7 @@ final class CharacterCreationViewModel {
                     - Direct quotes that reveal character
                     - Interests and passions
                     """,
+                    effort: effort,
                     onProgress: { [weak self] message in
                         Task { @MainActor in
                             self?.addLog(message)

@@ -1,5 +1,37 @@
 import Foundation
 
+// MARK: - Reasoning Effort Level
+
+enum ReasoningEffort: String, CaseIterable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+
+    var displayName: String {
+        switch self {
+        case .low: return "Low (1-2 min)"
+        case .medium: return "Medium (2-5 min)"
+        case .high: return "High (5-30+ min)"
+        }
+    }
+
+    var timeoutMinutes: Int {
+        switch self {
+        case .low: return 10
+        case .medium: return 30
+        case .high: return 60
+        }
+    }
+
+    var maxPollingAttempts: Int {
+        switch self {
+        case .low: return 40      // ~10 min
+        case .medium: return 120  // ~30 min
+        case .high: return 240    // ~60 min
+        }
+    }
+}
+
 actor PerplexityService {
     private let apiKey: String
     private let baseURL = "https://api.perplexity.ai"
@@ -13,7 +45,7 @@ actor PerplexityService {
     /// Performs deep research on a person/character using sonar-deep-research model
     /// Uses async API endpoints with polling as required by the sonar-deep-research model
     /// Returns comprehensive research with citations for building rich character profiles
-    func deepResearch(query: String, onProgress: ((String) -> Void)? = nil) async throws -> PerplexityResearchResult {
+    func deepResearch(query: String, effort: ReasoningEffort = .medium, onProgress: ((String) -> Void)? = nil) async throws -> PerplexityResearchResult {
         let systemPrompt = """
         You are an expert researcher helping build comprehensive AI character profiles. Your research should be:
 
@@ -43,17 +75,18 @@ actor PerplexityService {
         """
 
         // Step 1: Create async research job
-        onProgress?("Creating deep research job with Perplexity sonar-deep-research...")
+        onProgress?("Creating deep research job with Perplexity sonar-deep-research (effort: \(effort.rawValue))...")
 
         let requestId = try await createAsyncRequest(
             systemPrompt: systemPrompt,
-            userQuery: query
+            userQuery: query,
+            effort: effort
         )
 
         onProgress?("Research job created (ID: \(requestId.prefix(8))...). Polling for results...")
 
         // Step 2: Poll for completion
-        let result = try await pollForCompletion(requestId: requestId, onProgress: onProgress)
+        let result = try await pollForCompletion(requestId: requestId, effort: effort, onProgress: onProgress)
 
         onProgress?("Research complete. Processing \(result.citations.count) citations...")
 
@@ -61,7 +94,7 @@ actor PerplexityService {
     }
 
     /// Creates an async chat completion job for sonar-deep-research
-    private func createAsyncRequest(systemPrompt: String, userQuery: String) async throws -> String {
+    private func createAsyncRequest(systemPrompt: String, userQuery: String, effort: ReasoningEffort) async throws -> String {
         let endpoint = "\(baseURL)/async/chat/completions"
 
         guard let url = URL(string: endpoint) else {
@@ -85,7 +118,7 @@ actor PerplexityService {
                 AsyncRequest.Message(role: "system", content: systemPrompt),
                 AsyncRequest.Message(role: "user", content: userQuery)
             ],
-            reasoning_effort: "medium"
+            reasoning_effort: effort.rawValue
         )
 
         let requestData = try JSONEncoder().encode(requestBody)
@@ -117,7 +150,7 @@ actor PerplexityService {
     }
 
     /// Polls for async request completion with exponential backoff
-    private func pollForCompletion(requestId: String, onProgress: ((String) -> Void)? = nil) async throws -> PerplexityResearchResult {
+    private func pollForCompletion(requestId: String, effort: ReasoningEffort, onProgress: ((String) -> Void)? = nil) async throws -> PerplexityResearchResult {
         let endpoint = "\(baseURL)/async/chat/completions/\(requestId)"
 
         guard let url = URL(string: endpoint) else {
@@ -129,10 +162,10 @@ actor PerplexityService {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 
         // Poll with exponential backoff: start at 5 seconds, max 60 seconds
-        // sonar-deep-research can take 2-4 minutes typically, up to 30+ minutes for complex research
+        // Timeout depends on reasoning effort level
         var pollInterval: UInt64 = 5_000_000_000 // 5 seconds in nanoseconds
         let maxPollInterval: UInt64 = 60_000_000_000 // 60 seconds max between polls
-        let maxAttempts = 120 // Max ~30 minutes of polling
+        let maxAttempts = effort.maxPollingAttempts
         var attempts = 0
 
         while attempts < maxAttempts {
@@ -180,7 +213,7 @@ actor PerplexityService {
             }
         }
 
-        throw PerplexityError.timeout
+        throw PerplexityError.timeout(minutes: effort.timeoutMinutes)
     }
 
     // MARK: - Quick Research (Sync API)
@@ -299,7 +332,7 @@ enum PerplexityError: LocalizedError {
     case networkError
     case apiError(String)
     case noContent
-    case timeout
+    case timeout(minutes: Int)
 
     var errorDescription: String? {
         switch self {
@@ -311,8 +344,8 @@ enum PerplexityError: LocalizedError {
             return message
         case .noContent:
             return "No content received from Perplexity"
-        case .timeout:
-            return "Research request timed out after 30 minutes"
+        case .timeout(let minutes):
+            return "Research request timed out after \(minutes) minutes"
         }
     }
 }
