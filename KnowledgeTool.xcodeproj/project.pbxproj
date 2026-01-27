@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		816E32202F291EBB005FCCAE /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 816E321F2F291EBB005FCCAE /* Sparkle */; };
 		81A843A22ED5A15D00DF8A99 /* LocalCharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */; };
 		81A843A32ED5A15D00DF8A99 /* GitHubAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */; };
 		81A843A52ED5A15D00DF8A99 /* GitHubAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */; };
 		81A843A72ED5A15D00DF8A99 /* GitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439E2ED5A15D00DF8A99 /* GitService.swift */; };
 		81A843A92ED5A15D00DF8A99 /* CharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */; };
+		81A8E31E2ED72ABC00759085 /* PerplexityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8E31D2ED72ABC00759085 /* PerplexityService.swift */; };
 		A100 /* KnowledgeToolApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100 /* KnowledgeToolApp.swift */; };
 		A101 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B101 /* ContentView.swift */; };
 		A102 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B102 /* Models.swift */; };
@@ -47,7 +49,37 @@
 		A132 /* KnowledgeBaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B132 /* KnowledgeBaseView.swift */; };
 		A133 /* ChatVariantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B133 /* ChatVariantView.swift */; };
 		A134 /* PromptTestingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B134 /* PromptTestingView.swift */; };
+		A135 /* SystemPromptEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B135 /* SystemPromptEditorView.swift */; };
+		A136 /* SystemPromptEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B136 /* SystemPromptEditorViewModel.swift */; };
+		A140 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B140 /* DesignSystem.swift */; };
+		A141 /* VersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B141 /* VersionHistoryView.swift */; };
+		A142 /* VersionComparisonChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B142 /* VersionComparisonChatView.swift */; };
+		A143 /* VersionComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B143 /* VersionComparisonViewModel.swift */; };
+		A150 /* SparkleUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = B150 /* SparkleUpdater.swift */; };
+		B137A /* PineconeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B137 /* PineconeService.swift */; };
+		B138A /* MemoryGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B138 /* MemoryGenerationService.swift */; };
+		B139A /* ASP1Template.swift in Sources */ = {isa = PBXBuildFile; fileRef = B139 /* ASP1Template.swift */; };
+		BIN1 /* yt-dlp in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF1 /* yt-dlp */; };
+		BIN2 /* ffmpeg in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF2 /* ffmpeg */; };
+		BIN3 /* ffprobe in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF3 /* ffprobe */; };
+		BIN4 /* node in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF4 /* node */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		COPYBIN /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = bin;
+			dstSubfolderSpec = 7;
+			files = (
+				BIN1 /* yt-dlp in CopyFiles */,
+				BIN2 /* ffmpeg in CopyFiles */,
+				BIN3 /* ffprobe in CopyFiles */,
+				BIN4 /* node in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterRepository.swift; sourceTree = "<group>"; };
@@ -55,6 +87,7 @@
 		81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAuthService.swift; sourceTree = "<group>"; };
 		81A8439E2ED5A15D00DF8A99 /* GitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitService.swift; sourceTree = "<group>"; };
 		81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCharacterRepository.swift; sourceTree = "<group>"; };
+		81A8E31D2ED72ABC00759085 /* PerplexityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerplexityService.swift; sourceTree = "<group>"; };
 		B100 /* KnowledgeToolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeToolApp.swift; sourceTree = "<group>"; };
 		B101 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B102 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -89,6 +122,20 @@
 		B132 /* KnowledgeBaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeBaseView.swift; sourceTree = "<group>"; };
 		B133 /* ChatVariantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatVariantView.swift; sourceTree = "<group>"; };
 		B134 /* PromptTestingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTestingView.swift; sourceTree = "<group>"; };
+		B135 /* SystemPromptEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptEditorView.swift; sourceTree = "<group>"; };
+		B136 /* SystemPromptEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptEditorViewModel.swift; sourceTree = "<group>"; };
+		B137 /* PineconeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PineconeService.swift; sourceTree = "<group>"; };
+		B138 /* MemoryGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryGenerationService.swift; sourceTree = "<group>"; };
+		B139 /* ASP1Template.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASP1Template.swift; sourceTree = "<group>"; };
+		B140 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		B141 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
+		B142 /* VersionComparisonChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonChatView.swift; sourceTree = "<group>"; };
+		B143 /* VersionComparisonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonViewModel.swift; sourceTree = "<group>"; };
+		B150 /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleUpdater.swift; sourceTree = "<group>"; };
+		BINREF1 /* yt-dlp */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "yt-dlp"; sourceTree = "<group>"; };
+		BINREF2 /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
+		BINREF3 /* ffprobe */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffprobe; sourceTree = "<group>"; };
+		BINREF4 /* node */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = node; sourceTree = "<group>"; };
 		C100 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C101 /* KnowledgeTool.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KnowledgeTool.entitlements; sourceTree = "<group>"; };
 		D100 /* KnowledgeTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KnowledgeTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -99,12 +146,24 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				816E32202F291EBB005FCCAE /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BINGRP /* bin */ = {
+			isa = PBXGroup;
+			children = (
+				BINREF1 /* yt-dlp */,
+				BINREF2 /* ffmpeg */,
+				BINREF3 /* ffprobe */,
+				BINREF4 /* node */,
+			);
+			path = bin;
+			sourceTree = "<group>";
+		};
 		F100 = {
 			isa = PBXGroup;
 			children = (
@@ -149,6 +208,7 @@
 			children = (
 				B101 /* ContentView.swift */,
 				B111 /* SharedViews.swift */,
+				B140 /* DesignSystem.swift */,
 				B126 /* OnboardingView.swift */,
 				F110 /* Video */,
 				F111 /* Article */,
@@ -173,6 +233,8 @@
 				B123 /* CharacterEditorViewModel.swift */,
 				B124 /* KnowledgeBaseViewModel.swift */,
 				B125 /* PromptTestingViewModel.swift */,
+				B136 /* SystemPromptEditorViewModel.swift */,
+				B143 /* VersionComparisonViewModel.swift */,
 			);
 			name = ViewModels;
 			path = KnowledgeTool/ViewModels;
@@ -197,11 +259,15 @@
 				B113 /* ArticleService.swift */,
 				B114 /* AssemblyAIService.swift */,
 				B115 /* OpenAIService.swift */,
+				B137 /* PineconeService.swift */,
+				B138 /* MemoryGenerationService.swift */,
 				81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */,
 				81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */,
 				81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */,
 				81A8439E2ED5A15D00DF8A99 /* GitService.swift */,
 				81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */,
+				81A8E31D2ED72ABC00759085 /* PerplexityService.swift */,
+				B150 /* SparkleUpdater.swift */,
 			);
 			name = Services;
 			path = KnowledgeTool/Services;
@@ -222,6 +288,8 @@
 			children = (
 				C100 /* Assets.xcassets */,
 				C101 /* KnowledgeTool.entitlements */,
+				B139 /* ASP1Template.swift */,
+				BINGRP /* bin */,
 			);
 			name = Resources;
 			path = KnowledgeTool/Resources;
@@ -267,6 +335,8 @@
 				B129 /* CharacterEditorView.swift */,
 				B130 /* CharacterOverviewView.swift */,
 				B131 /* CharacterSelectorView.swift */,
+				B141 /* VersionHistoryView.swift */,
+				B142 /* VersionComparisonChatView.swift */,
 			);
 			path = Characters;
 			sourceTree = "<group>";
@@ -276,6 +346,7 @@
 			children = (
 				B133 /* ChatVariantView.swift */,
 				B134 /* PromptTestingView.swift */,
+				B135 /* SystemPromptEditorView.swift */,
 			);
 			path = PromptTesting;
 			sourceTree = "<group>";
@@ -298,6 +369,7 @@
 				I100 /* Sources */,
 				E100 /* Frameworks */,
 				J100 /* Resources */,
+				COPYBIN /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -332,6 +404,9 @@
 				Base,
 			);
 			mainGroup = F100;
+			packageReferences = (
+				816E321E2F291EBB005FCCAE /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = F102 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -359,6 +434,7 @@
 			files = (
 				A100 /* KnowledgeToolApp.swift in Sources */,
 				A101 /* ContentView.swift in Sources */,
+				A140 /* DesignSystem.swift in Sources */,
 				A102 /* Models.swift in Sources */,
 				A103 /* APIKeyManager.swift in Sources */,
 				A104 /* VideoViewModel.swift in Sources */,
@@ -366,6 +442,7 @@
 				A106 /* TextSnippetViewModel.swift in Sources */,
 				A107 /* VideoView.swift in Sources */,
 				81A843A22ED5A15D00DF8A99 /* LocalCharacterRepository.swift in Sources */,
+				81A8E31E2ED72ABC00759085 /* PerplexityService.swift in Sources */,
 				81A843A32ED5A15D00DF8A99 /* GitHubAPIService.swift in Sources */,
 				81A843A52ED5A15D00DF8A99 /* GitHubAuthService.swift in Sources */,
 				81A843A72ED5A15D00DF8A99 /* GitService.swift in Sources */,
@@ -396,6 +473,15 @@
 				A132 /* KnowledgeBaseView.swift in Sources */,
 				A133 /* ChatVariantView.swift in Sources */,
 				A134 /* PromptTestingView.swift in Sources */,
+				A135 /* SystemPromptEditorView.swift in Sources */,
+				A136 /* SystemPromptEditorViewModel.swift in Sources */,
+				A141 /* VersionHistoryView.swift in Sources */,
+				A142 /* VersionComparisonChatView.swift in Sources */,
+				A143 /* VersionComparisonViewModel.swift in Sources */,
+				B137A /* PineconeService.swift in Sources */,
+				B138A /* MemoryGenerationService.swift in Sources */,
+				B139A /* ASP1Template.swift in Sources */,
+				A150 /* SparkleUpdater.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -600,6 +686,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		816E321E2F291EBB005FCCAE /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		816E321F2F291EBB005FCCAE /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 816E321E2F291EBB005FCCAE /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = K100 /* Project object */;
 }

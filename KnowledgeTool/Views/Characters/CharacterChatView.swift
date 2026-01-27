@@ -1,12 +1,18 @@
 import SwiftUI
 
 struct CharacterChatView: View {
-    @State private var viewModel: CharacterChatViewModel
+    @State private var viewModelState: CharacterChatViewModel
     let character: Character
+    @State private var showingClearConfirmation = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var viewModel: CharacterChatViewModel {
+        viewModelState
+    }
 
     init(character: Character, apiKeyManager: APIKeyManager) {
         self.character = character
-        self._viewModel = State(initialValue: CharacterChatViewModel(
+        self._viewModelState = State(initialValue: CharacterChatViewModel(
             character: character,
             apiKeyManager: apiKeyManager
         ))
@@ -17,16 +23,26 @@ struct CharacterChatView: View {
             // Header with prompt type selector
             chatHeader
 
-            Divider()
-
             // Error banner
             if let error = viewModel.error {
-                errorBanner(error)
+                ErrorBanner(
+                    message: error,
+                    onDismiss: { viewModel.error = nil },
+                    onRetry: {
+                        Task {
+                            await viewModel.loadSystemPrompt()
+                        }
+                    }
+                )
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.vertical, DesignSystem.Spacing.sm)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             // Loading system prompt indicator
             if viewModel.isLoadingSystemPrompt {
                 loadingSystemPromptBanner
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             // Chat messages area
@@ -37,6 +53,8 @@ struct CharacterChatView: View {
             // Input area
             inputArea
         }
+        .animation(DesignSystem.Animation.smooth, value: viewModel.error != nil)
+        .animation(DesignSystem.Animation.smooth, value: viewModel.isLoadingSystemPrompt)
         .onAppear {
             Task {
                 await viewModel.loadSystemPrompt()
@@ -45,37 +63,51 @@ struct CharacterChatView: View {
         .onChange(of: character.id) { _, _ in
             viewModel.updateCharacter(character)
         }
+        .confirmationDialog("Clear Chat", isPresented: $showingClearConfirmation) {
+            Button("Clear All Messages", role: .destructive) {
+                withAnimation(DesignSystem.Animation.smooth) {
+                    viewModel.clearChat()
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will remove all messages from this conversation.")
+        }
     }
 
     // MARK: - Header
 
     private var chatHeader: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Chat with \(character.name)")
-                    .font(.headline)
+        HStack(spacing: DesignSystem.Spacing.lg) {
+            // Character info with avatar
+            HStack(spacing: DesignSystem.Spacing.md) {
+                CharacterAvatar(name: character.name, size: 36)
 
-                Text("Test how the character responds using different system prompts")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(character.name)
+                        .font(.headline)
+
+                    Text("Test conversation")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Spacer()
 
-            // System prompt type picker
-            HStack(spacing: 8) {
+            // System prompt type picker with label
+            HStack(spacing: DesignSystem.Spacing.sm) {
                 Text("Mode:")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Picker("System Prompt", selection: $viewModel.selectedPromptType) {
+                Picker("Mode", selection: $viewModelState.selectedPromptType) {
                     ForEach(SystemPromptType.allCases, id: \.self) { type in
-                        Text(type.rawValue)
-                            .tag(type)
+                        Text(type.rawValue).tag(type)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 180)
+                .frame(width: 200)
                 .onChange(of: viewModel.selectedPromptType) { _, _ in
                     Task {
                         await viewModel.loadSystemPrompt()
@@ -85,43 +117,24 @@ struct CharacterChatView: View {
 
             // Clear chat button
             Button {
-                viewModel.clearChat()
+                showingClearConfirmation = true
             } label: {
-                Label("Clear", systemImage: "trash")
+                Image(systemName: "trash")
                     .font(.subheadline)
             }
             .buttonStyle(.bordered)
+            .tint(.red)
+            .help("Clear conversation")
             .disabled(viewModel.messages.isEmpty)
         }
-        .padding()
-        .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    // MARK: - Error Banner
-
-    private func errorBanner(_ error: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-
-            Text(error)
-                .font(.subheadline)
-
-            Spacer()
-
-            Button("Dismiss") {
-                viewModel.error = nil
-            }
-            .font(.subheadline)
-        }
-        .padding()
-        .background(Color.red.opacity(0.1))
+        .padding(DesignSystem.Spacing.lg)
+        .background(.regularMaterial)
     }
 
     // MARK: - Loading System Prompt Banner
 
     private var loadingSystemPromptBanner: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             ProgressView()
                 .controlSize(.small)
 
@@ -131,8 +144,8 @@ struct CharacterChatView: View {
 
             Spacer()
         }
-        .padding()
-        .background(Color.blue.opacity(0.1))
+        .padding(DesignSystem.Spacing.md)
+        .background(DesignSystem.Colors.infoBackground)
     }
 
     // MARK: - Chat Messages Area
@@ -140,35 +153,47 @@ struct CharacterChatView: View {
     private var chatMessagesArea: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: DesignSystem.Spacing.lg) {
+                    // Spacing top
+                    Color.clear.frame(height: DesignSystem.Spacing.md)
+
                     // Messages
                     ForEach(viewModel.messages) { message in
                         MessageBubbleView(message: message, characterName: character.name)
                             .id(message.id)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .opacity
+                            ))
                     }
 
-                    // Loading indicator for response (including initial greeting)
+                    // Loading indicator for response
                     if viewModel.isLoading {
                         HStack {
-                            TypingIndicatorView()
+                            TypingIndicatorView(characterName: character.name)
                             Spacer()
                         }
                         .padding(.horizontal)
                         .id("typing")
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+
+                    // Spacing bottom
+                    Color.clear.frame(height: DesignSystem.Spacing.md)
                 }
-                .padding()
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .animation(DesignSystem.Animation.spring, value: viewModel.messages.count)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 if let lastMessage = viewModel.messages.last {
-                    withAnimation {
+                    withAnimation(DesignSystem.Animation.smooth) {
                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
                     }
                 }
             }
             .onChange(of: viewModel.isLoading) { _, isLoading in
                 if isLoading {
-                    withAnimation {
+                    withAnimation(DesignSystem.Animation.smooth) {
                         proxy.scrollTo("typing", anchor: .bottom)
                     }
                 }
@@ -180,33 +205,51 @@ struct CharacterChatView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(spacing: 12) {
-            TextField("Type a message...", text: $viewModel.inputText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .padding(12)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(8)
-                .lineLimit(1...5)
-                .onSubmit {
-                    Task {
-                        await viewModel.sendMessage()
+        HStack(spacing: DesignSystem.Spacing.md) {
+            // Input field
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                TextField("Type a message...", text: $viewModelState.inputText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...5)
+                    .onSubmit {
+                        Task {
+                            await viewModel.sendMessage()
+                        }
                     }
-                }
 
+                // Keyboard hint (shows when focused and can send)
+                if canSend {
+                    KeyboardShortcutHint(keys: "⏎")
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(DesignSystem.Colors.inputBorder, lineWidth: 1)
+            )
+            .animation(DesignSystem.Animation.quick, value: canSend)
+
+            // Send button
             Button {
                 Task {
                     await viewModel.sendMessage()
                 }
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
+                    .symbolRenderingMode(.hierarchical)
                     .font(.system(size: 32))
-                    .foregroundStyle(canSend ? .blue : .gray)
+                    .foregroundStyle(canSend ? Color.accentColor : Color.secondary.opacity(0.3))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableButtonStyle())
             .disabled(!canSend)
+            .help("Send message (⏎)")
         }
-        .padding()
-        .background(Color(nsColor: .windowBackgroundColor))
+        .padding(DesignSystem.Spacing.lg)
+        .background(.bar)
     }
 
     private var canSend: Bool {
@@ -221,59 +264,76 @@ struct CharacterChatView: View {
 struct MessageBubbleView: View {
     let message: ChatMessage
     let characterName: String
+    @State private var isHovered = false
+    @Environment(\.colorScheme) private var colorScheme
 
     private var isUser: Bool {
         message.role == .user
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .bottom, spacing: DesignSystem.Spacing.sm) {
             if isUser {
                 Spacer(minLength: 60)
             } else {
                 // Character avatar
-                Circle()
-                    .fill(Color.blue.gradient)
-                    .frame(width: 32, height: 32)
-                    .overlay {
-                        Text(characterName.prefix(1))
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
+                CharacterAvatar(name: characterName, size: 28)
             }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                // Sender label
-                Text(isUser ? "You" : characterName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: isUser ? .trailing : .leading, spacing: DesignSystem.Spacing.xxs) {
+                // Sender label (for character)
+                if !isUser {
+                    Text(characterName)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, DesignSystem.Spacing.xs)
+                }
 
-                // Message content
-                Text(message.content)
-                    .font(.body)
-                    .padding(12)
-                    .background(isUser ? Color.blue : Color(nsColor: .controlBackgroundColor))
-                    .foregroundStyle(isUser ? .white : .primary)
-                    .cornerRadius(16)
+                // Message bubble
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(message.content)
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, DesignSystem.Spacing.md)
+                        .padding(.vertical, DesignSystem.Spacing.sm)
+                }
+                .background(
+                    isUser
+                        ? LinearGradient(
+                            colors: [Color.accentColor, Color.accentColor.opacity(0.9)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        : LinearGradient(
+                            colors: [Color(nsColor: .controlBackgroundColor), Color(nsColor: .controlBackgroundColor)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                )
+                .foregroundStyle(isUser ? .white : .primary)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .shadow(
+                    color: .black.opacity(colorScheme == .dark ? 0.3 : 0.08),
+                    radius: isHovered ? 8 : 4,
+                    y: isHovered ? 4 : 2
+                )
 
-                // Timestamp
-                Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                // Timestamp on hover
+                if isHovered {
+                    Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, DesignSystem.Spacing.xs)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .animation(DesignSystem.Animation.quick, value: isHovered)
+            .onHover { hovering in
+                isHovered = hovering
             }
 
             if !isUser {
                 Spacer(minLength: 60)
-            } else {
-                // User avatar
-                Circle()
-                    .fill(Color.gray.gradient)
-                    .frame(width: 32, height: 32)
-                    .overlay {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white)
-                    }
             }
         }
     }
@@ -282,39 +342,54 @@ struct MessageBubbleView: View {
 // MARK: - Typing Indicator View
 
 struct TypingIndicatorView: View {
-    @State private var animationPhase = 0
+    let characterName: String
+    @State private var dotOffsets: [CGFloat] = [0, 0, 0]
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Avatar placeholder
-            Circle()
-                .fill(Color.blue.gradient)
-                .frame(width: 32, height: 32)
-                .overlay {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white)
-                }
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // Character avatar
+            CharacterAvatar(name: characterName, size: 28)
 
-            // Typing dots
-            HStack(spacing: 4) {
-                ForEach(0..<3) { index in
+            // Typing bubble
+            HStack(spacing: 5) {
+                ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .fill(Color.secondary)
-                        .frame(width: 8, height: 8)
-                        .opacity(animationPhase == index ? 1 : 0.3)
+                        .frame(width: 7, height: 7)
+                        .offset(y: dotOffsets[index])
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
             .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(16)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.5).repeatForever()) {
-                animationPhase = (animationPhase + 1) % 3
+            animateDots()
+        }
+    }
+
+    private func animateDots() {
+        for index in 0..<3 {
+            withAnimation(
+                .easeInOut(duration: 0.4)
+                .repeatForever(autoreverses: true)
+                .delay(Double(index) * 0.15)
+            ) {
+                dotOffsets[index] = -5
             }
         }
+    }
+}
+
+// MARK: - Avatar View (Legacy - keeping for compatibility)
+struct AvatarView: View {
+    let name: String
+    let color: Color
+
+    var body: some View {
+        CharacterAvatar(name: name, size: 28)
     }
 }
 

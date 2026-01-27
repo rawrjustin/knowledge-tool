@@ -5,10 +5,15 @@ import AppKit
 // MARK: - GitHub Configuration
 
 struct GitHubConfig {
-    // GitHub App credentials for OAuth (Option B)
-    static let clientID = "Iv23liEqcFt6FWCHq2cx"
-    static let clientSecret = "998ce306ef59fbcd28d810523ced31217bfb14c8"
-    static let appID = "2332856"
+    // GitHub App credentials for OAuth - loaded from user settings
+    // Users must configure their own GitHub OAuth app for write access
+    static var clientID: String {
+        APIKeyManager().githubClientID
+    }
+
+    static var clientSecret: String {
+        APIKeyManager().githubClientSecret
+    }
 
     // Read-only PAT for unauthenticated users (Option A - Fallback)
     // Loaded from Keychain via APIKeyManager, falls back to environment variable
@@ -18,9 +23,24 @@ struct GitHubConfig {
         return keyManager.getAPIKey(for: .gitHubPAT) ?? ProcessInfo.processInfo.environment["GITHUB_PAT"] ?? ""
     }
 
-    // Repository info
-    static let owner = "geniesinc"
-    static let repo = "CharacterPrompts"
+    // Repository info - loaded from user settings
+    static var owner: String {
+        APIKeyManager().githubRepoOwner
+    }
+
+    static var repo: String {
+        APIKeyManager().githubRepoName
+    }
+
+    // Check if GitHub integration is configured
+    static var isConfigured: Bool {
+        !owner.isEmpty && !repo.isEmpty && !readOnlyPAT.isEmpty
+    }
+
+    // Check if OAuth is configured (for write access)
+    static var isOAuthConfigured: Bool {
+        !clientID.isEmpty && !clientSecret.isEmpty
+    }
 
     // OAuth URLs
     static let authorizeURL = "https://github.com/login/oauth/authorize"

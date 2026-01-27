@@ -207,32 +207,81 @@ final class VideoViewModel {
 
             let assemblyAI = AssemblyAIService(apiKey: assemblyAIKey)
             var transcriptResult = try await assemblyAI.transcribeAudio(fileURL: audioURL!)
+            
+            // Step 2.5: Identify and relabel interviewee
+            if let speakerLabels = transcriptResult.speakerLabels, !speakerLabels.isEmpty {
+                processingState = .processing("Identifying interviewee...")
 
-            // Note: For local files, we cannot identify the interviewee automatically
-            // Speaker labels will remain as Speaker A, Speaker B, etc.
+                // Get transcript preview (first 2000 characters)
+                let transcriptPreview = String(transcriptResult.text.prefix(2000))
+
+                let openAI = OpenAIService(apiKey: openAIKey)
+                do {
+                    // For local files, we don't have a description, so we pass nil
+                    if let identifiedName = try await openAI.identifyInterviewee(
+                        title: title,
+                        description: nil,
+                        transcriptPreview: transcriptPreview
+                    ) {
+                        // Store the interviewee name
+                        intervieweeName = identifiedName
+
+                        // Relabel speakers: find the speaker who talks the most (likely the interviewee)
+                        let relabeledSpeakerLabels = relabelSpeakers(
+                            speakerLabels: speakerLabels,
+                            intervieweeName: identifiedName
+                        )
+                        transcriptResult = Transcript(
+                            id: transcriptResult.id,
+                            text: transcriptResult.text,
+                            speakerLabels: relabeledSpeakerLabels,
+                            createdAt: transcriptResult.createdAt,
+                            sourceURL: fileURL.path,
+                            title: title
+                        )
+                    }
+                } catch {
+                    // Log error but continue processing - identification is optional
+                    print("Warning: Failed to identify interviewee: \(error.localizedDescription)")
+                    // Continue without relabeling speakers
+                }
+            }
 
             // Add file info to transcript
-            transcriptResult = Transcript(
-                id: transcriptResult.id,
-                text: transcriptResult.text,
-                speakerLabels: transcriptResult.speakerLabels,
-                createdAt: transcriptResult.createdAt,
-                sourceURL: fileURL.path,
-                title: title
-            )
+            if transcriptResult.speakerLabels == nil {
+                transcriptResult = Transcript(
+                    id: transcriptResult.id,
+                    text: transcriptResult.text,
+                    speakerLabels: transcriptResult.speakerLabels,
+                    createdAt: transcriptResult.createdAt,
+                    sourceURL: fileURL.path,
+                    title: title
+                )
+            }
             transcript = transcriptResult
 
-            // Step 3: Summarize transcript (basic summary for local files)
-            processingState = .processing("Generating summary...")
+            // Step 3: Summarize transcript with structured knowledge base format
+            processingState = .processing("Generating structured knowledge base...")
 
             let openAI = OpenAIService(apiKey: openAIKey)
-            let summaryText = try await openAI.summarize(text: transcriptResult.text, contentType: .video)
+            let characterName = intervieweeName ?? "the subject"
+            let summaryText = try await openAI.generateStructuredKnowledgeBase(
+                characterName: characterName,
+                fullTranscript: transcriptResult.text,
+                speakerLabels: transcriptResult.speakerLabels,
+                videoURL: fileURL.absoluteString,
+                videoTitle: title
+            )
 
-            // Step 4: Extract dialogue examples (all speakers for local files)
+            // Step 4: Extract dialogue examples (only from interviewee if identified)
             var dialogueExamples: [SpeakerDialogueExamples]? = nil
-            if let speakerLabels = transcriptResult.speakerLabels, !speakerLabels.isEmpty {
+            if let speakerLabels = transcriptResult.speakerLabels, !speakerLabels.isEmpty, let intervieweeName = intervieweeName {
                 processingState = .processing("Extracting dialogue examples...")
-                dialogueExamples = try await openAI.extractDialogueExamples(from: speakerLabels)
+                // Filter to only include the interviewee's utterances
+                let intervieweeUtterances = speakerLabels.filter { $0.speaker == intervieweeName }
+                if !intervieweeUtterances.isEmpty {
+                    dialogueExamples = try await openAI.extractDialogueExamples(from: intervieweeUtterances)
+                }
             }
 
             summary = Summary(

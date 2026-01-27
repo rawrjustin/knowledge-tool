@@ -2,79 +2,79 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct VideoView: View {
-    @State var viewModel: VideoViewModel
+    @Bindable var viewModel: VideoViewModel
     @State private var showingToast = false
     @State private var toastMessage = ""
     @State private var toastStyle: ToastStyle = .success
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
                 // Header
                 HeaderView(
                     title: "Video Transcription",
-                    subtitle: "Transcribe and summarize videos from URLs or file uploads"
+                    subtitle: "Transcribe and summarize videos from URLs or file uploads",
+                    icon: "video.fill"
                 )
 
                 // Important Notice
-                HStack(spacing: 12) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundStyle(.blue)
-                        .font(.title3)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("⚠️ Designed for Interview Content")
-                            .font(.subheadline.bold())
-
-                        Text("This tool works best with interview videos. It will attempt to identify and label the interviewee by name using the video title and description.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-                }
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(12)
+                InfoBanner(
+                    title: "Designed for Interview Content",
+                    message: "This tool works best with interview videos. It will attempt to identify and label the interviewee by name.",
+                    icon: "person.wave.2.fill"
+                )
 
                 // Input Section
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Video Source")
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                    SectionHeader(title: "Video Source", icon: "film")
 
                     // URL Input
-                    HStack(spacing: 12) {
-                        TextField("Enter video URL (YouTube, Vimeo, etc.)", text: $viewModel.urlInput)
-                            .textFieldStyle(.roundedBorder)
-                            .disabled(viewModel.processingState.isProcessing)
+                    HStack(spacing: DesignSystem.Spacing.md) {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Image(systemName: "link")
+                                .foregroundStyle(.secondary)
+
+                            TextField("Enter video URL (YouTube, Vimeo, etc.)", text: $viewModel.urlInput)
+                                .textFieldStyle(.plain)
+                        }
+                        .padding(DesignSystem.Spacing.md)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                                .stroke(DesignSystem.Colors.inputBorder, lineWidth: 1)
+                        )
+                        .disabled(viewModel.processingState.isProcessing)
 
                         Button {
                             Task {
                                 await viewModel.processVideoFromURL()
                             }
                         } label: {
-                            Label("Process URL", systemImage: "link")
+                            Label("Process", systemImage: "play.fill")
+                                .font(.subheadline.weight(.medium))
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(viewModel.urlInput.isEmpty || viewModel.processingState.isProcessing)
+                        .help("Process video from URL")
                     }
 
                     // OR separator
-                    HStack {
+                    HStack(spacing: DesignSystem.Spacing.md) {
                         Rectangle()
-                            .fill(Color.secondary.opacity(0.3))
+                            .fill(DesignSystem.Colors.divider)
                             .frame(height: 1)
 
                         Text("OR")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.tertiary)
 
                         Rectangle()
-                            .fill(Color.secondary.opacity(0.3))
+                            .fill(DesignSystem.Colors.divider)
                             .frame(height: 1)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
 
                     // File Upload
                     FileDropZone(onFileDrop: { url in
@@ -83,18 +83,26 @@ struct VideoView: View {
                         }
                     }, isProcessing: viewModel.processingState.isProcessing)
                 }
-                .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(12)
+                .cardStyle()
 
                 // Processing State
                 if viewModel.processingState.isProcessing {
                     ProcessingView(state: viewModel.processingState)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 // Error Message
                 if let errorMessage = viewModel.errorMessage {
-                    ErrorBanner(message: errorMessage)
+                    ErrorBanner(
+                        message: errorMessage,
+                        onDismiss: { viewModel.errorMessage = nil },
+                        onRetry: {
+                            Task {
+                                await viewModel.processVideoFromURL()
+                            }
+                        }
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 // Results
@@ -114,15 +122,20 @@ struct VideoView: View {
                             }
                         },
                         onReset: {
-                            viewModel.reset()
+                            withAnimation(DesignSystem.Animation.smooth) {
+                                viewModel.reset()
+                            }
                         },
                         onCopySuccess: { message in
                             showToast(message: message, style: .success)
                         }
                     )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .padding(24)
+            .padding(DesignSystem.Spacing.xxl)
+            .animation(DesignSystem.Animation.smooth, value: viewModel.processingState.isProcessing)
+            .animation(DesignSystem.Animation.smooth, value: viewModel.errorMessage != nil)
         }
         .toast(isShowing: $showingToast, message: toastMessage, style: toastStyle)
     }
@@ -162,44 +175,70 @@ struct FileDropZone: View {
     let isProcessing: Bool
 
     @State private var isTargeted = false
+    @State private var isHovered = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "video.badge.plus")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(isTargeted ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.08))
+                    .frame(width: 72, height: 72)
 
-            Text("Drop video file here or click to browse")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            Text("Supported formats: MP4, MOV, AVI, MKV, and more")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            Button {
-                selectVideoFile()
-            } label: {
-                Label("Choose File", systemImage: "folder")
+                Image(systemName: "video.badge.plus")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
             }
-            .disabled(isProcessing)
+            .scaleEffect(isTargeted ? 1.1 : 1.0)
+            .animation(DesignSystem.Animation.spring, value: isTargeted)
+
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                Text("Drop video file here")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Text("or click to browse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ForEach(["MP4", "MOV", "AVI", "MKV"], id: \.self) { format in
+                    Text(format)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, DesignSystem.Spacing.sm)
+                        .padding(.vertical, DesignSystem.Spacing.xxs)
+                        .background(Color.secondary.opacity(0.08))
+                        .clipShape(Capsule())
+                }
+            }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 200)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
+        .frame(height: 180)
+        .background {
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
                 .strokeBorder(
-                    isTargeted ? Color.accentColor : Color.secondary.opacity(0.3),
-                    style: StrokeStyle(lineWidth: 2, dash: [8])
+                    isTargeted ? Color.accentColor : (isHovered ? Color.secondary.opacity(0.5) : Color.secondary.opacity(0.2)),
+                    style: StrokeStyle(lineWidth: 2, dash: [8, 4])
                 )
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isTargeted ? Color.accentColor.opacity(0.1) : Color.clear)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                        .fill(isTargeted ? Color.accentColor.opacity(0.05) : (isHovered ? Color.secondary.opacity(0.02) : Color.clear))
                 )
-        )
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isProcessing {
+                selectVideoFile()
+            }
+        }
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers: providers)
         }
+        .animation(DesignSystem.Animation.quick, value: isHovered)
     }
 
     private func selectVideoFile() {
@@ -246,21 +285,46 @@ struct ResultsSection: View {
     let onCopySuccess: (String) -> Void
 
     @State private var selectedTab = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            // Section header with actions
             HStack {
-                Text("Results")
-                    .font(.title2.bold())
+                SectionHeader(title: "Results", icon: "checkmark.circle.fill")
 
                 Spacer()
 
-                Button {
-                    onReset()
-                } label: {
-                    Label("New", systemImage: "plus.circle.fill")
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    // Export all button
+                    Menu {
+                        Button {
+                            onExportSummary()
+                        } label: {
+                            Label("Export Summary", systemImage: "doc.text")
+                        }
+
+                        Button {
+                            onExportTranscript()
+                        } label: {
+                            Label("Export Transcript", systemImage: "text.quote")
+                        }
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Export results")
+
+                    Button {
+                        onReset()
+                    } label: {
+                        Label("New Video", systemImage: "plus")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .help("Process another video")
                 }
-                .buttonStyle(.bordered)
             }
 
             // Video Info
@@ -270,35 +334,40 @@ struct ResultsSection: View {
 
             // Tabbed Interface
             VStack(spacing: 0) {
-                // Tab Bar
+                // Tab Bar with icons
                 HStack(spacing: 0) {
                     TabButton(
                         title: "Summary",
-                        icon: "doc.text.fill",
+                        icon: "text.alignleft",
                         isSelected: selectedTab == 0
                     ) {
-                        selectedTab = 0
+                        withAnimation(DesignSystem.Animation.quick) {
+                            selectedTab = 0
+                        }
                     }
 
                     TabButton(
-                        title: "Dialogue Examples",
-                        icon: "quote.bubble.fill",
+                        title: "Dialogue",
+                        icon: "quote.bubble",
                         isSelected: selectedTab == 1
                     ) {
-                        selectedTab = 1
+                        withAnimation(DesignSystem.Animation.quick) {
+                            selectedTab = 1
+                        }
                     }
 
                     TabButton(
-                        title: "Raw Transcript",
-                        icon: "text.quote",
+                        title: "Transcript",
+                        icon: "text.word.spacing",
                         isSelected: selectedTab == 2
                     ) {
-                        selectedTab = 2
+                        withAnimation(DesignSystem.Animation.quick) {
+                            selectedTab = 2
+                        }
                     }
-
-                    Spacer()
                 }
-                .background(Color(nsColor: .controlBackgroundColor))
+                .padding(DesignSystem.Spacing.xs)
+                .background(.ultraThinMaterial)
 
                 Divider()
 
@@ -329,8 +398,12 @@ struct ResultsSection: View {
                 .background(Color(nsColor: .textBackgroundColor))
             }
             .frame(height: 500)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(12)
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                    .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 8, y: 2)
         }
     }
 }
@@ -344,17 +417,17 @@ struct TabButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: icon)
                     .font(.caption)
-
                 Text(title)
-                    .font(.subheadline)
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(isSelected ? Color(nsColor: .textBackgroundColor) : Color.clear)
             .foregroundStyle(isSelected ? .primary : .secondary)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small))
         }
         .buttonStyle(.plain)
     }
@@ -379,6 +452,7 @@ struct SummaryTabContent: View {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
 
                 Button {
                     onExport()
@@ -386,8 +460,10 @@ struct SummaryTabContent: View {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .padding()
+            .padding(10)
+            .background(.regularMaterial)
 
             Divider()
 
@@ -431,6 +507,7 @@ struct DialogueTabContent: View {
                     Label("Copy All", systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
 
                 Button {
                     exportDialogueExamples()
@@ -438,8 +515,10 @@ struct DialogueTabContent: View {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .padding()
+            .padding(10)
+            .background(.regularMaterial)
 
             Divider()
 
@@ -485,8 +564,12 @@ struct DialogueTabContent: View {
                             }
                         }
                         .padding()
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.tertiary.opacity(0.3), lineWidth: 0.5)
+                        )
                     }
                 }
                 .padding()
@@ -560,6 +643,7 @@ struct TranscriptTabContent: View {
                 if transcript.speakerLabels != nil {
                     Toggle("Speaker Labels", isOn: $showingSpeakerLabels)
                         .toggleStyle(.switch)
+                        .controlSize(.small)
                 }
 
                 Spacer()
@@ -571,6 +655,7 @@ struct TranscriptTabContent: View {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
 
                 Button {
                     onExport()
@@ -578,8 +663,10 @@ struct TranscriptTabContent: View {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .padding()
+            .padding(10)
+            .background(.regularMaterial)
 
             Divider()
 
@@ -654,35 +741,49 @@ struct EmptyTabMessage: View {
 // MARK: - Video Info Card
 struct VideoInfoCard: View {
     let videoInfo: VideoInfo
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Video Information", systemImage: "info.circle.fill")
-                .font(.headline)
+        HStack(spacing: DesignSystem.Spacing.lg) {
+            // Video icon/thumbnail placeholder
+            ZStack {
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(Color.accentColor.opacity(0.1))
+                    .frame(width: 80, height: 60)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top) {
-                    Text("Title:")
+                Image(systemName: "play.rectangle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Color.accentColor)
+            }
+
+            // Video details
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(videoInfo.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    if let duration = videoInfo.duration {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "clock")
+                                .font(.caption2)
+                            Text(formatDuration(duration))
+                                .font(.caption)
+                        }
                         .foregroundStyle(.secondary)
-                        .frame(width: 80, alignment: .leading)
-                    Text(videoInfo.title)
-                }
-
-                if let duration = videoInfo.duration {
-                    HStack(alignment: .top) {
-                        Text("Duration:")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 80, alignment: .leading)
-                        Text(formatDuration(duration))
                     }
                 }
             }
-            .font(.body)
+
+            Spacer()
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.md)
         .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(12)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
+        )
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {

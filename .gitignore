@@ -51,3 +51,22 @@ transcript.txt
 summary.txt
 KnowledgeTool-Distribution.zip
 icon_*.png
+
+# Sparkle signing keys (NEVER commit these!)
+eddsa_private_key
+*.sparkle-keys/
+
+# Build artifacts
+KnowledgeTool*.zip
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM

@@ -7,73 +7,90 @@ actor CharacterRepository {
         self.githubAPI = githubAPI
     }
 
-    // MARK: - Character Loading
-
-    /// Load all characters from the CharacterPrompts repository
-    func loadAllCharacters() async throws -> [Character] {
-        // List all directories in Personas/
-        let personaFiles = try await githubAPI.listContents(at: "Personas")
-
-        var characters: [Character] = []
-
-        for file in personaFiles where file.type == "dir" {
-            // Try to load character from this directory
-            if let character = try? await loadCharacter(name: file.name) {
-                characters.append(character)
+        // MARK: - Character Loading
+    
+        /// Load all characters from the CharacterPrompts repository
+        func loadAllCharacters() async throws -> [Character] {
+            // List all directories in Personas/
+            let personaFiles = try await githubAPI.listContents(at: "Personas")
+            NSLog("[KnowledgeTool] Found %d items in Personas directory", personaFiles.count)
+    
+            var characters: [Character] = []
+    
+            for file in personaFiles where file.type == "dir" {
+                // Try to load character from this directory
+                do {
+                    let character = try await loadCharacter(name: file.name)
+                    characters.append(character)
+                } catch {
+                    NSLog("[KnowledgeTool] Failed to load character '%@': %@", file.name, error.localizedDescription)
+                }
             }
+    
+            // Sort by name
+            return characters.sorted { $0.name < $1.name }
         }
-
-        // Sort by name
-        return characters.sorted { $0.name < $1.name }
-    }
-
-    /// Load a specific character by name
-    func loadCharacter(name: String) async throws -> Character {
-        let characterPath = "Personas/\(name)"
-
-        // List files in character directory
-        let files = try await githubAPI.listContents(at: characterPath)
-
-        // Find the persona markdown file
-        // Pattern: {charactername}.md or {charactername}v{N}.md
-        guard let personaFile = files.first(where: { file in
-            file.type == "file" &&
-            file.name.hasSuffix(".md") &&
-            !file.name.contains("v") &&
-            !file.name.hasPrefix(".")
-        }) else {
-            throw CharacterRepositoryError.personaFileNotFound(name)
+    
+        /// Load a specific character by name
+        func loadCharacter(name: String) async throws -> Character {
+            let characterPath = "Personas/\(name)"
+    
+            // List files in character directory
+            let files = try await githubAPI.listContents(at: characterPath)
+    
+            // Find the persona markdown file
+            // Priority:
+            // 1. Exact match: {name}.md
+            // 2. Any .md file that doesn't start with "."
+            var personaFile: GitHubFile?
+    
+            // Try exact match first (case insensitive)
+            personaFile = files.first(where: { file in
+                file.type == "file" &&
+                file.name.lowercased() == "\(name.lowercased()).md"
+            })
+    
+            // Fallback to any markdown file
+            if personaFile == nil {
+                personaFile = files.first(where: { file in
+                    file.type == "file" &&
+                    file.name.hasSuffix(".md") &&
+                    !file.name.hasPrefix(".")
+                })
+            }
+    
+            guard let targetFile = personaFile else {
+                throw CharacterRepositoryError.personaFileNotFound(name)
+            }
+    
+            // Fetch the persona file content
+            let personaFileData = try await githubAPI.getFile(at: targetFile.path)
+    
+            guard let markdownContent = personaFileData.decodedContent else {
+                throw CharacterRepositoryError.invalidFileFormat("Could not decode persona file")
+            }
+    
+            // Parse last modified date from GitHub
+            let lastModified = Date() // GitHub API doesn't provide file mod date directly, would need commit history
+    
+            // Load knowledge files if they exist
+            let knowledgeFiles = try await loadKnowledgeFiles(for: name)
+    
+            // Create character
+            let character = Character(
+                name: name,
+                directoryPath: characterPath,
+                personaFileName: targetFile.name,
+                markdownContent: markdownContent,
+                knowledgeFiles: knowledgeFiles,
+                sha: personaFileData.sha, // Store GitHub SHA for updates
+                systemPromptType: .conversational,  // Default, can be changed
+                lastModified: lastModified,
+                isLocalOnly: false
+            )
+    
+            return character
         }
-
-        // Fetch the persona file content
-        let personaFileData = try await githubAPI.getFile(at: personaFile.path)
-
-        guard let markdownContent = personaFileData.decodedContent else {
-            throw CharacterRepositoryError.invalidFileFormat("Could not decode persona file")
-        }
-
-        // Parse last modified date from GitHub
-        let lastModified = Date() // GitHub API doesn't provide file mod date directly, would need commit history
-
-        // Load knowledge files if they exist
-        let knowledgeFiles = try await loadKnowledgeFiles(for: name)
-
-        // Create character
-        let character = Character(
-            name: name,
-            directoryPath: characterPath,
-            personaFileName: personaFile.name,
-            markdownContent: markdownContent,
-            knowledgeFiles: knowledgeFiles,
-            sha: personaFileData.sha, // Store GitHub SHA for updates
-            systemPromptType: .conversational,  // Default, can be changed
-            lastModified: lastModified,
-            isLocalOnly: false
-        )
-
-        return character
-    }
-
     /// Load knowledge files from a character's Knowledge/ directory
     private func loadKnowledgeFiles(for characterName: String) async throws -> [KnowledgeFile] {
         let knowledgePath = "Personas/\(characterName)/Knowledge"

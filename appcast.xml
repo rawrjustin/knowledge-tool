@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>KnowledgeTool Changelog</title>
+        <link>https://raw.githubusercontent.com/geniesinc/knowledgetool/main/appcast.xml</link>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Version 1.0.0</title>
+            <description><![CDATA[
+                <h2>What's New in 1.0.0</h2>
+                <p>Initial release with automatic updates via Sparkle.</p>
+                <ul>
+                    <li>Character creation and management</li>
+                    <li>AI-powered chat with custom characters</li>
+                    <li>Video transcription and knowledge extraction</li>
+                    <li>Deep research integration with Perplexity</li>
+                    <li>GitHub sync for character data</li>
+                    <li>Automatic updates</li>
+                </ul>
+            ]]></description>
+            <pubDate>Mon, 27 Jan 2026 08:30:00 -0800</pubDate>
+            <enclosure
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.0.0/KnowledgeTool-1.0.0.zip"
+                sparkle:version="1"
+                sparkle:shortVersionString="1.0.0"
+                sparkle:edSignature="+2WehID6w+YbM2AXOGnRrJrCEElnOGaF8+wQILKN0WC0mVOM2FpTJOINZXcl2zmM4omzhMRZws1z6ZiTXM3pAw=="
+                length="76855007"
+                type="application/octet-stream"/>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+        </item>
+    </channel>
+</rss>

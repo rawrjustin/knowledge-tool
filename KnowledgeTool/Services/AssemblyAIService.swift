@@ -3,9 +3,16 @@ import Foundation
 actor AssemblyAIService {
     private let apiKey: String
     private let baseURL = "https://api.assemblyai.com/v2"
+    private let session: URLSession
 
     init(apiKey: String) {
         self.apiKey = apiKey
+
+        // Create a custom URLSession with longer timeouts for large audio uploads
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 600  // 10 minutes for request (large audio files)
+        config.timeoutIntervalForResource = 1800 // 30 minutes for entire resource
+        self.session = URLSession(configuration: config)
     }
 
     // MARK: - Transcribe Audio File
@@ -38,7 +45,7 @@ actor AssemblyAIService {
         request.setValue("application/octet-stream", forHTTPHeaderField: "content-type")
         request.httpBody = audioData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw KnowledgeToolError.networkError(URLError(.badServerResponse))
@@ -79,7 +86,7 @@ actor AssemblyAIService {
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.httpBody = requestData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw KnowledgeToolError.networkError(URLError(.badServerResponse))
@@ -118,7 +125,7 @@ actor AssemblyAIService {
         while attempts < maxAttempts {
             attempts += 1
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw KnowledgeToolError.networkError(URLError(.badServerResponse))

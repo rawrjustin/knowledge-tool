@@ -177,22 +177,17 @@ struct OnboardingView: View {
             return
         }
 
-        do {
-            // Save API keys
-            try apiKeyManager.setAPIKey(trimmedAssemblyAIKey, for: .assemblyAI)
-            try apiKeyManager.setAPIKey(trimmedOpenAIKey, for: .openAI)
-            try apiKeyManager.setAPIKey(trimmedPerplexityKey, for: .perplexity)
-            try apiKeyManager.setAPIKey(trimmedGitHubPATKey, for: .gitHubPAT)
+        // Save API keys
+        apiKeyManager.setAPIKey(trimmedAssemblyAIKey, for: .assemblyAI)
+        apiKeyManager.setAPIKey(trimmedOpenAIKey, for: .openAI)
+        apiKeyManager.setAPIKey(trimmedPerplexityKey, for: .perplexity)
+        apiKeyManager.setAPIKey(trimmedGitHubPATKey, for: .gitHubPAT)
 
-            // Mark onboarding as complete
-            UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        // Mark onboarding as complete
+        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
 
-            // Close onboarding
-            dismiss()
-
-        } catch {
-            showingError = "Failed to save API keys: \(error.localizedDescription)"
-        }
+        // Close onboarding
+        dismiss()
     }
 }
 

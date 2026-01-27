@@ -33,6 +33,36 @@ final class PromptTestingViewModel {
         currentTest.variants[index].label = label
     }
 
+    /// Add a new variant (copies system prompt from Variant A)
+    func addVariant() {
+        guard currentTest.canAddVariant else { return }
+
+        let basePrompt = currentTest.variants.first?.systemPrompt ?? "You are a helpful assistant."
+        let newVariant = ChatVariant(
+            label: currentTest.nextVariantLabel,
+            systemPrompt: basePrompt
+        )
+        currentTest.variants.append(newVariant)
+        currentTest.updatedAt = Date()
+    }
+
+    /// Remove a variant by index (cannot remove Variant A)
+    func removeVariant(at index: Int) {
+        guard index > 0 && index < currentTest.variants.count else { return }
+        currentTest.variants.remove(at: index)
+        currentTest.updatedAt = Date()
+    }
+
+    /// Get system prompt diff between a variant and Variant A
+    func getSystemPromptDiff(forVariantIndex index: Int) async -> DiffResult? {
+        guard index > 0 && index < currentTest.variants.count else { return nil }
+
+        let baseVariant = currentTest.variants[0]
+        let compareVariant = currentTest.variants[index]
+
+        return await diffHighlighter.compareLines(baseVariant.systemPrompt, compareVariant.systemPrompt)
+    }
+
     // MARK: - Prompt Execution
 
     /// Send a message to all variants in parallel

@@ -48,13 +48,35 @@ class CharacterChatViewModel {
     // MARK: - System Prompt Loading
 
     func loadSystemPrompt() async {
-        guard let githubAPI = githubAPI else {
-            error = "GitHub API not initialized"
+        isLoadingSystemPrompt = true
+        error = nil
+
+        // For local characters, use a default conversational system prompt
+        // This avoids requiring GitHub authentication for basic chat functionality
+        if character.isLocalOnly {
+            systemPromptContent = Self.defaultConversationalPrompt
+            systemPromptLoaded = true
+            isLoadingSystemPrompt = false
+
+            // Reset chat when switching prompts
+            messages = []
+            conversationHistory = []
+            hasStartedConversation = false
+
+            // Automatically start conversation with greeting
+            await startConversation()
             return
         }
 
-        isLoadingSystemPrompt = true
-        error = nil
+        // For GitHub-backed characters, try to fetch from GitHub
+        guard let githubAPI = githubAPI else {
+            // Fall back to default prompt if no GitHub API
+            systemPromptContent = Self.defaultConversationalPrompt
+            systemPromptLoaded = true
+            isLoadingSystemPrompt = false
+            await startConversation()
+            return
+        }
 
         do {
             // Fetch the system prompt from GitHub
@@ -75,8 +97,10 @@ class CharacterChatViewModel {
             hasStartedConversation = false
 
         } catch {
-            self.error = "Failed to load system prompt: \(error.localizedDescription)"
-            systemPromptLoaded = false
+            // Fall back to default prompt on error
+            NSLog("[CharacterChatViewModel] GitHub fetch failed, using default prompt: %@", error.localizedDescription)
+            systemPromptContent = Self.defaultConversationalPrompt
+            systemPromptLoaded = true
         }
 
         isLoadingSystemPrompt = false
@@ -86,6 +110,25 @@ class CharacterChatViewModel {
             await startConversation()
         }
     }
+
+    // Default system prompt for local characters
+    private static let defaultConversationalPrompt = """
+    You are roleplaying as the character described below. Stay completely in character at all times.
+
+    ## Guidelines
+
+    1. **Stay in Character**: Always respond as the character would, using their speech patterns, mannerisms, and personality.
+
+    2. **Use First Person**: Speak as the character, not about them.
+
+    3. **Be Authentic**: Draw from the character's background, experiences, and worldview.
+
+    4. **React Naturally**: Respond to the conversation context appropriately for your character.
+
+    5. **Show Personality**: Let the character's unique traits shine through in every response.
+
+    Remember: You ARE this character. Think, speak, and react exactly as they would.
+    """
 
     // MARK: - Start Conversation with Greeting
 

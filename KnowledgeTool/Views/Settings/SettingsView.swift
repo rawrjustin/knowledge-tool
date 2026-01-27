@@ -1,399 +1,469 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(APIKeyManager.self) private var apiKeyManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(APIKeyManager.self) private var apiKeyManager
 
-    @State private var assemblyAIKey: String = ""
-    @State private var openAIKey: String = ""
-    @State private var repositoryPathString: String = ""
-    @State private var showingSaveConfirmation = false
-    @State private var errorMessage: String?
-
-    // GitHub authentication
+    // GitHub Service
     var githubAuthService: GitHubAuthService
 
     // Callback for when repository path changes
     var onRepositoryPathChanged: (() -> Void)?
 
+    @State private var assemblyAIKey: String = ""
+    @State private var openAIKey: String = ""
+    @State private var perplexityKey: String = ""
+    @State private var pineconeKey: String = ""
+    @State private var pineconeIndexName: String = ""
+    @State private var githubPAT: String = ""
+    @State private var githubRepoOwner: String = ""
+    @State private var githubRepoName: String = ""
+
+    @State private var isSelectingFolder = false
+    @State private var selectedPineconeEnvironment: APIKeyManager.PineconeEnvironment = .development
+    @State private var showingSaveConfirmation = false
+    @State private var recentlySavedKey: APIKeyManager.APIService?
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Settings")
-                        .font(.title.bold())
-
-                    Text("Configure API keys for Knowledge Tool")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-            }
-            .padding(24)
-
-            Divider()
-
-            // Content
-            ScrollView {
-                VStack(spacing: 24) {
-                    // GitHub Authentication Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Image(systemName: "person.badge.key.fill")
-                                .foregroundStyle(.blue)
-                                .font(.title3)
-
-                            Text("GitHub Authentication")
-                                .font(.headline)
-                        }
-
-                        if githubAuthService.isAuthenticated, let user = githubAuthService.currentUser {
-                            // Authenticated state
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Signed in as \(user.login)")
-                                        .font(.subheadline.bold())
-
-                                    Text("Full read/write access")
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
-                                }
+        NavigationStack {
+            Form {
+                // MARK: - GitHub Configuration
+                Section {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                        // Repository Settings
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            HStack {
+                                Label("Repository", systemImage: "folder")
+                                    .font(.subheadline.weight(.semibold))
 
                                 Spacer()
 
-                                Button("Sign Out") {
-                                    githubAuthService.signOut()
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                            .padding()
-                            .background(Color(nsColor: .textBackgroundColor))
-                            .cornerRadius(8)
-                        } else {
-                            // Read-only state
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "book.closed.fill")
-                                        .foregroundStyle(.orange)
-
-                                    Text("Read-Only Mode")
-                                        .font(.subheadline.bold())
-                                }
-
-                                Text("You can browse characters but cannot make changes. Sign in with GitHub to edit characters and add knowledge files.")
+                                Text("Optional")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
-
-                                Button {
-                                    githubAuthService.startOAuthFlow()
-                                } label: {
-                                    Label("Sign in with GitHub", systemImage: "arrow.right.circle.fill")
-                                }
-                                .buttonStyle(.borderedProminent)
+                                    .foregroundStyle(.tertiary)
                             }
-                            .padding()
-                            .background(Color(nsColor: .textBackgroundColor))
-                            .cornerRadius(8)
+
+                            HStack(spacing: DesignSystem.Spacing.sm) {
+                                TextField("Owner", text: $githubRepoOwner)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onChange(of: githubRepoOwner) { _, newValue in
+                                        apiKeyManager.githubRepoOwner = newValue
+                                    }
+
+                                Text("/")
+                                    .foregroundStyle(.tertiary)
+                                    .font(.title3)
+
+                                TextField("Repository", text: $githubRepoName)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onChange(of: githubRepoName) { _, newValue in
+                                        apiKeyManager.githubRepoName = newValue
+                                    }
+                            }
+
+                            HelperText(text: "Sync characters with a GitHub repository", icon: "arrow.triangle.2.circlepath")
                         }
 
-                        Text("Characters are synced from the CharacterPrompts repository. Team members with GitHub access can edit and create new characters.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Divider()
+
+                        // PAT Settings
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            HStack {
+                                Label("Access Token", systemImage: "key")
+                                    .font(.subheadline.weight(.semibold))
+
+                                if !githubPAT.isEmpty {
+                                    StatusBadge(text: "Configured", status: .success)
+                                }
+                            }
+
+                            SecureField("ghp_...", text: $githubPAT)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: githubPAT) { _, newValue in
+                                    saveKey(newValue, for: .gitHubPAT)
+                                    if !newValue.isEmpty {
+                                        githubAuthService.useReadOnlyMode()
+                                        onRepositoryPathChanged?()
+                                    }
+                                }
+
+                            HStack {
+                                HelperText(text: "Required for private repositories", icon: "lock")
+                                Spacer()
+                                Link(destination: URL(string: "https://github.com/settings/tokens")!) {
+                                    Label("Generate Token", systemImage: "arrow.up.forward")
+                                        .font(.caption)
+                                }
+                            }
+                        }
                     }
-                    .padding()
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                } header: {
+                    SettingsSectionHeader(title: "GitHub", icon: "externaldrive.connected.to.line.below")
+                } footer: {
+                    if githubAuthService.isAuthenticated {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(DesignSystem.Colors.success)
+                            Text("Authenticated as \(githubAuthService.currentUser?.login ?? "Unknown")")
+                        }
+                        .font(.caption)
+                    } else if !githubPAT.isEmpty && !githubRepoOwner.isEmpty {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "key.fill")
+                                .foregroundStyle(DesignSystem.Colors.info)
+                            Text("Using token for \(githubRepoOwner)/\(githubRepoName)")
+                        }
+                        .font(.caption)
+                    } else {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: "externaldrive")
+                                .foregroundStyle(.secondary)
+                            Text("Characters stored locally only")
+                        }
+                        .font(.caption)
+                    }
+                }
 
-                    // API Keys Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("API Keys")
-                            .font(.headline)
+                // MARK: - API Keys
+                Section {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                        // OpenAI
+                        APIKeyRow(
+                            title: "OpenAI",
+                            icon: "brain",
+                            placeholder: "sk-...",
+                            key: $openAIKey,
+                            isConfigured: !openAIKey.isEmpty,
+                            recentlySaved: recentlySavedKey == .openAI,
+                            description: "Powers character conversations"
+                        ) { newValue in
+                            saveKeyWithFeedback(newValue, for: .openAI)
+                        }
 
-                        Text("Your API keys are securely stored in the macOS Keychain and never leave your device.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Divider()
 
                         // AssemblyAI
-                        APIKeyField(
-                            service: .assemblyAI,
+                        APIKeyRow(
+                            title: "AssemblyAI",
+                            icon: "waveform",
+                            placeholder: "Your API key",
                             key: $assemblyAIKey,
-                            isConfigured: apiKeyManager.hasAPIKey(for: .assemblyAI)
-                        )
+                            isConfigured: !assemblyAIKey.isEmpty,
+                            recentlySaved: recentlySavedKey == .assemblyAI,
+                            description: "Transcribes video content"
+                        ) { newValue in
+                            saveKeyWithFeedback(newValue, for: .assemblyAI)
+                        }
 
-                        // OpenAI
-                        APIKeyField(
-                            service: .openAI,
-                            key: $openAIKey,
-                            isConfigured: apiKeyManager.hasAPIKey(for: .openAI)
-                        )
+                        Divider()
+
+                        // Perplexity
+                        APIKeyRow(
+                            title: "Perplexity",
+                            icon: "magnifyingglass",
+                            placeholder: "pplx-...",
+                            key: $perplexityKey,
+                            isConfigured: !perplexityKey.isEmpty,
+                            recentlySaved: recentlySavedKey == .perplexity,
+                            description: "Deep research for characters"
+                        ) { newValue in
+                            saveKeyWithFeedback(newValue, for: .perplexity)
+                        }
                     }
-                    .padding()
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                } header: {
+                    SettingsSectionHeader(title: "AI Services", icon: "cpu")
+                } footer: {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "lock.shield")
+                            .foregroundStyle(.secondary)
+                        Text("Keys stored securely in Keychain")
+                    }
+                    .font(.caption)
+                }
 
-                    // Repository Path Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
+                // MARK: - Pinecone (RAG)
+                Section {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                        // API Key
+                        APIKeyRow(
+                            title: "Pinecone",
+                            icon: "cylinder.split.1x2",
+                            placeholder: "pcsk_...",
+                            key: $pineconeKey,
+                            isConfigured: !pineconeKey.isEmpty,
+                            recentlySaved: recentlySavedKey == .pinecone,
+                            description: "Vector database for knowledge"
+                        ) { newValue in
+                            saveKeyWithFeedback(newValue, for: .pinecone)
+                        }
+
+                        Divider()
+
+                        // Index Name
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            HStack {
+                                Label("Index Name", systemImage: "list.bullet.rectangle")
+                                    .font(.subheadline.weight(.semibold))
+
+                                if !pineconeIndexName.isEmpty {
+                                    StatusBadge(text: "Set", status: .success)
+                                }
+                            }
+
+                            TextField("your-index-name", text: $pineconeIndexName)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: pineconeIndexName) { _, newValue in
+                                    apiKeyManager.pineconeIndexName = newValue
+                                }
+
+                            HelperText(text: "Your Pinecone index for storing character knowledge", icon: "info.circle")
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                } header: {
+                    SettingsSectionHeader(title: "Pinecone (RAG)", icon: "cylinder.split.1x2", optional: true)
+                } footer: {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "link")
+                            .foregroundStyle(.secondary)
+                        Link("Create an index at pinecone.io", destination: URL(string: "https://www.pinecone.io")!)
+                    }
+                    .font(.caption)
+                }
+                
+                // MARK: - Updates
+                UpdateSettingsSection()
+
+                // MARK: - Local Repository (Fallback)
+                Section {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        // Current path display
+                        HStack(spacing: DesignSystem.Spacing.sm) {
                             Image(systemName: "folder.fill")
                                 .foregroundStyle(.blue)
-                                .font(.title3)
+                                .font(.subheadline)
 
-                            Text("Character Repository")
-                                .font(.headline)
-                        }
-
-                        Text("Path to the CharacterPrompts repository containing your AI character personas.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                TextField("Repository path", text: $repositoryPathString)
-                                    .textFieldStyle(.roundedBorder)
-
-                                Button {
-                                    selectRepositoryFolder()
-                                } label: {
-                                    Image(systemName: "folder")
-                                }
-                                .buttonStyle(.bordered)
-                                .help("Browse for folder")
-                            }
-
-                            HStack(spacing: 12) {
-                                if apiKeyManager.hasCustomRepositoryPath {
-                                    Button {
-                                        apiKeyManager.resetRepositoryPath()
-                                        repositoryPathString = apiKeyManager.repositoryPath.path
-                                    } label: {
-                                        Label("Reset to Default", systemImage: "arrow.counterclockwise")
-                                            .font(.caption)
-                                    }
-                                    .buttonStyle(.bordered)
-                                }
-
-                                Spacer()
-
-                                if !repositoryPathString.isEmpty {
-                                    let exists = FileManager.default.fileExists(atPath: repositoryPathString)
-                                    HStack(spacing: 4) {
-                                        Image(systemName: exists ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                            .foregroundStyle(exists ? .green : .orange)
-                                            .font(.caption)
-
-                                        Text(exists ? "Path exists" : "Path not found")
-                                            .font(.caption)
-                                            .foregroundStyle(exists ? .green : .orange)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
-
-                    // Information Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Getting API Keys")
-                            .font(.headline)
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            APIKeyInfoRow(
-                                service: "AssemblyAI",
-                                url: "https://www.assemblyai.com/",
-                                description: "Required for video transcription with speaker diarization"
-                            )
-
-                            APIKeyInfoRow(
-                                service: "OpenAI",
-                                url: "https://platform.openai.com/api-keys",
-                                description: "Required for summarization and text analysis"
-                            )
-                        }
-                    }
-                    .padding()
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
-
-                    // Bundled Dependencies Section
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(.green)
-                                .font(.title3)
-
-                            Text("Bundled Dependencies")
-                                .font(.headline)
-                        }
-
-                        Text("This app includes all required binaries - no external installations needed!")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            BundledDependencyRow(
-                                name: "yt-dlp",
-                                description: "YouTube video downloader",
-                                icon: "arrow.down.circle.fill"
-                            )
-
-                            BundledDependencyRow(
-                                name: "ffmpeg & ffprobe",
-                                description: "Audio/video processing tools",
-                                icon: "waveform.circle.fill"
-                            )
-
-                            BundledDependencyRow(
-                                name: "Node.js",
-                                description: "JavaScript runtime for YouTube extraction",
-                                icon: "server.rack"
-                            )
-                        }
-
-                        HStack(spacing: 8) {
-                            Image(systemName: "info.circle")
-                                .foregroundStyle(.blue)
-
-                            Text("No Homebrew or external dependencies required. Everything works out of the box!")
-                                .font(.caption)
+                            Text(apiKeyManager.repositoryPath.path)
+                                .font(.caption.monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
                                 .foregroundStyle(.secondary)
+
+                            Spacer()
+
+                            if apiKeyManager.hasCustomRepositoryPath {
+                                StatusBadge(text: "Custom", status: .info, showIcon: false)
+                            }
                         }
-                        .padding(.top, 4)
+                        .padding(DesignSystem.Spacing.md)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+
+                        // Action buttons
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Button {
+                                isSelectingFolder = true
+                                selectFolder()
+                            } label: {
+                                Label("Choose Folder", systemImage: "folder.badge.plus")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isSelectingFolder)
+
+                            if apiKeyManager.hasCustomRepositoryPath {
+                                Button(role: .destructive) {
+                                    apiKeyManager.resetRepositoryPath()
+                                    onRepositoryPathChanged?()
+                                } label: {
+                                    Label("Reset", systemImage: "arrow.uturn.backward")
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
                     }
-                    .padding()
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
+                } header: {
+                    SettingsSectionHeader(title: "Local Storage", icon: "externaldrive")
+                } footer: {
+                    HelperText(text: "Fallback storage when GitHub is unavailable", icon: "info.circle")
                 }
-                .padding(24)
             }
-
-            Divider()
-
-            // Footer with buttons
-            HStack {
-                if showingSaveConfirmation {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-
-                        Text("Saved successfully")
-                            .font(.subheadline)
+            .formStyle(.grouped)
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
                     }
-                    .transition(.opacity)
+                    .keyboardShortcut(.return)
                 }
-
-                if let errorMessage = errorMessage {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
-
-                        Text(errorMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.red)
-                    }
-                    .transition(.opacity)
-                }
-
-                Spacer()
-
-                Button("Close") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button("Save") {
-                    saveAPIKeys()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
             }
-            .padding(24)
+            .onAppear {
+                loadKeys()
+            }
         }
-        .frame(width: 600, height: 800)
-        .onAppear {
-            loadSettings()
-        }
+        .frame(width: 520, height: 680)
     }
 
-    // MARK: - Load Settings
-    private func loadSettings() {
+    private func loadKeys() {
         if let key = apiKeyManager.getAPIKey(for: .assemblyAI) {
             assemblyAIKey = key
         }
-
         if let key = apiKeyManager.getAPIKey(for: .openAI) {
             openAIKey = key
         }
-
-        repositoryPathString = apiKeyManager.repositoryPath.path
+        if let key = apiKeyManager.getAPIKey(for: .perplexity) {
+            perplexityKey = key
+        }
+        if let key = apiKeyManager.getAPIKey(for: .pinecone) {
+            pineconeKey = key
+        }
+        if let key = apiKeyManager.getAPIKey(for: .gitHubPAT) {
+            githubPAT = key
+        }
+        // Load GitHub repo settings
+        githubRepoOwner = apiKeyManager.githubRepoOwner
+        githubRepoName = apiKeyManager.githubRepoName
+        // Load Pinecone index name
+        pineconeIndexName = apiKeyManager.pineconeIndexName
     }
 
-    // MARK: - Save Settings
-    private func saveAPIKeys() {
-        errorMessage = nil
+    private func saveKey(_ key: String, for service: APIKeyManager.APIService) {
+        apiKeyManager.setAPIKey(key, for: service)
+    }
 
-        do {
-            // Save AssemblyAI key if provided
-            if !assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                try apiKeyManager.setAPIKey(assemblyAIKey, for: .assemblyAI)
-            }
-
-            // Save OpenAI key if provided
-            if !openAIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                try apiKeyManager.setAPIKey(openAIKey, for: .openAI)
-            }
-
-            // Save repository path if changed
-            let trimmedPath = repositoryPathString.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedPath.isEmpty {
-                let newURL = URL(fileURLWithPath: trimmedPath)
-                if newURL.path != apiKeyManager.repositoryPath.path {
-                    apiKeyManager.repositoryPath = newURL
-                    onRepositoryPathChanged?()
-                }
-            }
-
-            // Show confirmation
-            withAnimation {
-                showingSaveConfirmation = true
-            }
-
-            // Hide confirmation after 2 seconds
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                await MainActor.run {
-                    withAnimation {
-                        showingSaveConfirmation = false
+    private func saveKeyWithFeedback(_ key: String, for service: APIKeyManager.APIService) {
+        apiKeyManager.setAPIKey(key, for: service)
+        withAnimation(DesignSystem.Animation.quick) {
+            recentlySavedKey = service
+        }
+        // Reset after a delay
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation(DesignSystem.Animation.quick) {
+                    if recentlySavedKey == service {
+                        recentlySavedKey = nil
                     }
                 }
             }
-
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
-
-    // MARK: - Select Repository Folder
-    private func selectRepositoryFolder() {
+    
+    private func selectFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Select the CharacterPrompts repository folder"
-        panel.prompt = "Select"
-
+        panel.message = "Select the folder containing your Personas directory"
+        
         panel.begin { response in
+            isSelectingFolder = false
             if response == .OK, let url = panel.url {
-                repositoryPathString = url.path
+                apiKeyManager.repositoryPath = url
+                onRepositoryPathChanged?()
             }
         }
     }
 }
 
-// MARK: - API Key Field
+// MARK: - Settings Section Header
+struct SettingsSectionHeader: View {
+    let title: String
+    let icon: String
+    var optional: Bool = false
+
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(title)
+
+            if optional {
+                Text("Optional")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, DesignSystem.Spacing.xs)
+                    .padding(.vertical, 2)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(Capsule())
+            }
+        }
+    }
+}
+
+// MARK: - API Key Row
+struct APIKeyRow: View {
+    let title: String
+    let icon: String
+    let placeholder: String
+    @Binding var key: String
+    let isConfigured: Bool
+    var recentlySaved: Bool = false
+    var description: String? = nil
+    let onSave: (String) -> Void
+
+    @State private var isVisible = false
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                Label(title, systemImage: icon)
+                    .font(.subheadline.weight(.semibold))
+
+                Spacer()
+
+                if recentlySaved {
+                    HStack(spacing: DesignSystem.Spacing.xxs) {
+                        Image(systemName: "checkmark")
+                            .font(.caption.weight(.bold))
+                        Text("Saved")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(DesignSystem.Colors.success)
+                    .transition(.scale.combined(with: .opacity))
+                } else if isConfigured {
+                    StatusBadge(text: "Configured", status: .success)
+                }
+            }
+
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Group {
+                    if isVisible {
+                        TextField(placeholder, text: $key)
+                    } else {
+                        SecureField(placeholder, text: $key)
+                    }
+                }
+                .textFieldStyle(.roundedBorder)
+                .focused($isFocused)
+                .onChange(of: key) { _, newValue in
+                    onSave(newValue)
+                }
+
+                Button {
+                    isVisible.toggle()
+                } label: {
+                    Image(systemName: isVisible ? "eye.slash" : "eye")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .help(isVisible ? "Hide key" : "Show key")
+            }
+
+            if let description = description {
+                HelperText(text: description, icon: nil)
+            }
+        }
+        .animation(DesignSystem.Animation.quick, value: recentlySaved)
+    }
+}
+
+// MARK: - API Key Field (Legacy)
 struct APIKeyField: View {
     let service: APIKeyManager.APIService
     @Binding var key: String
@@ -402,15 +472,13 @@ struct APIKeyField: View {
     @State private var isVisible = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             HStack {
                 Label(service.displayName, systemImage: "key.fill")
                     .font(.subheadline.bold())
 
                 if isConfigured {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption)
+                    StatusBadge(text: "Configured", status: .success)
                 }
             }
 
@@ -435,36 +503,6 @@ struct APIKeyField: View {
     }
 }
 
-// MARK: - API Key Info Row
-struct APIKeyInfoRow: View {
-    let service: String
-    let url: String
-    let description: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(service)
-                    .font(.subheadline.bold())
-
-                Spacer()
-
-                if let websiteURL = URL(string: url) {
-                    Link("Get API Key", destination: websiteURL)
-                        .font(.caption)
-                }
-            }
-
-            Text(description)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .background(Color(nsColor: .textBackgroundColor))
-        .cornerRadius(8)
-    }
-}
-
 // MARK: - Bundled Dependency Row
 struct BundledDependencyRow: View {
     let name: String
@@ -472,13 +510,13 @@ struct BundledDependencyRow: View {
     let icon: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DesignSystem.Spacing.md) {
             Image(systemName: icon)
-                .foregroundStyle(.green)
+                .foregroundStyle(DesignSystem.Colors.success)
                 .font(.title3)
                 .frame(width: 24)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
                 Text(name)
                     .font(.subheadline.bold())
 
@@ -490,12 +528,12 @@ struct BundledDependencyRow: View {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(DesignSystem.Colors.success)
                 .font(.caption)
         }
-        .padding(12)
+        .padding(DesignSystem.Spacing.md)
         .background(Color(nsColor: .textBackgroundColor))
-        .cornerRadius(8)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
     }
 }
 

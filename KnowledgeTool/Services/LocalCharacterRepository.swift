@@ -15,8 +15,11 @@ actor LocalCharacterRepository {
     func loadAllCharacters() async throws -> [Character] {
         let personasURL = baseURL.appendingPathComponent("Personas")
 
-        guard FileManager.default.fileExists(atPath: personasURL.path) else {
-            throw LocalRepositoryError.directoryNotFound(personasURL.path)
+        // Create the Personas directory if it doesn't exist
+        if !FileManager.default.fileExists(atPath: personasURL.path) {
+            try FileManager.default.createDirectory(at: personasURL, withIntermediateDirectories: true)
+            NSLog("[LocalCharacterRepository] Created Personas directory at: %@", personasURL.path)
+            return [] // No characters yet
         }
 
         let contents = try FileManager.default.contentsOfDirectory(
@@ -158,7 +161,10 @@ actor LocalCharacterRepository {
 
         var knowledgeFiles: [KnowledgeFile] = []
 
-        for fileURL in files where fileURL.pathExtension == "txt" {
+        // Support both .txt and .jsonl knowledge files
+        let supportedExtensions = ["txt", "jsonl", "json", "md"]
+
+        for fileURL in files where supportedExtensions.contains(fileURL.pathExtension) {
             let content = try String(contentsOf: fileURL, encoding: .utf8)
 
             let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)

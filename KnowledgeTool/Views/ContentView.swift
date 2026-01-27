@@ -14,6 +14,7 @@ enum NavigationItem: String, Identifiable {
     // Character section
     case editor = "Editor"
     case chat = "Chat"
+    case versionCompare = "Compare Versions"
 
     // Character Refinement section
     case videos = "Videos"
@@ -28,6 +29,7 @@ enum NavigationItem: String, Identifiable {
         switch self {
         case .editor: return "square.and.pencil"
         case .chat: return "bubble.left.and.bubble.right"
+        case .versionCompare: return "square.split.2x1"
         case .videos: return "video.fill"
         case .knowledgeBase: return "books.vertical.fill"
         case .promptTesting: return "network"
@@ -36,7 +38,7 @@ enum NavigationItem: String, Identifiable {
 
     var section: NavigationSection {
         switch self {
-        case .editor, .chat:
+        case .editor, .chat, .versionCompare:
             return .character
         case .videos, .knowledgeBase:
             return .characterRefinement
@@ -50,7 +52,7 @@ enum NavigationItem: String, Identifiable {
     }
 
     static var allItems: [NavigationItem] {
-        [.editor, .chat, .videos, .knowledgeBase, .promptTesting]
+        [.editor, .chat, .versionCompare, .videos, .knowledgeBase, .promptTesting]
     }
 
     static func items(for section: NavigationSection) -> [NavigationItem] {
@@ -62,7 +64,7 @@ enum NavigationItem: String, Identifiable {
 
 struct ContentView: View {
     @Environment(APIKeyManager.self) private var apiKeyManager
-    @State private var selectedItem: NavigationItem = .editor
+    @State private var selectedItem: NavigationItem? = .editor // Optional for sidebar selection
     @State private var showingSettings = false
     @State private var showingOnboarding = false
 
@@ -76,72 +78,77 @@ struct ContentView: View {
     @State private var showingCharacterEditor = false
     @State private var characterToEdit: Character?
 
-    // GitHub Services
-    @State private var githubAuthService = GitHubAuthService()
+    // Shared ViewModels (persist across tab switches)
+    @State private var videoViewModel: VideoViewModel
+
+    // GitHub Services - passed from App
+    var githubAuthService: GitHubAuthService
     private var githubAPIService: GitHubAPIService
     private var characterRepository: CharacterRepository
 
     // Local file repository (fallback when GitHub unavailable)
     @State private var localRepository: LocalCharacterRepository
 
-    init() {
-        let authService = GitHubAuthService()
+    init(githubAuthService: GitHubAuthService) {
+        self.githubAuthService = githubAuthService
         let apiService = GitHubAPIService(
-            getToken: { authService.token },
-            isReadOnly: { authService.isReadOnly }
+            getToken: { githubAuthService.token },
+            isReadOnly: { githubAuthService.isReadOnly }
         )
         let repository = CharacterRepository(githubAPI: apiService)
 
         self.githubAPIService = apiService
         self.characterRepository = repository
-        self._githubAuthService = State(initialValue: authService)
 
         // Initialize local repository with configurable path from APIKeyManager
-        // Note: APIKeyManager will use stored path or default to Application Support
         let apiKeyManager = APIKeyManager()
         self._localRepository = State(initialValue: LocalCharacterRepository(baseURL: apiKeyManager.repositoryPath))
+
+        // Initialize shared video view model
+        self._videoViewModel = State(initialValue: VideoViewModel(apiKeyManager: apiKeyManager))
     }
 
+    // Track unsaved changes for sidebar indicator
+    @State private var hasUnsavedEditorChanges = false
+    @State private var showingQuickSwitcher = false
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Character selector at top
-            CharacterSelectorView(
-                selectedCharacter: $selectedCharacter,
-                characters: characters,
-                availableVersions: availableVersions,
-                isLoading: isLoadingCharacters,
-                onSync: syncCharacters,
-                onNewCharacter: {
-                    characterToEdit = nil
-                    showingCharacterEditor = true
-                },
-                onVersionSelected: { version in
-                    selectedCharacter = version
-                }
+        NavigationSplitView {
+            SidebarView(
+                selectedItem: $selectedItem,
+                hasCharacterSelected: selectedCharacter != nil,
+                isVideoProcessing: videoViewModel.processingState.isProcessing,
+                hasUnsavedChanges: hasUnsavedEditorChanges
             )
-            .onChange(of: selectedCharacter) { oldValue, newValue in
-                // Load all versions when character changes
-                if let character = newValue, oldValue?.name != newValue?.name {
-                    Task {
-                        await loadVersions(for: character)
+        } detail: {
+            VStack(spacing: 0) {
+                // Character Selector Bar (Filter Bar Pattern)
+                CharacterSelectorView(
+                    selectedCharacter: $selectedCharacter,
+                    characters: characters,
+                    availableVersions: availableVersions,
+                    isLoading: isLoadingCharacters,
+                    onSync: syncCharacters,
+                    onNewCharacter: {
+                        characterToEdit = nil
+                        showingCharacterEditor = true
+                    },
+                    onVersionSelected: { version in
+                        selectedCharacter = version
                     }
-                }
-            }
-
-            Divider()
-
-            // Main content
-            NavigationSplitView {
-                SidebarView(
-                    selectedItem: $selectedItem,
-                    hasCharacterSelected: selectedCharacter != nil
                 )
-            } detail: {
+                .background(.regularMaterial)
+
+                Divider()
+
                 DetailView(
-                    selectedItem: selectedItem,
+                    selectedItem: selectedItem ?? .editor,
                     selectedCharacter: selectedCharacter,
+                    availableVersions: availableVersions,
                     apiKeyManager: apiKeyManager,
                     localRepository: localRepository,
+                    videoViewModel: videoViewModel,
+                    githubAuthService: githubAuthService,
                     onCharacterSaved: { character in
                         // Refresh character list and versions
                         Task {
@@ -155,7 +162,25 @@ struct ContentView: View {
                     }
                 )
             }
-            .navigationSplitViewStyle(.balanced)
+        }
+        .navigationSplitViewStyle(.balanced)
+        // Keyboard shortcuts
+        .keyboardShortcut("1", modifiers: .command) // Editor
+        .keyboardShortcut("2", modifiers: .command) // Chat
+        .keyboardShortcut("3", modifiers: .command) // Videos
+        .keyboardShortcut("4", modifiers: .command) // Knowledge Base
+        .keyboardShortcut("5", modifiers: .command) // Prompt Testing
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSection"))) { notification in
+            if let section = notification.object as? Int {
+                switch section {
+                case 1: selectedItem = .editor
+                case 2: selectedItem = .chat
+                case 3: selectedItem = .videos
+                case 4: selectedItem = .knowledgeBase
+                case 5: selectedItem = .promptTesting
+                default: break
+                }
+            }
         }
         .sheet(isPresented: $showingCharacterEditor) {
             if characterToEdit == nil {
@@ -208,6 +233,36 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             showingSettings = true
         }
+        // Navigation shortcuts
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToSection)) { notification in
+            if let section = notification.object as? Int {
+                withAnimation(DesignSystem.Animation.quick) {
+                    switch section {
+                    case 1: selectedItem = .editor
+                    case 2: selectedItem = .chat
+                    case 3: selectedItem = .videos
+                    case 4: selectedItem = .knowledgeBase
+                    case 5: selectedItem = .promptTesting
+                    default: break
+                    }
+                }
+            }
+        }
+        // New character shortcut
+        .onReceive(NotificationCenter.default.publisher(for: .newCharacter)) { _ in
+            characterToEdit = nil
+            showingCharacterEditor = true
+        }
+        // Quick switch character (open picker)
+        .onReceive(NotificationCenter.default.publisher(for: .quickSwitchCharacter)) { _ in
+            showingQuickSwitcher = true
+        }
+        // Refresh characters
+        .onReceive(NotificationCenter.default.publisher(for: .refreshCharacters)) { _ in
+            Task {
+                await syncCharacters()
+            }
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView(
                 githubAuthService: githubAuthService,
@@ -229,138 +284,231 @@ struct ContentView: View {
                 .environment(apiKeyManager)
                 .interactiveDismissDisabled()
         }
+        // Quick switcher sheet
+        .sheet(isPresented: $showingQuickSwitcher) {
+            QuickCharacterSwitcher(
+                characters: characters,
+                selectedCharacter: $selectedCharacter,
+                onDismiss: { showingQuickSwitcher = false }
+            )
+        }
     }
 
     // MARK: - Character Loading
 
+    @MainActor
     private func loadCharacters() async {
         isLoadingCharacters = true
         defer { isLoadingCharacters = false }
 
-        NSLog("[KnowledgeTool] Starting to load characters from GitHub...")
+        var allCharacters: [Character] = []
 
+        // First, always load from local repository (this is where new characters are saved)
+        NSLog("[KnowledgeTool] Loading characters from local repository...")
         do {
-            // Load characters from GitHub repository using the PAT
-            characters = try await characterRepository.loadAllCharacters()
-            NSLog("[KnowledgeTool] Successfully loaded %d characters from GitHub", characters.count)
+            let localCharacters = try await localRepository.loadAllCharacters()
+            NSLog("[KnowledgeTool] Loaded %d characters from local", localCharacters.count)
+            allCharacters.append(contentsOf: localCharacters)
+        } catch {
+            NSLog("[KnowledgeTool] Error loading characters from local: %@", error.localizedDescription)
+        }
 
-            // Auto-select first character if none selected
-            if selectedCharacter == nil, let firstCharacter = characters.first {
-                selectedCharacter = firstCharacter
-                NSLog("[KnowledgeTool] Auto-selected first character: %@", firstCharacter.name)
-                // Load versions for the first character
-                await loadVersions(for: firstCharacter)
+        // Optionally also try GitHub (for characters stored remotely)
+        // Only if we have GitHub configured and want to sync
+        // For now, prioritize local-only to avoid GitHub auth issues
+        /*
+        NSLog("[KnowledgeTool] Starting to load characters from GitHub...")
+        do {
+            let githubCharacters = try await characterRepository.loadAllCharacters()
+            NSLog("[KnowledgeTool] Successfully loaded %d characters from GitHub", githubCharacters.count)
+
+            // Merge GitHub characters (avoid duplicates by name)
+            let localNames = Set(allCharacters.map { $0.name })
+            for character in githubCharacters {
+                if !localNames.contains(character.name) {
+                    allCharacters.append(character)
+                }
             }
         } catch {
             NSLog("[KnowledgeTool] Error loading characters from GitHub: %@", error.localizedDescription)
-            // Fall back to local repository if GitHub fails
-            do {
-                NSLog("[KnowledgeTool] Falling back to local repository...")
-                characters = try await localRepository.loadAllCharacters()
-                NSLog("[KnowledgeTool] Loaded %d characters from local", characters.count)
-                if selectedCharacter == nil, let firstCharacter = characters.first {
-                    selectedCharacter = firstCharacter
-                    await loadVersions(for: firstCharacter)
-                }
-            } catch {
-                NSLog("[KnowledgeTool] Error loading characters from local: %@", error.localizedDescription)
-            }
+        }
+        */
+
+        characters = allCharacters
+        NSLog("[KnowledgeTool] Total characters loaded: %d", characters.count)
+
+        // Auto-select first character if none selected
+        if selectedCharacter == nil, let firstCharacter = characters.first {
+            selectedCharacter = firstCharacter
+            NSLog("[KnowledgeTool] Auto-selected first character: %@", firstCharacter.name)
+            await loadVersions(for: firstCharacter)
         }
     }
 
+    @MainActor
     private func syncCharacters() async {
         // Force reload characters from GitHub
         await loadCharacters()
     }
 
+    @MainActor
     private func loadVersions(for character: Character) async {
-        // For GitHub-loaded characters, we only have one version
-        // Version history would require fetching git commits
-        availableVersions = [character]
+        // Load all versions from local repository
+        do {
+            let versions = try await localRepository.loadAllVersions(for: character.name)
+            availableVersions = versions.sorted { $0.version > $1.version }
+        } catch {
+            // Fallback to just the current character if version loading fails
+            NSLog("[KnowledgeTool] Error loading versions: %@", error.localizedDescription)
+            availableVersions = [character]
+        }
     }
 }
 
 // MARK: - Sidebar View
 struct SidebarView: View {
-    @Binding var selectedItem: NavigationItem
+    @Binding var selectedItem: NavigationItem?
     let hasCharacterSelected: Bool
+    var isVideoProcessing: Bool = false
+    var hasUnsavedChanges: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            List(selection: $selectedItem) {
-                // Character section (no header for top-level items)
+        List(selection: $selectedItem) {
+            // Character section
+            Section {
                 ForEach(NavigationItem.items(for: .character)) { item in
-                    NavigationLink(value: item) {
-                        Label {
-                            Text(item.rawValue)
-                                .font(.body)
-                        } icon: {
-                            Image(systemName: item.icon)
-                        }
-                    }
-                    .disabled(!hasCharacterSelected && item.requiresCharacter)
-                    .opacity(!hasCharacterSelected && item.requiresCharacter ? 0.5 : 1.0)
+                    SidebarNavigationItem(
+                        item: item,
+                        isSelected: selectedItem == item,
+                        isDisabled: !hasCharacterSelected && item.requiresCharacter,
+                        showActivityDot: item == .editor && hasUnsavedChanges
+                    )
                 }
-
-                // Character Refinement section
-                Section {
-                    ForEach(NavigationItem.items(for: .characterRefinement)) { item in
-                        NavigationLink(value: item) {
-                            Label {
-                                Text(item.rawValue)
-                                    .font(.body)
-                            } icon: {
-                                Image(systemName: item.icon)
-                            }
-                        }
-                        .disabled(!hasCharacterSelected && item.requiresCharacter)
-                        .opacity(!hasCharacterSelected && item.requiresCharacter ? 0.5 : 1.0)
-                    }
-                } header: {
-                    Text("Character Refinement")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                // System Prompt Refinement section
-                Section {
-                    ForEach(NavigationItem.items(for: .systemPromptRefinement)) { item in
-                        NavigationLink(value: item) {
-                            Label {
-                                Text(item.rawValue)
-                                    .font(.body)
-                            } icon: {
-                                Image(systemName: item.icon)
-                            }
-                        }
-                        .disabled(!hasCharacterSelected && item.requiresCharacter)
-                        .opacity(!hasCharacterSelected && item.requiresCharacter ? 0.5 : 1.0)
-                    }
-                } header: {
-                    Text("System Prompt Refinement")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            } header: {
+                SidebarSectionHeader(title: "Character", icon: "person.fill")
             }
 
-            Divider()
-
-            // Settings button at bottom - posts notification to open settings
-            Button {
-                NotificationCenter.default.post(name: .openSettings, object: nil)
-            } label: {
-                Label("Settings", systemImage: "gear")
-                    .font(.body)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+            // Character Refinement section
+            Section {
+                ForEach(NavigationItem.items(for: .characterRefinement)) { item in
+                    SidebarNavigationItem(
+                        item: item,
+                        isSelected: selectedItem == item,
+                        isDisabled: !hasCharacterSelected && item.requiresCharacter,
+                        isProcessing: item == .videos && isVideoProcessing
+                    )
+                }
+            } header: {
+                SidebarSectionHeader(title: "Refinement", icon: "wand.and.stars")
             }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .padding(.vertical, 8)
+
+            // System Prompt Refinement section
+            Section {
+                ForEach(NavigationItem.items(for: .systemPromptRefinement)) { item in
+                    SidebarNavigationItem(
+                        item: item,
+                        isSelected: selectedItem == item,
+                        isDisabled: !hasCharacterSelected && item.requiresCharacter
+                    )
+                }
+            } header: {
+                SidebarSectionHeader(title: "Testing", icon: "testtube.2")
+            }
         }
+        .listStyle(.sidebar)
         .navigationTitle("Knowledge Tool")
-        .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 250)
+        .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    NotificationCenter.default.post(name: .openSettings, object: nil)
+                } label: {
+                    Label("Settings", systemImage: "gear")
+                }
+                .help("Open Settings (⌘,)")
+            }
+        }
+    }
+}
+
+// MARK: - Sidebar Section Header
+struct SidebarSectionHeader: View {
+    let title: String
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Sidebar Navigation Item
+struct SidebarNavigationItem: View {
+    let item: NavigationItem
+    let isSelected: Bool
+    let isDisabled: Bool
+    var showActivityDot: Bool = false
+    var isProcessing: Bool = false
+
+    @State private var isHovered = false
+
+    var body: some View {
+        NavigationLink(value: item) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                // Selection indicator
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .frame(width: 3, height: 20)
+
+                // Icon - filled when selected, outline when not
+                Image(systemName: isSelected ? filledIcon : item.icon)
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .frame(width: 20)
+
+                // Label
+                Text(item.rawValue)
+                    .font(.subheadline)
+                    .fontWeight(isSelected ? .medium : .regular)
+                    .foregroundStyle(isDisabled ? .tertiary : .primary)
+
+                Spacer()
+
+                // Activity indicators
+                if isProcessing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if showActivityDot {
+                    Circle()
+                        .fill(DesignSystem.Colors.warning)
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .padding(.vertical, DesignSystem.Spacing.xxs)
+            .contentShape(Rectangle())
+        }
+        .disabled(isDisabled)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+
+    private var filledIcon: String {
+        switch item {
+        case .editor: return "square.and.pencil"
+        case .chat: return "bubble.left.and.bubble.right.fill"
+        case .versionCompare: return "square.split.2x1.fill"
+        case .videos: return "video.fill"
+        case .knowledgeBase: return "books.vertical.fill"
+        case .promptTesting: return "network"
+        }
     }
 }
 
@@ -368,8 +516,11 @@ struct SidebarView: View {
 struct DetailView: View {
     let selectedItem: NavigationItem
     let selectedCharacter: Character?
+    let availableVersions: [Character]
     let apiKeyManager: APIKeyManager
     let localRepository: LocalCharacterRepository
+    let videoViewModel: VideoViewModel
+    let githubAuthService: GitHubAuthService
     let onCharacterSaved: (Character) -> Void
     let onCancelEdit: () -> Void
 
@@ -384,19 +535,39 @@ struct DetailView: View {
                         onSave: onCharacterSaved,
                         onCancel: onCancelEdit
                     )
+                    .id(character.id) // Force view recreation when character changes
                 case .chat:
                     CharacterChatView(character: character, apiKeyManager: apiKeyManager)
+                        .id(character.id) // Force view recreation when character changes
+                case .versionCompare:
+                    VersionComparisonChatView(
+                        characterName: character.name,
+                        initialVersions: availableVersions,
+                        localRepository: localRepository,
+                        apiKeyManager: apiKeyManager,
+                        onClose: {
+                            // Navigation handled by sidebar
+                        }
+                    )
+                    .id(character.id)
                 case .videos:
-                    VideoView(viewModel: VideoViewModel(apiKeyManager: apiKeyManager))
+                    VideoView(viewModel: videoViewModel)
                 case .knowledgeBase:
-                    KnowledgeBaseView(character: character, localRepository: localRepository)
+                    KnowledgeBaseView(character: character, localRepository: localRepository, apiKeyManager: apiKeyManager)
+                        .id(character.id) // Force view recreation when character changes
                 case .promptTesting:
-                    PromptTestingView(character: character, apiKeyManager: apiKeyManager)
+                    PromptTestingView(character: character, apiKeyManager: apiKeyManager, githubAuthService: githubAuthService)
+                        .id(character.id) // Force view recreation when character changes
                 }
             } else {
-                PlaceholderView(
-                    title: "Select a Character to get started",
-                    message: "Choose a character from the dropdown above to begin working"
+                EmptyStateView(
+                    icon: "person.crop.circle.badge.questionmark",
+                    title: "No Character Selected",
+                    message: "Select a character from the dropdown above, or create a new one to get started.",
+                    actionLabel: "Create Character",
+                    action: {
+                        NotificationCenter.default.post(name: .newCharacter, object: nil)
+                    }
                 )
             }
         }
@@ -404,31 +575,151 @@ struct DetailView: View {
     }
 }
 
-// MARK: - Placeholder View
-struct PlaceholderView: View {
-    let title: String
-    let message: String
+// MARK: - Quick Character Switcher
+struct QuickCharacterSwitcher: View {
+    let characters: [Character]
+    @Binding var selectedCharacter: Character?
+    let onDismiss: () -> Void
+
+    @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
+
+    private var uniqueCharacterNames: [String] {
+        Array(Set(characters.map { $0.name })).sorted()
+    }
+
+    private var filteredCharacterNames: [String] {
+        if searchText.isEmpty {
+            return uniqueCharacterNames
+        }
+        return uniqueCharacterNames.filter { $0.localizedCaseInsensitiveContains(searchText) }
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            // Search header
+            HStack(spacing: DesignSystem.Spacing.md) {
+                Image(systemName: "magnifyingglass")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
 
-            Text(title)
-                .font(.title2.bold())
+                TextField("Search characters...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.title3)
+                    .focused($isSearchFocused)
 
-            Text(message)
-                .font(.body)
-                .foregroundStyle(.secondary)
+                KeyboardShortcutHint(keys: "⌘K")
+            }
+            .padding(DesignSystem.Spacing.lg)
+            .background(Color(nsColor: .controlBackgroundColor))
+
+            Divider()
+
+            // Character list
+            if filteredCharacterNames.isEmpty {
+                VStack(spacing: DesignSystem.Spacing.lg) {
+                    Image(systemName: searchText.isEmpty ? "person.3" : "magnifyingglass")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.tertiary)
+
+                    Text(searchText.isEmpty ? "No characters available" : "No results for \"\(searchText)\"")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(DesignSystem.Spacing.xxl)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(filteredCharacterNames, id: \.self) { characterName in
+                            QuickSwitcherRow(
+                                characterName: characterName,
+                                isSelected: characterName == selectedCharacter?.name,
+                                character: characters.first(where: { $0.name == characterName })
+                            ) {
+                                if let character = characters.first(where: { $0.name == characterName }) {
+                                    selectedCharacter = character
+                                }
+                                onDismiss()
+                            }
+
+                            if characterName != filteredCharacterNames.last {
+                                Divider()
+                                    .padding(.leading, 60)
+                            }
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                }
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .frame(width: 400, height: 400)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            isSearchFocused = true
+        }
+    }
+}
+
+// MARK: - Quick Switcher Row
+struct QuickSwitcherRow: View {
+    let characterName: String
+    let isSelected: Bool
+    let character: Character?
+    let onSelect: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: DesignSystem.Spacing.md) {
+                CharacterAvatar(name: characterName, size: 36)
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
+                    Text(characterName)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    if let character = character {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            if character.hasKnowledgeBase {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "books.vertical.fill")
+                                        .font(.caption2)
+                                    Text("\(character.knowledgeFiles.count)")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.blue)
+                            }
+
+                            Text(character.lastModified.formatted(.relative(presentation: .named)))
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.blue)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.vertical, DesignSystem.Spacing.md)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(isSelected ? Color.accentColor.opacity(0.1) : (isHovered ? Color.primary.opacity(0.05) : Color.clear))
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(githubAuthService: GitHubAuthService())
         .environment(APIKeyManager())
         .frame(width: 1000, height: 700)
 }

@@ -4,10 +4,17 @@ actor OpenAIService {
     private let apiKey: String
     private let baseURL = "https://api.openai.com/v1"
     private let model: String
+    private let session: URLSession
 
-    init(apiKey: String, model: String = "gpt-4o") {
+    init(apiKey: String, model: String = "gpt-5") {
         self.apiKey = apiKey
         self.model = model
+
+        // Create a custom URLSession with longer timeouts for large transcript processing
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 300  // 5 minutes for request
+        config.timeoutIntervalForResource = 600 // 10 minutes for entire resource
+        self.session = URLSession(configuration: config)
     }
 
     // MARK: - Chat Completion
@@ -27,7 +34,7 @@ actor OpenAIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = requestData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
@@ -225,7 +232,7 @@ actor OpenAIService {
         let response = try await generateCompletion(
             systemPrompt: prompt,
             userContent: "",
-            model: "gpt-4o-mini"  // Use mini model for cost efficiency
+            model: "gpt-5-mini"  // Use mini model for cost efficiency
         )
 
         let trimmedResponse = response.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -299,7 +306,6 @@ actor OpenAIService {
         struct ChatRequest: Codable {
             let model: String
             let messages: [Message]
-            let temperature: Double
 
             struct Message: Codable {
                 let role: String
@@ -312,8 +318,7 @@ actor OpenAIService {
             messages: [
                 ChatRequest.Message(role: "system", content: systemPrompt),
                 ChatRequest.Message(role: "user", content: userContent)
-            ],
-            temperature: 0.7
+            ]
         )
 
         let requestData = try JSONEncoder().encode(requestBody)
@@ -324,7 +329,7 @@ actor OpenAIService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = requestData
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw KnowledgeToolError.networkError(URLError(.badServerResponse))

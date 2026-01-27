@@ -164,7 +164,7 @@ struct DiffView: View {
         }
     }
 
-    private func backgroundColor(for type: DiffSegment.SegmentType) -> Color {
+    private func backgroundColor(for type: DiffType) -> Color {
         switch type {
         case .unchanged:
             return Color.clear

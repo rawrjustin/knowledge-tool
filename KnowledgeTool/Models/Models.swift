@@ -168,6 +168,39 @@ struct ArticleInfo: Codable {
     }
 }
 
+// MARK: - Diff Types
+
+enum DiffType {
+    case unchanged
+    case added
+    case removed
+    case modified
+}
+
+struct DiffSegment: Identifiable {
+    let id = UUID()
+    let text: String
+    let type: DiffType
+    var isLine: Bool = false
+}
+
+struct DiffResult {
+    let originalText: String
+    let comparedText: String
+    let segments: [DiffSegment]
+
+    var hasChanges: Bool {
+        segments.contains { $0.type != .unchanged }
+    }
+}
+
+struct DiffLine: Identifiable {
+    let id = UUID()
+    let text: String
+    let type: DiffType
+    let lineNumber: Int? // nil for removed lines
+}
+
 // MARK: - Knowledge Tool Error
 enum KnowledgeToolError: LocalizedError {
     case invalidURL

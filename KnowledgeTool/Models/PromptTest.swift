@@ -88,16 +88,19 @@ struct PromptTest: Identifiable, Codable {
         self.updatedAt = updatedAt
     }
 
-    /// Create a new test with 4 empty variants
+    /// Maximum number of variants allowed
+    static let maxVariants = 4
+
+    /// Variant labels in order
+    static let variantLabels = ["Variant A", "Variant B", "Variant C", "Variant D"]
+
+    /// Create a new test with 1 variant (Variant A)
     static func createNew(for character: Character?) -> PromptTest {
         // Get base system prompt from character or use default
         let baseSystemPrompt = character?.markdownContent ?? "You are a helpful assistant."
 
         let variants = [
-            ChatVariant(label: "Variant A", systemPrompt: baseSystemPrompt),
-            ChatVariant(label: "Variant B", systemPrompt: baseSystemPrompt),
-            ChatVariant(label: "Variant C", systemPrompt: baseSystemPrompt),
-            ChatVariant(label: "Variant D", systemPrompt: baseSystemPrompt)
+            ChatVariant(label: "Variant A", systemPrompt: baseSystemPrompt)
         ]
 
         return PromptTest(
@@ -106,25 +109,16 @@ struct PromptTest: Identifiable, Codable {
             variants: variants
         )
     }
-}
 
-// MARK: - Diff Result
+    /// Check if more variants can be added
+    var canAddVariant: Bool {
+        variants.count < Self.maxVariants
+    }
 
-struct DiffResult {
-    let originalText: String
-    let comparedText: String
-    let segments: [DiffSegment]
-}
-
-struct DiffSegment: Identifiable {
-    let id = UUID()
-    let text: String
-    let type: SegmentType
-
-    enum SegmentType {
-        case unchanged
-        case added
-        case removed
-        case modified
+    /// Get the next variant label
+    var nextVariantLabel: String {
+        Self.variantLabels[variants.count]
     }
 }
+
+// Note: DiffResult, DiffSegment, and DiffType are defined in Models.swift
