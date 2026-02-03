@@ -6,18 +6,18 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Version 1.3.1</title>
+            <title>Version 1.3.2</title>
             <description><![CDATA[
-                <h2>What's New in 1.3.1</h2>
-                <p>attempting to fix perplexity key issue and export dialog fix</p>
+                <h2>What's New in 1.3.2</h2>
+                <p>sparkle auto updates</p>
             ]]></description>
-            <pubDate>Tue, 03 Feb 2026 15:42:11 -0800</pubDate>
+            <pubDate>Tue, 03 Feb 2026 15:52:30 -0800</pubDate>
             <enclosure
-                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.3.1/KnowledgeTool-1.3.1.zip"
-                sparkle:version="202602031540"
-                sparkle:shortVersionString="1.3.1"
-                sparkle:edSignature="Sg55Teu5+2fpC2f/goIzHbJ+w49+D41tZI/AY3AQscFwnLH+hqA/FSHYFQuCahVUccOheSNYq0LH9R30BJH2CQ=="
-                length="87807523"
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.3.2/KnowledgeTool-1.3.2.zip"
+                sparkle:version="202602031551"
+                sparkle:shortVersionString="1.3.2"
+                sparkle:edSignature="a/uBsABGovKiYSK0GKjfyvp3yAXljN6jVGEOPBDQIGuSyzGrCXev6rU+FtTzi5xIXvOmI8lmZ65k6/VacUFdDg=="
+                length="87807663"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
