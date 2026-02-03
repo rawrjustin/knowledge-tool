@@ -6,18 +6,18 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Version 1.2.0</title>
+            <title>Version 1.3.0</title>
             <description><![CDATA[
-                <h2>What's New in 1.2.0</h2>
-                <p>added dialogue example generation and scene generation</p>
+                <h2>What's New in 1.3.0</h2>
+                <p>refactored app to be more character focused with supabase storage</p>
             ]]></description>
-            <pubDate>Tue, 27 Jan 2026 17:27:45 -0800</pubDate>
+            <pubDate>Mon, 02 Feb 2026 18:30:37 -0800</pubDate>
             <enclosure
-                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.2.0/KnowledgeTool-1.2.0.zip"
-                sparkle:version="202601271726"
-                sparkle:shortVersionString="1.2.0"
-                sparkle:edSignature="Cjmr3cQ071yYYT8BOoquanOEGGL2QgguFJZI9AdwqRv4TZxe2QWoqUuC6meWNv7t23BHhLLpUUwsj8w5qf9aDA=="
-                length="6171872"
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.3.0/KnowledgeTool-1.3.0.zip"
+                sparkle:version="202602021829"
+                sparkle:shortVersionString="1.3.0"
+                sparkle:edSignature="mlwrwHcvnUq7atgWHSn23dQeKOjN7xD6wpP7eMAHI7xJNKUaL28UWfiMoexjNiWKclOzhHGlHbVMIA9VAKwuAg=="
+                length="87801669"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
