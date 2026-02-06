@@ -1,130 +1,57 @@
 import SwiftUI
+import Supabase
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(APIKeyManager.self) private var apiKeyManager
 
-    // GitHub Service
-    var githubAuthService: GitHubAuthService
-
     // Callback for when repository path changes
     var onRepositoryPathChanged: (() -> Void)?
+
+    // Callback for when Supabase config changes
+    var onSupabaseConfigChanged: (() -> Void)?
 
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
     @State private var perplexityKey: String = ""
     @State private var pineconeKey: String = ""
     @State private var pineconeIndexName: String = ""
-    @State private var githubPAT: String = ""
-    @State private var githubRepoOwner: String = ""
-    @State private var githubRepoName: String = ""
 
     @State private var isSelectingFolder = false
     @State private var selectedPineconeEnvironment: APIKeyManager.PineconeEnvironment = .development
     @State private var showingSaveConfirmation = false
     @State private var recentlySavedKey: APIKeyManager.APIService?
 
+    // Supabase
+    @State private var supabaseURL: String = ""
+    @State private var supabaseAnonKey: String = ""
+    @State private var supabaseSyncEnabled: Bool = false
+    @State private var supabaseConnectionStatus: SupabaseConnectionStatus = .notConfigured
+
+    /// Check if Supabase is configured based on local state (for immediate UI updates)
+    private var isSupabaseConfigured: Bool {
+        !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty
+    }
+
+    enum SupabaseConnectionStatus: Equatable {
+        case notConfigured
+        case testing
+        case connected
+        case failed(String)
+
+        var statusBadge: (text: String, status: StatusBadge.Status)? {
+            switch self {
+            case .notConfigured: return nil
+            case .testing: return ("Testing...", .warning)
+            case .connected: return ("Connected", .success)
+            case .failed: return ("Failed", .error)
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                // MARK: - GitHub Configuration
-                Section {
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                        // Repository Settings
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                            HStack {
-                                Label("Repository", systemImage: "folder")
-                                    .font(.subheadline.weight(.semibold))
-
-                                Spacer()
-
-                                Text("Optional")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-
-                            HStack(spacing: DesignSystem.Spacing.sm) {
-                                TextField("Owner", text: $githubRepoOwner)
-                                    .textFieldStyle(.roundedBorder)
-                                    .onChange(of: githubRepoOwner) { _, newValue in
-                                        apiKeyManager.githubRepoOwner = newValue
-                                    }
-
-                                Text("/")
-                                    .foregroundStyle(.tertiary)
-                                    .font(.title3)
-
-                                TextField("Repository", text: $githubRepoName)
-                                    .textFieldStyle(.roundedBorder)
-                                    .onChange(of: githubRepoName) { _, newValue in
-                                        apiKeyManager.githubRepoName = newValue
-                                    }
-                            }
-
-                            HelperText(text: "Sync characters with a GitHub repository", icon: "arrow.triangle.2.circlepath")
-                        }
-
-                        Divider()
-
-                        // PAT Settings
-                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                            HStack {
-                                Label("Access Token", systemImage: "key")
-                                    .font(.subheadline.weight(.semibold))
-
-                                if !githubPAT.isEmpty {
-                                    StatusBadge(text: "Configured", status: .success)
-                                }
-                            }
-
-                            SecureField("ghp_...", text: $githubPAT)
-                                .textFieldStyle(.roundedBorder)
-                                .onChange(of: githubPAT) { _, newValue in
-                                    saveKey(newValue, for: .gitHubPAT)
-                                    if !newValue.isEmpty {
-                                        githubAuthService.useReadOnlyMode()
-                                        onRepositoryPathChanged?()
-                                    }
-                                }
-
-                            HStack {
-                                HelperText(text: "Required for private repositories", icon: "lock")
-                                Spacer()
-                                Link(destination: URL(string: "https://github.com/settings/tokens")!) {
-                                    Label("Generate Token", systemImage: "arrow.up.forward")
-                                        .font(.caption)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, DesignSystem.Spacing.xs)
-                } header: {
-                    SettingsSectionHeader(title: "GitHub", icon: "externaldrive.connected.to.line.below")
-                } footer: {
-                    if githubAuthService.isAuthenticated {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(DesignSystem.Colors.success)
-                            Text("Authenticated as \(githubAuthService.currentUser?.login ?? "Unknown")")
-                        }
-                        .font(.caption)
-                    } else if !githubPAT.isEmpty && !githubRepoOwner.isEmpty {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            Image(systemName: "key.fill")
-                                .foregroundStyle(DesignSystem.Colors.info)
-                            Text("Using token for \(githubRepoOwner)/\(githubRepoName)")
-                        }
-                        .font(.caption)
-                    } else {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            Image(systemName: "externaldrive")
-                                .foregroundStyle(.secondary)
-                            Text("Characters stored locally only")
-                        }
-                        .font(.caption)
-                    }
-                }
-
                 // MARK: - API Keys
                 Section {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
@@ -232,11 +159,92 @@ struct SettingsView: View {
                     }
                     .font(.caption)
                 }
-                
+
+                // MARK: - Supabase (Cloud Sync)
+                Section {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                        // Sync Toggle
+                        Toggle(isOn: $supabaseSyncEnabled) {
+                            HStack {
+                                Label("Enable Cloud Sync", systemImage: "icloud")
+                                    .font(.subheadline.weight(.semibold))
+
+                                if let badge = supabaseConnectionStatus.statusBadge {
+                                    StatusBadge(text: badge.text, status: badge.status)
+                                }
+                            }
+                        }
+                        .onChange(of: supabaseSyncEnabled) { _, newValue in
+                            apiKeyManager.supabaseSyncEnabled = newValue
+                            onSupabaseConfigChanged?()
+                        }
+                        .disabled(!isSupabaseConfigured)
+
+                        Divider()
+
+                        // Project URL
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            Label("Project URL", systemImage: "link")
+                                .font(.subheadline.weight(.semibold))
+
+                            TextField("https://xxxx.supabase.co", text: $supabaseURL)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: supabaseURL) { _, newValue in
+                                    apiKeyManager.supabaseURL = newValue
+                                    supabaseConnectionStatus = .notConfigured
+                                    onSupabaseConfigChanged?()
+                                }
+                        }
+
+                        // Anon Key
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            Label("Anon Key", systemImage: "key")
+                                .font(.subheadline.weight(.semibold))
+
+                            SecureField("sb_publishable_...", text: $supabaseAnonKey)
+                                .textFieldStyle(.roundedBorder)
+                                .onChange(of: supabaseAnonKey) { _, newValue in
+                                    apiKeyManager.supabaseAnonKey = newValue
+                                    supabaseConnectionStatus = .notConfigured
+                                    onSupabaseConfigChanged?()
+                                }
+                        }
+
+                        // Test Connection Button
+                        if isSupabaseConfigured {
+                            Button {
+                                Task {
+                                    await testSupabaseConnection()
+                                }
+                            } label: {
+                                Label("Test Connection", systemImage: "antenna.radiowaves.left.and.right")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(supabaseConnectionStatus == .testing)
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                } header: {
+                    SettingsSectionHeader(title: "Supabase (Cloud Sync)", icon: "icloud", optional: true)
+                } footer: {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        if case .failed(let error) = supabaseConnectionStatus {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(DesignSystem.Colors.error)
+                                Text(error)
+                            }
+                            .font(.caption)
+                        } else {
+                            HelperText(text: "Share characters across devices and with other users", icon: "person.2")
+                        }
+                    }
+                }
+
                 // MARK: - Updates
                 UpdateSettingsSection()
 
-                // MARK: - Local Repository (Fallback)
+                // MARK: - Local Repository
                 Section {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                         // Current path display
@@ -286,7 +294,7 @@ struct SettingsView: View {
                 } header: {
                     SettingsSectionHeader(title: "Local Storage", icon: "externaldrive")
                 } footer: {
-                    HelperText(text: "Fallback storage when GitHub is unavailable", icon: "info.circle")
+                    HelperText(text: "Local storage for characters when cloud sync is unavailable", icon: "info.circle")
                 }
             }
             .formStyle(.grouped)
@@ -303,7 +311,7 @@ struct SettingsView: View {
                 loadKeys()
             }
         }
-        .frame(width: 520, height: 680)
+        .frame(width: 520, height: 700)
     }
 
     private func loadKeys() {
@@ -319,18 +327,52 @@ struct SettingsView: View {
         if let key = apiKeyManager.getAPIKey(for: .pinecone) {
             pineconeKey = key
         }
-        if let key = apiKeyManager.getAPIKey(for: .gitHubPAT) {
-            githubPAT = key
-        }
-        // Load GitHub repo settings
-        githubRepoOwner = apiKeyManager.githubRepoOwner
-        githubRepoName = apiKeyManager.githubRepoName
         // Load Pinecone index name
         pineconeIndexName = apiKeyManager.pineconeIndexName
+        // Load Supabase settings
+        supabaseURL = apiKeyManager.supabaseURL
+        supabaseAnonKey = apiKeyManager.supabaseAnonKey
+        supabaseSyncEnabled = apiKeyManager.supabaseSyncEnabled
     }
 
-    private func saveKey(_ key: String, for service: APIKeyManager.APIService) {
-        apiKeyManager.setAPIKey(key, for: service)
+    private func testSupabaseConnection() async {
+        supabaseConnectionStatus = .testing
+
+        do {
+            guard let url = URL(string: supabaseURL) else {
+                await MainActor.run {
+                    supabaseConnectionStatus = .failed("Invalid URL format")
+                }
+                return
+            }
+
+            // Create Supabase client directly to test connection
+            let client = SupabaseClient(
+                supabaseURL: url,
+                supabaseKey: supabaseAnonKey
+            )
+
+            // Try to query the profiles table - this validates the connection
+            // Using a simple struct just for the test query
+            struct ProfileIdOnly: Decodable {
+                let id: UUID
+            }
+
+            let _: [ProfileIdOnly] = try await client
+                .from("profiles")
+                .select("id")
+                .limit(1)
+                .execute()
+                .value
+
+            await MainActor.run {
+                supabaseConnectionStatus = .connected
+            }
+        } catch {
+            await MainActor.run {
+                supabaseConnectionStatus = .failed(error.localizedDescription)
+            }
+        }
     }
 
     private func saveKeyWithFeedback(_ key: String, for service: APIKeyManager.APIService) {
@@ -350,14 +392,14 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     private func selectFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.message = "Select the folder containing your Personas directory"
-        
+
         panel.begin { response in
             isSelectingFolder = false
             if response == .OK, let url = panel.url {
@@ -538,6 +580,6 @@ struct BundledDependencyRow: View {
 }
 
 #Preview {
-    SettingsView(githubAuthService: GitHubAuthService(), onRepositoryPathChanged: nil)
+    SettingsView(onRepositoryPathChanged: nil)
         .environment(APIKeyManager())
 }

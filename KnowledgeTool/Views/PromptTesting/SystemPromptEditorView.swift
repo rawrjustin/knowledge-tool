@@ -416,7 +416,7 @@ struct SystemPromptSaveConfirmationSheet: View {
                     Image(systemName: "info.circle")
                         .foregroundStyle(.blue)
 
-                    Text("Changes will be committed to GitHub immediately.")
+                    Text("Changes will be saved to the cloud immediately.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

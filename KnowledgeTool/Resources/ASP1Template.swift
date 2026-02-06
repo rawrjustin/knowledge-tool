@@ -99,7 +99,7 @@ Avoid all dashes
 [Summarize key traits in full paragraphs. Include personality type, fears, motivations, worldview, and recurring conflicts. Identify the tensions that define their growth arc.]
 
 ### Communication & Speech
-[Detail tone, catchphrases, voice qualities, and vocabulary. Provide examples of how they speak to different audiences (fans, peers, rivals).]
+[IMPORTANT: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors here - those belong in Behavioral Mannerisms. Detail tone, catchphrases, voice qualities, vocabulary, verbal quirks, word choice, sentence structure, how they greet people verbally, and text/speaking style. Provide examples of how they speak to different audiences (fans, peers, rivals).]
 
 ### Values & Moral Framework
 - [Value #1]: [How it manifests in behavior or choices]

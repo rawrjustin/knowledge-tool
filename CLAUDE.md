@@ -2,12 +2,12 @@
 
 ## Build System Overview
 
-This project has **two parallel build mechanisms** that must stay synchronized:
+This project uses **Xcode** for builds:
 
-1. **Xcode Project** (`KnowledgeTool.xcodeproj/project.pbxproj`) - for IDE builds
-2. **Build Script** (`build-app.sh`) - for command-line builds without Xcode
+1. **Xcode Project** (`KnowledgeTool.xcodeproj/project.pbxproj`) - for IDE and command-line builds
+2. **Build Script** (`build-app.sh`) - convenience wrapper around `xcodebuild`
 
-**Both must be updated when adding new Swift files.**
+The build script uses `xcodebuild` internally, so both methods use the same Xcode project and automatically resolve SPM dependencies (like Supabase).
 
 ---
 
@@ -24,23 +24,7 @@ Place the file in the appropriate directory under `KnowledgeTool/`:
 - `Utilities/` - Helper utilities
 - `Resources/` - Assets, templates, bundled binaries
 
-### Step 2: Update build-app.sh
-
-Add the file path to the `SOURCE_FILES` array (around line 68):
-
-```bash
-SOURCE_FILES=(
-    KnowledgeTool/App/KnowledgeToolApp.swift
-    KnowledgeTool/Views/DesignSystem.swift
-    KnowledgeTool/Views/ContentView.swift
-    # ... add your new file here in the appropriate section
-    KnowledgeTool/Views/YourNewView.swift
-)
-```
-
-**Important:** Maintain alphabetical order within each directory group for readability.
-
-### Step 3: Update project.pbxproj
+### Step 2: Update project.pbxproj
 
 Add entries to **four sections** in `KnowledgeTool.xcodeproj/project.pbxproj`:
 
@@ -180,35 +164,37 @@ Open `KnowledgeTool.xcodeproj` and build normally (Cmd+B).
 
 The built app will be at `build/KnowledgeTool.app`.
 
-### Verify Both
-Always test both build methods after adding files to catch synchronization issues early.
+**Note:** The build script requires Xcode (not just Command Line Tools). If you get an error about Command Line Tools, run:
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
 
 ---
 
 ## Common Issues
 
 ### "Cannot find [Type] in scope"
-The file containing that type isn't included in the build. Check:
-1. Is it in `build-app.sh` SOURCE_FILES?
-2. Is it in `project.pbxproj` (all 4 sections)?
+The file containing that type isn't in the Xcode project. Check that it's properly added to `project.pbxproj` (all 4 sections).
 
-### Build script fails but Xcode works
-File is in Xcode project but not in `build-app.sh` SOURCE_FILES array.
+### "no such module 'Supabase'" or other SPM errors
+The build script uses xcodebuild which resolves SPM dependencies automatically. Make sure:
+1. Xcode (not Command Line Tools) is selected: `xcode-select -p` should show `/Applications/Xcode.app/Contents/Developer`
+2. Run `xcodebuild -resolvePackageDependencies -project KnowledgeTool.xcodeproj` to manually resolve dependencies
 
-### Xcode fails but build script works
-File is in `build-app.sh` but not properly added to `project.pbxproj`.
-
-### #Preview macro errors in build script
-The build script automatically strips `#Preview` blocks using perl regex since the Preview macro requires Xcode's macro system. If you still get Preview-related errors:
-1. Ensure your Preview block follows standard format: `#Preview { ... }` or `#Preview("name") { ... }`
-2. For complex cases, consider removing the Preview from the source file entirely
+### Build script shows "Command Line Tools is selected"
+Run: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
 
 ---
 
-## SwiftUI Previews
+## Releasing
 
-SwiftUI `#Preview` blocks work in Xcode but **not** in the command-line build. The build script strips them automatically. If adding previews:
+See `RELEASING.md` for full release instructions. Quick version:
 
-- Keep preview code simple and self-contained
-- Don't put production code inside preview blocks
-- Previews are optional - the build will work without them
+```bash
+# Build, sign, and create release
+./scripts/release.sh 1.2.0 "Release notes here"
+
+# Push appcast and create GitHub release
+git add appcast.xml && git commit -m "Update appcast for v1.2.0" && git push geniesinc HEAD:main
+gh release create v1.2.0 build/KnowledgeTool-1.2.0.zip --repo geniesinc/knowledgetool --title "v1.2.0" --notes "Release notes"
+```

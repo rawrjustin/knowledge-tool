@@ -14,7 +14,6 @@ enum PromptTestingSection: String, CaseIterable {
 
 struct PromptTestingView: View {
     let character: Character
-    let githubAuthService: GitHubAuthService
 
     @State private var viewModel: PromptTestingViewModel
     @State private var systemPromptEditorViewModel: SystemPromptEditorViewModel?
@@ -24,20 +23,12 @@ struct PromptTestingView: View {
     @State private var systemPromptDiffs: [Int: DiffResult] = [:]
     @State private var responseDiffs: [Int: DiffResult] = [:]
 
-    init(character: Character, apiKeyManager: APIKeyManager, githubAuthService: GitHubAuthService = GitHubAuthService()) {
+    init(character: Character, apiKeyManager: APIKeyManager) {
         self.character = character
-        self.githubAuthService = githubAuthService
         self._viewModel = State(initialValue: PromptTestingViewModel(character: character, apiKeyManager: apiKeyManager))
 
         // Initialize system prompt editor
-        let githubAPI = GitHubAPIService(
-            getToken: { githubAuthService.token },
-            isReadOnly: { githubAuthService.isReadOnly }
-        )
-        self._systemPromptEditorViewModel = State(initialValue: SystemPromptEditorViewModel(
-            githubAPI: githubAPI,
-            isReadOnly: githubAuthService.isReadOnly
-        ))
+        self._systemPromptEditorViewModel = State(initialValue: SystemPromptEditorViewModel())
     }
 
     var body: some View {
@@ -566,8 +557,7 @@ struct SystemPromptDiffPopover: View {
             lastModified: Date(),
             isLocalOnly: true
         ),
-        apiKeyManager: APIKeyManager(),
-        githubAuthService: GitHubAuthService()
+        apiKeyManager: APIKeyManager()
     )
     .frame(width: 900, height: 700)
 }

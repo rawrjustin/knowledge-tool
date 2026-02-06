@@ -1,7 +1,7 @@
 import Foundation
 
 /// Local file system-based character repository
-/// Used when GitHub is not available or for local-only characters
+/// Used for local-only characters and offline access
 actor LocalCharacterRepository {
     private let baseURL: URL
 
@@ -146,6 +146,7 @@ actor LocalCharacterRepository {
     }
 
     /// Load knowledge files from character's Knowledge directory
+    /// Supports both new source-based folders (Knowledge/sources/{uuid}/) and legacy flat files
     private func loadKnowledgeFiles(from characterURL: URL) async throws -> [KnowledgeFile] {
         let knowledgeURL = characterURL.appendingPathComponent("Knowledge")
 
@@ -153,18 +154,129 @@ actor LocalCharacterRepository {
             return []
         }
 
-        let files = try FileManager.default.contentsOfDirectory(
-            at: knowledgeURL,
-            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
+        var knowledgeFiles: [KnowledgeFile] = []
+
+        // 1. Check for sources/ directory (new structure)
+        let sourcesURL = knowledgeURL.appendingPathComponent("sources")
+        if FileManager.default.fileExists(atPath: sourcesURL.path) {
+            let sourceFiles = try await loadKnowledgeFromSourceFolders(from: sourcesURL)
+            knowledgeFiles.append(contentsOf: sourceFiles)
+        }
+
+        // 2. Load root-level files (legacy + consolidated files like dialog_examples.jsonl)
+        let rootFiles = try await loadRootLevelKnowledgeFiles(from: knowledgeURL)
+        knowledgeFiles.append(contentsOf: rootFiles)
+
+        return knowledgeFiles.sorted { $0.fileName < $1.fileName }
+    }
+
+    /// Load knowledge files from the new sources/ folder structure
+    private func loadKnowledgeFromSourceFolders(from sourcesURL: URL) async throws -> [KnowledgeFile] {
+        var knowledgeFiles: [KnowledgeFile] = []
+
+        let contents = try FileManager.default.contentsOfDirectory(
+            at: sourcesURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         )
 
+        for folderURL in contents {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: folderURL.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else {
+                continue
+            }
+
+            // Try to load metadata.json to get human-readable info
+            let metadataURL = folderURL.appendingPathComponent("metadata.json")
+            var sourceMetadata: SourceMetadata?
+
+            if FileManager.default.fileExists(atPath: metadataURL.path) {
+                let metadataData = try Data(contentsOf: metadataURL)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                sourceMetadata = try? decoder.decode(SourceMetadata.self, from: metadataData)
+            }
+
+            // Load files from this source folder
+            let folderFiles = try FileManager.default.contentsOfDirectory(
+                at: folderURL,
+                includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey],
+                options: [.skipsHiddenFiles]
+            )
+
+            let supportedExtensions = ["txt", "jsonl", "json", "md"]
+            let sourceId = folderURL.lastPathComponent // UUID string
+
+            for fileURL in folderFiles where supportedExtensions.contains(fileURL.pathExtension) {
+                // Skip metadata.json - it's not a knowledge file
+                if fileURL.lastPathComponent == "metadata.json" {
+                    continue
+                }
+
+                let content = try String(contentsOf: fileURL, encoding: .utf8)
+
+                let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+                let createdAt = sourceMetadata?.processedAt ?? (attributes[.creationDate] as? Date ?? Date())
+                let modifiedAt = attributes[.modificationDate] as? Date ?? Date()
+
+                let relativePath = fileURL.path.replacingOccurrences(
+                    of: baseURL.path + "/",
+                    with: ""
+                )
+
+                // Use source title for display if available
+                let displayFileName: String
+                if let metadata = sourceMetadata {
+                    let baseName = fileURL.deletingPathExtension().lastPathComponent
+                    displayFileName = "\(metadata.resolvedDisplayName) - \(baseName).\(fileURL.pathExtension)"
+                } else {
+                    displayFileName = "\(sourceId)/\(fileURL.lastPathComponent)"
+                }
+
+                let knowledgeFile = KnowledgeFile(
+                    fileName: displayFileName,
+                    content: content,
+                    path: relativePath,
+                    sha: "",
+                    createdAt: createdAt,
+                    modifiedAt: modifiedAt,
+                    sourceId: UUID(uuidString: sourceId),
+                    sourceMetadata: sourceMetadata
+                )
+
+                knowledgeFiles.append(knowledgeFile)
+            }
+        }
+
+        return knowledgeFiles
+    }
+
+    /// Load root-level knowledge files (legacy flat files and consolidated files)
+    private func loadRootLevelKnowledgeFiles(from knowledgeURL: URL) async throws -> [KnowledgeFile] {
         var knowledgeFiles: [KnowledgeFile] = []
+
+        let files = try FileManager.default.contentsOfDirectory(
+            at: knowledgeURL,
+            includingPropertiesForKeys: [.creationDateKey, .contentModificationDateKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
 
         // Support both .txt and .jsonl knowledge files
         let supportedExtensions = ["txt", "jsonl", "json", "md"]
 
-        for fileURL in files where supportedExtensions.contains(fileURL.pathExtension) {
+        for fileURL in files {
+            // Skip directories (like sources/)
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: fileURL.path, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                continue
+            }
+
+            guard supportedExtensions.contains(fileURL.pathExtension) else {
+                continue
+            }
+
             let content = try String(contentsOf: fileURL, encoding: .utf8)
 
             let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
@@ -188,7 +300,7 @@ actor LocalCharacterRepository {
             knowledgeFiles.append(knowledgeFile)
         }
 
-        return knowledgeFiles.sorted { $0.fileName < $1.fileName }
+        return knowledgeFiles
     }
 
     // MARK: - Character Saving
@@ -346,6 +458,80 @@ actor LocalCharacterRepository {
     func deleteKnowledgeFile(_ knowledgeFile: KnowledgeFile) async throws {
         let fileURL = baseURL.appendingPathComponent(knowledgeFile.path)
         try FileManager.default.removeItem(at: fileURL)
+    }
+
+    // MARK: - Source Folder Management
+
+    /// Create a source folder for a new knowledge source
+    /// Returns the URL of the created folder (Knowledge/sources/{uuid}/)
+    func createSourceFolder(for character: Character, sourceId: UUID) async throws -> URL {
+        let sourcesPath = "\(character.directoryPath)/Knowledge/sources"
+        let sourcesURL = baseURL.appendingPathComponent(sourcesPath)
+
+        // Ensure sources directory exists
+        try FileManager.default.createDirectory(
+            at: sourcesURL,
+            withIntermediateDirectories: true
+        )
+
+        let folderURL = sourcesURL.appendingPathComponent(sourceId.uuidString)
+        try FileManager.default.createDirectory(
+            at: folderURL,
+            withIntermediateDirectories: true
+        )
+
+        return folderURL
+    }
+
+    /// Save metadata.json to a source folder
+    func saveSourceMetadata(_ metadata: SourceMetadata, to folderURL: URL) async throws {
+        let metadataURL = folderURL.appendingPathComponent("metadata.json")
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+
+        let data = try encoder.encode(metadata)
+        try data.write(to: metadataURL)
+    }
+
+    /// Save a file to a source folder
+    func saveFileToSourceFolder(fileName: String, content: String, folderURL: URL) async throws {
+        let fileURL = folderURL.appendingPathComponent(fileName)
+        try content.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
+    /// Create a knowledge file in a source folder
+    func createKnowledgeFileInSourceFolder(
+        for character: Character,
+        sourceId: UUID,
+        fileName: String,
+        content: String
+    ) async throws -> KnowledgeFile {
+        let folderURL = try await createSourceFolder(for: character, sourceId: sourceId)
+        try await saveFileToSourceFolder(fileName: fileName, content: content, folderURL: folderURL)
+
+        let relativePath = "\(character.directoryPath)/Knowledge/sources/\(sourceId.uuidString)/\(fileName)"
+
+        return KnowledgeFile(
+            fileName: fileName,
+            content: content,
+            path: relativePath,
+            sha: "",
+            createdAt: Date(),
+            modifiedAt: Date(),
+            sourceId: sourceId
+        )
+    }
+
+    /// Delete an entire source folder
+    func deleteSourceFolder(for character: Character, sourceId: UUID) async throws {
+        let folderPath = "\(character.directoryPath)/Knowledge/sources/\(sourceId.uuidString)"
+        let folderURL = baseURL.appendingPathComponent(folderPath)
+
+        if FileManager.default.fileExists(atPath: folderURL.path) {
+            try FileManager.default.removeItem(at: folderURL)
+        }
     }
 }
 

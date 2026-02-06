@@ -12,9 +12,15 @@ let package = Package(
             targets: ["KnowledgeTool"]
         )
     ],
+    dependencies: [
+        .package(url: "https://github.com/supabase/supabase-swift.git", from: "2.0.0")
+    ],
     targets: [
         .executableTarget(
             name: "KnowledgeTool",
+            dependencies: [
+                .product(name: "Supabase", package: "supabase-swift")
+            ],
             path: "KnowledgeTool",
             resources: [
                 .copy("Resources/KnowledgeTool.entitlements")

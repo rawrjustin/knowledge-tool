@@ -6,7 +6,6 @@ struct SystemPromptVersion: Identifiable, Hashable {
     let type: SystemPromptType
     let version: Int
     var content: String
-    let sha: String  // GitHub SHA for updates
     let path: String
 
     var fileName: String {
@@ -41,13 +40,9 @@ final class SystemPromptEditorViewModel {
     private(set) var isSaving = false
     var error: String?
 
-    // Services
-    private let githubAPI: GitHubAPIService
-    private let isReadOnly: Bool
-
-    init(githubAPI: GitHubAPIService, isReadOnly: Bool) {
-        self.githubAPI = githubAPI
-        self.isReadOnly = isReadOnly
+    init() {
+        // System prompt editing is currently not available without GitHub
+        // This feature will be reimplemented with Supabase storage
     }
 
     // MARK: - Computed Properties
@@ -87,71 +82,8 @@ final class SystemPromptEditorViewModel {
 
     func loadAllPrompts() async {
         isLoading = true
-        error = nil
-
-        async let aspTask = loadPromptVersions(type: .action)
-        async let cspTask = loadPromptVersions(type: .conversational)
-        async let rspTask = loadPromptVersions(type: .roleplay)
-
-        let (asp, csp, rsp) = await (aspTask, cspTask, rspTask)
-
-        aspVersions = asp
-        cspVersions = csp
-        rspVersions = rsp
-
-        // Select latest versions by default
-        if let latest = aspVersions.max(by: { $0.version < $1.version }) {
-            selectedASPVersion = latest
-            editedASPContent = latest.content
-        }
-
-        if let latest = cspVersions.max(by: { $0.version < $1.version }) {
-            selectedCSPVersion = latest
-            editedCSPContent = latest.content
-        }
-
-        if let latest = rspVersions.max(by: { $0.version < $1.version }) {
-            selectedRSPVersion = latest
-            editedRSPContent = latest.content
-        }
-
+        error = "System prompt editing is currently unavailable. This feature is being migrated to Supabase."
         isLoading = false
-    }
-
-    private func loadPromptVersions(type: SystemPromptType) async -> [SystemPromptVersion] {
-        let path = "SystemPrompts/\(type.rawValue)"
-
-        do {
-            let files = try await githubAPI.listContents(at: path)
-            var versions: [SystemPromptVersion] = []
-
-            for file in files where file.type == "file" && file.name.hasSuffix(".md") {
-                // Extract version number from filename (e.g., ASP1.md -> 1)
-                let pattern = "\(type.rawValue)(\\d+)\\.md"
-                if let regex = try? NSRegularExpression(pattern: pattern),
-                   let match = regex.firstMatch(in: file.name, range: NSRange(file.name.startIndex..., in: file.name)),
-                   let versionRange = Range(match.range(at: 1), in: file.name),
-                   let version = Int(String(file.name[versionRange])) {
-
-                    // Load the file content
-                    if let fileData = try? await githubAPI.getFile(at: file.path),
-                       let content = fileData.decodedContent {
-                        versions.append(SystemPromptVersion(
-                            type: type,
-                            version: version,
-                            content: content,
-                            sha: fileData.sha,
-                            path: file.path
-                        ))
-                    }
-                }
-            }
-
-            return versions.sorted { $0.version < $1.version }
-        } catch {
-            NSLog("[SystemPromptEditor] Failed to load \(type.rawValue) versions: \(error.localizedDescription)")
-            return []
-        }
     }
 
     // MARK: - Selection
@@ -179,66 +111,18 @@ final class SystemPromptEditorViewModel {
     }
 
     func saveASP(option: SaveOption) async -> Bool {
-        guard let selected = selectedASPVersion else { return false }
-        return await savePrompt(type: .action, content: editedASPContent, currentSha: selected.sha, option: option)
+        error = "Saving is currently unavailable. This feature is being migrated to Supabase."
+        return false
     }
 
     func saveCSP(option: SaveOption) async -> Bool {
-        guard let selected = selectedCSPVersion else { return false }
-        return await savePrompt(type: .conversational, content: editedCSPContent, currentSha: selected.sha, option: option)
+        error = "Saving is currently unavailable. This feature is being migrated to Supabase."
+        return false
     }
 
     func saveRSP(option: SaveOption) async -> Bool {
-        guard let selected = selectedRSPVersion else { return false }
-        return await savePrompt(type: .roleplay, content: editedRSPContent, currentSha: selected.sha, option: option)
-    }
-
-    private func savePrompt(type: SystemPromptType, content: String, currentSha: String, option: SaveOption) async -> Bool {
-        guard !isReadOnly else {
-            error = "Cannot save in read-only mode. Please authenticate with GitHub."
-            return false
-        }
-
-        isSaving = true
-        error = nil
-
-        do {
-            let (path, message, sha): (String, String, String?)
-
-            switch option {
-            case .overwrite(let version):
-                path = "SystemPrompts/\(type.rawValue)/\(type.rawValue)\(version).md"
-                message = "Update \(type.rawValue)\(version)"
-                sha = currentSha
-
-            case .createNew:
-                let newVersion = nextVersion(for: type)
-                path = "SystemPrompts/\(type.rawValue)/\(type.rawValue)\(newVersion).md"
-                message = "Create \(type.rawValue)\(newVersion)"
-                sha = nil  // New file, no SHA needed
-            }
-
-            _ = try await githubAPI.updateFile(at: path, content: content, message: message, sha: sha)
-
-            // Reload to get updated versions
-            await loadAllPrompts()
-
-            isSaving = false
-            return true
-
-        } catch {
-            self.error = "Failed to save: \(error.localizedDescription)"
-            isSaving = false
-            return false
-        }
-    }
-
-    private func nextVersion(for type: SystemPromptType) -> Int {
-        switch type {
-        case .action: return nextASPVersion
-        case .conversational: return nextCSPVersion
-        case .roleplay: return nextRSPVersion
-        }
+        error = "Saving is currently unavailable. This feature is being migrated to Supabase."
+        return false
     }
 
     // MARK: - Discard Changes

@@ -7,12 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		815DD6372F294E3D00800279 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 815DD6362F294E3D00800279 /* Auth */; };
+		815DD6392F294E3D00800279 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 815DD6382F294E3D00800279 /* Functions */; };
+		815DD63B2F294E3D00800279 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 815DD63A2F294E3D00800279 /* PostgREST */; };
+		815DD63D2F294E3D00800279 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 815DD63C2F294E3D00800279 /* Realtime */; };
+		815DD63F2F294E3D00800279 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 815DD63E2F294E3D00800279 /* Storage */; };
+		815DD6412F294E3D00800279 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 815DD6402F294E3D00800279 /* Supabase */; };
 		816E32202F291EBB005FCCAE /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 816E321F2F291EBB005FCCAE /* Sparkle */; };
 		81A843A22ED5A15D00DF8A99 /* LocalCharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */; };
-		81A843A32ED5A15D00DF8A99 /* GitHubAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */; };
-		81A843A52ED5A15D00DF8A99 /* GitHubAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */; };
-		81A843A72ED5A15D00DF8A99 /* GitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439E2ED5A15D00DF8A99 /* GitService.swift */; };
-		81A843A92ED5A15D00DF8A99 /* CharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */; };
+		A170 /* SupabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B170 /* SupabaseService.swift */; };
+		A171 /* SupabaseCharacterRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B171 /* SupabaseCharacterRepository.swift */; };
+		A172 /* CharacterRepositoryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B172 /* CharacterRepositoryProtocol.swift */; };
+		A173 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B173 /* SyncManager.swift */; };
+		A174 /* SupabaseSetupSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B174 /* SupabaseSetupSheet.swift */; };
 		81A8E31E2ED72ABC00759085 /* PerplexityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81A8E31D2ED72ABC00759085 /* PerplexityService.swift */; };
 		A100 /* KnowledgeToolApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100 /* KnowledgeToolApp.swift */; };
 		A101 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B101 /* ContentView.swift */; };
@@ -32,7 +39,6 @@
 		A115 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B115 /* OpenAIService.swift */; };
 		A116 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C100 /* Assets.xcassets */; };
 		A117 /* Character.swift in Sources */ = {isa = PBXBuildFile; fileRef = B117 /* Character.swift */; };
-		A118 /* GitHubModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B118 /* GitHubModels.swift */; };
 		A119 /* PromptTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B119 /* PromptTest.swift */; };
 		A120 /* DiffHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B120 /* DiffHighlighter.swift */; };
 		A121 /* CharacterChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B121 /* CharacterChatViewModel.swift */; };
@@ -56,6 +62,35 @@
 		A142 /* VersionComparisonChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B142 /* VersionComparisonChatView.swift */; };
 		A143 /* VersionComparisonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B143 /* VersionComparisonViewModel.swift */; };
 		A150 /* SparkleUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = B150 /* SparkleUpdater.swift */; };
+		A160 /* DialogExample.swift in Sources */ = {isa = PBXBuildFile; fileRef = B160 /* DialogExample.swift */; };
+		A161 /* DialogCategories.swift in Sources */ = {isa = PBXBuildFile; fileRef = B161 /* DialogCategories.swift */; };
+		A162 /* DialogExampleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B162 /* DialogExampleService.swift */; };
+		A163 /* DialogExampleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B163 /* DialogExampleViewModel.swift */; };
+		A164 /* DialogExamplesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B164 /* DialogExamplesView.swift */; };
+		A190 /* Scenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = B190 /* Scenario.swift */; };
+		A191 /* ScenarioGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B191 /* ScenarioGenerationService.swift */; };
+		A192 /* ScenarioViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B192 /* ScenarioViewModel.swift */; };
+		A193 /* ScenarioGeneratorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B193 /* ScenarioGeneratorView.swift */; };
+		A180 /* SystemPromptTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B180 /* SystemPromptTemplate.swift */; };
+		A181 /* SystemPromptCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B181 /* SystemPromptCache.swift */; };
+		A182 /* SystemPromptService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B182 /* SystemPromptService.swift */; };
+		A200 /* AugmentationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B200 /* AugmentationService.swift */; };
+		A201 /* AugmentationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B201 /* AugmentationViewModel.swift */; };
+		A202 /* BrainAugmentationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B202 /* BrainAugmentationView.swift */; };
+		A210 /* KnowledgeSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = B210 /* KnowledgeSource.swift */; };
+		A211 /* CharacterDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B211 /* CharacterDashboardView.swift */; };
+		A212 /* KnowledgeSourcesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B212 /* KnowledgeSourcesPanel.swift */; };
+		A220 /* SourceSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B220 /* SourceSummary.swift */; };
+		A221 /* SourceDeletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B221 /* SourceDeletionService.swift */; };
+		A222 /* SourceSummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B222 /* SourceSummaryService.swift */; };
+		A223 /* SourceSummaryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B223 /* SourceSummaryViewModel.swift */; };
+		A224 /* SummarySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = B224 /* SummarySection.swift */; };
+		A225 /* SourceDeletionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B225 /* SourceDeletionSheet.swift */; };
+		A230 /* BrainSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = B230 /* BrainSource.swift */; };
+		A231 /* AnimationMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B231 /* AnimationMarker.swift */; };
+		A232 /* TranscriptContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B232 /* TranscriptContextBuilder.swift */; };
+		A233 /* MultiSourceAugmentationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B233 /* MultiSourceAugmentationService.swift */; };
+		A240 /* SourceMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B240 /* SourceMetadata.swift */; };
 		B137A /* PineconeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B137 /* PineconeService.swift */; };
 		B138A /* MemoryGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B138 /* MemoryGenerationService.swift */; };
 		B139A /* ASP1Template.swift in Sources */ = {isa = PBXBuildFile; fileRef = B139 /* ASP1Template.swift */; };
@@ -82,11 +117,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterRepository.swift; sourceTree = "<group>"; };
-		81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAPIService.swift; sourceTree = "<group>"; };
-		81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAuthService.swift; sourceTree = "<group>"; };
-		81A8439E2ED5A15D00DF8A99 /* GitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitService.swift; sourceTree = "<group>"; };
 		81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalCharacterRepository.swift; sourceTree = "<group>"; };
+		B170 /* SupabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseService.swift; sourceTree = "<group>"; };
+		B171 /* SupabaseCharacterRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseCharacterRepository.swift; sourceTree = "<group>"; };
+		B172 /* CharacterRepositoryProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterRepositoryProtocol.swift; sourceTree = "<group>"; };
+		B173 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncManager.swift; sourceTree = "<group>"; };
+		B174 /* SupabaseSetupSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseSetupSheet.swift; sourceTree = "<group>"; };
 		81A8E31D2ED72ABC00759085 /* PerplexityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerplexityService.swift; sourceTree = "<group>"; };
 		B100 /* KnowledgeToolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeToolApp.swift; sourceTree = "<group>"; };
 		B101 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -105,7 +141,6 @@
 		B114 /* AssemblyAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssemblyAIService.swift; sourceTree = "<group>"; };
 		B115 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 		B117 /* Character.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Character.swift; sourceTree = "<group>"; };
-		B118 /* GitHubModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubModels.swift; sourceTree = "<group>"; };
 		B119 /* PromptTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptTest.swift; sourceTree = "<group>"; };
 		B120 /* DiffHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffHighlighter.swift; sourceTree = "<group>"; };
 		B121 /* CharacterChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterChatViewModel.swift; sourceTree = "<group>"; };
@@ -132,6 +167,35 @@
 		B142 /* VersionComparisonChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonChatView.swift; sourceTree = "<group>"; };
 		B143 /* VersionComparisonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonViewModel.swift; sourceTree = "<group>"; };
 		B150 /* SparkleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleUpdater.swift; sourceTree = "<group>"; };
+		B160 /* DialogExample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogExample.swift; sourceTree = "<group>"; };
+		B161 /* DialogCategories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogCategories.swift; sourceTree = "<group>"; };
+		B162 /* DialogExampleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogExampleService.swift; sourceTree = "<group>"; };
+		B163 /* DialogExampleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogExampleViewModel.swift; sourceTree = "<group>"; };
+		B164 /* DialogExamplesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogExamplesView.swift; sourceTree = "<group>"; };
+		B190 /* Scenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scenario.swift; sourceTree = "<group>"; };
+		B191 /* ScenarioGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioGenerationService.swift; sourceTree = "<group>"; };
+		B192 /* ScenarioViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioViewModel.swift; sourceTree = "<group>"; };
+		B193 /* ScenarioGeneratorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioGeneratorView.swift; sourceTree = "<group>"; };
+		B180 /* SystemPromptTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptTemplate.swift; sourceTree = "<group>"; };
+		B181 /* SystemPromptCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptCache.swift; sourceTree = "<group>"; };
+		B182 /* SystemPromptService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptService.swift; sourceTree = "<group>"; };
+		B200 /* AugmentationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AugmentationService.swift; sourceTree = "<group>"; };
+		B201 /* AugmentationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AugmentationViewModel.swift; sourceTree = "<group>"; };
+		B202 /* BrainAugmentationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrainAugmentationView.swift; sourceTree = "<group>"; };
+		B210 /* KnowledgeSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeSource.swift; sourceTree = "<group>"; };
+		B211 /* CharacterDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterDashboardView.swift; sourceTree = "<group>"; };
+		B212 /* KnowledgeSourcesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeSourcesPanel.swift; sourceTree = "<group>"; };
+		B220 /* SourceSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceSummary.swift; sourceTree = "<group>"; };
+		B221 /* SourceDeletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceDeletionService.swift; sourceTree = "<group>"; };
+		B222 /* SourceSummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceSummaryService.swift; sourceTree = "<group>"; };
+		B223 /* SourceSummaryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceSummaryViewModel.swift; sourceTree = "<group>"; };
+		B224 /* SummarySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarySection.swift; sourceTree = "<group>"; };
+		B225 /* SourceDeletionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceDeletionSheet.swift; sourceTree = "<group>"; };
+		B230 /* BrainSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrainSource.swift; sourceTree = "<group>"; };
+		B231 /* AnimationMarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationMarker.swift; sourceTree = "<group>"; };
+		B232 /* TranscriptContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptContextBuilder.swift; sourceTree = "<group>"; };
+		B233 /* MultiSourceAugmentationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiSourceAugmentationService.swift; sourceTree = "<group>"; };
+		B240 /* SourceMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceMetadata.swift; sourceTree = "<group>"; };
 		BINREF1 /* yt-dlp */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "yt-dlp"; sourceTree = "<group>"; };
 		BINREF2 /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		BINREF3 /* ffprobe */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffprobe; sourceTree = "<group>"; };
@@ -146,6 +210,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				815DD63F2F294E3D00800279 /* Storage in Frameworks */,
+				815DD63B2F294E3D00800279 /* PostgREST in Frameworks */,
+				815DD6392F294E3D00800279 /* Functions in Frameworks */,
+				815DD6372F294E3D00800279 /* Auth in Frameworks */,
+				815DD63D2F294E3D00800279 /* Realtime in Frameworks */,
+				815DD6412F294E3D00800279 /* Supabase in Frameworks */,
 				816E32202F291EBB005FCCAE /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -231,10 +301,14 @@
 				B121 /* CharacterChatViewModel.swift */,
 				B122 /* CharacterCreationViewModel.swift */,
 				B123 /* CharacterEditorViewModel.swift */,
+				B163 /* DialogExampleViewModel.swift */,
 				B124 /* KnowledgeBaseViewModel.swift */,
 				B125 /* PromptTestingViewModel.swift */,
+				B192 /* ScenarioViewModel.swift */,
 				B136 /* SystemPromptEditorViewModel.swift */,
 				B143 /* VersionComparisonViewModel.swift */,
+				B201 /* AugmentationViewModel.swift */,
+				B223 /* SourceSummaryViewModel.swift */,
 			);
 			name = ViewModels;
 			path = KnowledgeTool/ViewModels;
@@ -245,8 +319,16 @@
 			children = (
 				B102 /* Models.swift */,
 				B117 /* Character.swift */,
-				B118 /* GitHubModels.swift */,
+				B160 /* DialogExample.swift */,
+				B161 /* DialogCategories.swift */,
 				B119 /* PromptTest.swift */,
+				B190 /* Scenario.swift */,
+				B180 /* SystemPromptTemplate.swift */,
+				B210 /* KnowledgeSource.swift */,
+				B220 /* SourceSummary.swift */,
+				B230 /* BrainSource.swift */,
+				B231 /* AnimationMarker.swift */,
+				B240 /* SourceMetadata.swift */,
 			);
 			name = Models;
 			path = KnowledgeTool/Models;
@@ -261,13 +343,22 @@
 				B115 /* OpenAIService.swift */,
 				B137 /* PineconeService.swift */,
 				B138 /* MemoryGenerationService.swift */,
-				81A8439B2ED5A15D00DF8A99 /* CharacterRepository.swift */,
-				81A8439C2ED5A15D00DF8A99 /* GitHubAPIService.swift */,
-				81A8439D2ED5A15D00DF8A99 /* GitHubAuthService.swift */,
-				81A8439E2ED5A15D00DF8A99 /* GitService.swift */,
+				B162 /* DialogExampleService.swift */,
+				B191 /* ScenarioGenerationService.swift */,
 				81A8439F2ED5A15D00DF8A99 /* LocalCharacterRepository.swift */,
 				81A8E31D2ED72ABC00759085 /* PerplexityService.swift */,
 				B150 /* SparkleUpdater.swift */,
+				B170 /* SupabaseService.swift */,
+				B171 /* SupabaseCharacterRepository.swift */,
+				B172 /* CharacterRepositoryProtocol.swift */,
+				B173 /* SyncManager.swift */,
+				B181 /* SystemPromptCache.swift */,
+				B182 /* SystemPromptService.swift */,
+				B200 /* AugmentationService.swift */,
+				B221 /* SourceDeletionService.swift */,
+				B222 /* SourceSummaryService.swift */,
+				B232 /* TranscriptContextBuilder.swift */,
+				B233 /* MultiSourceAugmentationService.swift */,
 			);
 			name = Services;
 			path = KnowledgeTool/Services;
@@ -323,6 +414,7 @@
 			isa = PBXGroup;
 			children = (
 				B110 /* SettingsView.swift */,
+				B174 /* SupabaseSetupSheet.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -335,8 +427,15 @@
 				B129 /* CharacterEditorView.swift */,
 				B130 /* CharacterOverviewView.swift */,
 				B131 /* CharacterSelectorView.swift */,
+				B164 /* DialogExamplesView.swift */,
+				B193 /* ScenarioGeneratorView.swift */,
 				B141 /* VersionHistoryView.swift */,
 				B142 /* VersionComparisonChatView.swift */,
+				B202 /* BrainAugmentationView.swift */,
+				B211 /* CharacterDashboardView.swift */,
+				B212 /* KnowledgeSourcesPanel.swift */,
+				B224 /* SummarySection.swift */,
+				B225 /* SourceDeletionSheet.swift */,
 			);
 			path = Characters;
 			sourceTree = "<group>";
@@ -406,6 +505,7 @@
 			mainGroup = F100;
 			packageReferences = (
 				816E321E2F291EBB005FCCAE /* XCRemoteSwiftPackageReference "Sparkle" */,
+				815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			productRefGroup = F102 /* Products */;
 			projectDirPath = "";
@@ -443,10 +543,11 @@
 				A107 /* VideoView.swift in Sources */,
 				81A843A22ED5A15D00DF8A99 /* LocalCharacterRepository.swift in Sources */,
 				81A8E31E2ED72ABC00759085 /* PerplexityService.swift in Sources */,
-				81A843A32ED5A15D00DF8A99 /* GitHubAPIService.swift in Sources */,
-				81A843A52ED5A15D00DF8A99 /* GitHubAuthService.swift in Sources */,
-				81A843A72ED5A15D00DF8A99 /* GitService.swift in Sources */,
-				81A843A92ED5A15D00DF8A99 /* CharacterRepository.swift in Sources */,
+				A170 /* SupabaseService.swift in Sources */,
+				A171 /* SupabaseCharacterRepository.swift in Sources */,
+				A172 /* CharacterRepositoryProtocol.swift in Sources */,
+				A173 /* SyncManager.swift in Sources */,
+				A174 /* SupabaseSetupSheet.swift in Sources */,
 				A108 /* ArticleView.swift in Sources */,
 				A109 /* TextSnippetView.swift in Sources */,
 				A110 /* SettingsView.swift in Sources */,
@@ -456,12 +557,14 @@
 				A114 /* AssemblyAIService.swift in Sources */,
 				A115 /* OpenAIService.swift in Sources */,
 				A117 /* Character.swift in Sources */,
-				A118 /* GitHubModels.swift in Sources */,
+				A160 /* DialogExample.swift in Sources */,
+				A161 /* DialogCategories.swift in Sources */,
 				A119 /* PromptTest.swift in Sources */,
 				A120 /* DiffHighlighter.swift in Sources */,
 				A121 /* CharacterChatViewModel.swift in Sources */,
 				A122 /* CharacterCreationViewModel.swift in Sources */,
 				A123 /* CharacterEditorViewModel.swift in Sources */,
+				A163 /* DialogExampleViewModel.swift in Sources */,
 				A124 /* KnowledgeBaseViewModel.swift in Sources */,
 				A125 /* PromptTestingViewModel.swift in Sources */,
 				A126 /* OnboardingView.swift in Sources */,
@@ -470,6 +573,11 @@
 				A129 /* CharacterEditorView.swift in Sources */,
 				A130 /* CharacterOverviewView.swift in Sources */,
 				A131 /* CharacterSelectorView.swift in Sources */,
+				A164 /* DialogExamplesView.swift in Sources */,
+				A190 /* Scenario.swift in Sources */,
+				A191 /* ScenarioGenerationService.swift in Sources */,
+				A192 /* ScenarioViewModel.swift in Sources */,
+				A193 /* ScenarioGeneratorView.swift in Sources */,
 				A132 /* KnowledgeBaseView.swift in Sources */,
 				A133 /* ChatVariantView.swift in Sources */,
 				A134 /* PromptTestingView.swift in Sources */,
@@ -480,8 +588,29 @@
 				A143 /* VersionComparisonViewModel.swift in Sources */,
 				B137A /* PineconeService.swift in Sources */,
 				B138A /* MemoryGenerationService.swift in Sources */,
+				A162 /* DialogExampleService.swift in Sources */,
+				A180 /* SystemPromptTemplate.swift in Sources */,
+				A181 /* SystemPromptCache.swift in Sources */,
+				A182 /* SystemPromptService.swift in Sources */,
 				B139A /* ASP1Template.swift in Sources */,
 				A150 /* SparkleUpdater.swift in Sources */,
+				A200 /* AugmentationService.swift in Sources */,
+				A201 /* AugmentationViewModel.swift in Sources */,
+				A202 /* BrainAugmentationView.swift in Sources */,
+				A210 /* KnowledgeSource.swift in Sources */,
+				A211 /* CharacterDashboardView.swift in Sources */,
+				A212 /* KnowledgeSourcesPanel.swift in Sources */,
+				A220 /* SourceSummary.swift in Sources */,
+				A221 /* SourceDeletionService.swift in Sources */,
+				A222 /* SourceSummaryService.swift in Sources */,
+				A223 /* SourceSummaryViewModel.swift in Sources */,
+				A224 /* SummarySection.swift in Sources */,
+				A225 /* SourceDeletionSheet.swift in Sources */,
+				A230 /* BrainSource.swift in Sources */,
+				A231 /* AnimationMarker.swift in Sources */,
+				A232 /* TranscriptContextBuilder.swift in Sources */,
+				A233 /* MultiSourceAugmentationService.swift in Sources */,
+				A240 /* SourceMetadata.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -616,18 +745,19 @@
 				CODE_SIGN_ENTITLEMENTS = KnowledgeTool/Resources/KnowledgeTool.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 202602031551;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KnowledgeTool/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.knowledgetool.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -644,18 +774,19 @@
 				CODE_SIGN_ENTITLEMENTS = KnowledgeTool/Resources/KnowledgeTool.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 202602031551;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KnowledgeTool/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.knowledgetool.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -688,6 +819,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
 		816E321E2F291EBB005FCCAE /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -699,6 +838,36 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		815DD6362F294E3D00800279 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		815DD6382F294E3D00800279 /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		815DD63A2F294E3D00800279 /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		815DD63C2F294E3D00800279 /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		815DD63E2F294E3D00800279 /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		815DD6402F294E3D00800279 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 815DD6352F294E3D00800279 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
 		816E321F2F291EBB005FCCAE /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 816E321E2F291EBB005FCCAE /* XCRemoteSwiftPackageReference "Sparkle" */;

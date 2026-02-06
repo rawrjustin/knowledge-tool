@@ -12,13 +12,13 @@ struct CharacterEditorView: View {
 
     init(
         mode: CharacterEditorViewModel.Mode,
-        localRepository: LocalCharacterRepository,
+        repository: CombinedCharacterRepository,
         onSave: @escaping (Character) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self._viewModel = State(initialValue: CharacterEditorViewModel(
             mode: mode,
-            localRepository: localRepository
+            repository: repository
         ))
         self.onSave = onSave
         self.onCancel = onCancel

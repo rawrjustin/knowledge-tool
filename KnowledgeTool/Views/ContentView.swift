@@ -12,6 +12,7 @@ enum NavigationSection: String, CaseIterable {
 
 enum NavigationItem: String, Identifiable {
     // Character section
+    case dashboard = "Dashboard"
     case editor = "Editor"
     case chat = "Chat"
     case versionCompare = "Compare Versions"
@@ -27,6 +28,7 @@ enum NavigationItem: String, Identifiable {
 
     var icon: String {
         switch self {
+        case .dashboard: return "rectangle.3.group"
         case .editor: return "square.and.pencil"
         case .chat: return "bubble.left.and.bubble.right"
         case .versionCompare: return "square.split.2x1"
@@ -38,7 +40,7 @@ enum NavigationItem: String, Identifiable {
 
     var section: NavigationSection {
         switch self {
-        case .editor, .chat, .versionCompare:
+        case .dashboard, .editor, .chat, .versionCompare:
             return .character
         case .videos, .knowledgeBase:
             return .characterRefinement
@@ -52,7 +54,7 @@ enum NavigationItem: String, Identifiable {
     }
 
     static var allItems: [NavigationItem] {
-        [.editor, .chat, .versionCompare, .videos, .knowledgeBase, .promptTesting]
+        [.dashboard, .editor, .chat, .versionCompare, .videos, .knowledgeBase, .promptTesting]
     }
 
     static func items(for section: NavigationSection) -> [NavigationItem] {
@@ -64,7 +66,7 @@ enum NavigationItem: String, Identifiable {
 
 struct ContentView: View {
     @Environment(APIKeyManager.self) private var apiKeyManager
-    @State private var selectedItem: NavigationItem? = .editor // Optional for sidebar selection
+    @State private var selectedItem: NavigationItem? = .dashboard // Optional for sidebar selection
     @State private var showingSettings = false
     @State private var showingOnboarding = false
 
@@ -81,28 +83,21 @@ struct ContentView: View {
     // Shared ViewModels (persist across tab switches)
     @State private var videoViewModel: VideoViewModel
 
-    // GitHub Services - passed from App
-    var githubAuthService: GitHubAuthService
-    private var githubAPIService: GitHubAPIService
-    private var characterRepository: CharacterRepository
+    // Combined repository - syncs local and Supabase
+    @State private var combinedRepository: CombinedCharacterRepository
 
-    // Local file repository (fallback when GitHub unavailable)
-    @State private var localRepository: LocalCharacterRepository
-
-    init(githubAuthService: GitHubAuthService) {
-        self.githubAuthService = githubAuthService
-        let apiService = GitHubAPIService(
-            getToken: { githubAuthService.token },
-            isReadOnly: { githubAuthService.isReadOnly }
-        )
-        let repository = CharacterRepository(githubAPI: apiService)
-
-        self.githubAPIService = apiService
-        self.characterRepository = repository
-
-        // Initialize local repository with configurable path from APIKeyManager
+    init() {
+        // Initialize combined repository with sync support
         let apiKeyManager = APIKeyManager()
-        self._localRepository = State(initialValue: LocalCharacterRepository(baseURL: apiKeyManager.repositoryPath))
+        let syncConfig = SupabaseSyncConfig(
+            supabaseURL: apiKeyManager.supabaseURL,
+            supabaseAnonKey: apiKeyManager.supabaseAnonKey,
+            syncEnabled: apiKeyManager.supabaseSyncEnabled
+        )
+        self._combinedRepository = State(initialValue: CombinedCharacterRepository(
+            localBaseURL: apiKeyManager.repositoryPath,
+            syncConfig: syncConfig
+        ))
 
         // Initialize shared video view model
         self._videoViewModel = State(initialValue: VideoViewModel(apiKeyManager: apiKeyManager))
@@ -146,9 +141,8 @@ struct ContentView: View {
                     selectedCharacter: selectedCharacter,
                     availableVersions: availableVersions,
                     apiKeyManager: apiKeyManager,
-                    localRepository: localRepository,
+                    repository: combinedRepository,
                     videoViewModel: videoViewModel,
-                    githubAuthService: githubAuthService,
                     onCharacterSaved: { character in
                         // Refresh character list and versions
                         Task {
@@ -186,7 +180,7 @@ struct ContentView: View {
             if characterToEdit == nil {
                 // Show creation wizard for new characters
                 CharacterCreationWizard(
-                    localRepository: localRepository,
+                    repository: combinedRepository,
                     apiKeyManager: apiKeyManager,
                     onComplete: { character in
                         showingCharacterEditor = false
@@ -204,7 +198,7 @@ struct ContentView: View {
                 // Show simple editor for editing existing characters
                 CharacterEditorView(
                     mode: .edit(characterToEdit!),
-                    localRepository: localRepository,
+                    repository: combinedRepository,
                     onSave: { character in
                         showingCharacterEditor = false
                         Task {
@@ -265,15 +259,33 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(
-                githubAuthService: githubAuthService,
                 onRepositoryPathChanged: {
-                    // Update the local repository with the new path and reload characters
-                    localRepository = LocalCharacterRepository(baseURL: apiKeyManager.repositoryPath)
+                    // Update the combined repository with the new path and reload characters
+                    let syncConfig = SupabaseSyncConfig(
+                        supabaseURL: apiKeyManager.supabaseURL,
+                        supabaseAnonKey: apiKeyManager.supabaseAnonKey,
+                        syncEnabled: apiKeyManager.supabaseSyncEnabled
+                    )
+                    combinedRepository = CombinedCharacterRepository(
+                        localBaseURL: apiKeyManager.repositoryPath,
+                        syncConfig: syncConfig
+                    )
                     selectedCharacter = nil
                     characters = []
                     availableVersions = []
                     Task {
                         await loadCharacters()
+                    }
+                },
+                onSupabaseConfigChanged: {
+                    // Update sync configuration when Supabase settings change
+                    let newConfig = SupabaseSyncConfig(
+                        supabaseURL: apiKeyManager.supabaseURL,
+                        supabaseAnonKey: apiKeyManager.supabaseAnonKey,
+                        syncEnabled: apiKeyManager.supabaseSyncEnabled
+                    )
+                    Task {
+                        await combinedRepository.updateSyncConfiguration(newConfig)
                     }
                 }
             )
@@ -301,40 +313,17 @@ struct ContentView: View {
         isLoadingCharacters = true
         defer { isLoadingCharacters = false }
 
-        var allCharacters: [Character] = []
-
-        // First, always load from local repository (this is where new characters are saved)
-        NSLog("[KnowledgeTool] Loading characters from local repository...")
+        // Load from combined repository (handles local + Supabase merge)
+        NSLog("[KnowledgeTool] Loading characters from combined repository...")
         do {
-            let localCharacters = try await localRepository.loadAllCharacters()
-            NSLog("[KnowledgeTool] Loaded %d characters from local", localCharacters.count)
-            allCharacters.append(contentsOf: localCharacters)
+            let loadedCharacters = try await combinedRepository.loadAllCharacters()
+            NSLog("[KnowledgeTool] Loaded %d characters", loadedCharacters.count)
+            characters = loadedCharacters
         } catch {
-            NSLog("[KnowledgeTool] Error loading characters from local: %@", error.localizedDescription)
+            NSLog("[KnowledgeTool] Error loading characters: %@", error.localizedDescription)
+            characters = []
         }
 
-        // Optionally also try GitHub (for characters stored remotely)
-        // Only if we have GitHub configured and want to sync
-        // For now, prioritize local-only to avoid GitHub auth issues
-        /*
-        NSLog("[KnowledgeTool] Starting to load characters from GitHub...")
-        do {
-            let githubCharacters = try await characterRepository.loadAllCharacters()
-            NSLog("[KnowledgeTool] Successfully loaded %d characters from GitHub", githubCharacters.count)
-
-            // Merge GitHub characters (avoid duplicates by name)
-            let localNames = Set(allCharacters.map { $0.name })
-            for character in githubCharacters {
-                if !localNames.contains(character.name) {
-                    allCharacters.append(character)
-                }
-            }
-        } catch {
-            NSLog("[KnowledgeTool] Error loading characters from GitHub: %@", error.localizedDescription)
-        }
-        */
-
-        characters = allCharacters
         NSLog("[KnowledgeTool] Total characters loaded: %d", characters.count)
 
         // Auto-select first character if none selected
@@ -347,15 +336,15 @@ struct ContentView: View {
 
     @MainActor
     private func syncCharacters() async {
-        // Force reload characters from GitHub
+        // Force reload characters from repository
         await loadCharacters()
     }
 
     @MainActor
     private func loadVersions(for character: Character) async {
-        // Load all versions from local repository
+        // Load all versions from combined repository
         do {
-            let versions = try await localRepository.loadAllVersions(for: character.name)
+            let versions = try await combinedRepository.loadAllVersions(for: character.name)
             availableVersions = versions.sorted { $0.version > $1.version }
         } catch {
             // Fallback to just the current character if version loading fails
@@ -502,6 +491,7 @@ struct SidebarNavigationItem: View {
 
     private var filledIcon: String {
         switch item {
+        case .dashboard: return "rectangle.3.group.fill"
         case .editor: return "square.and.pencil"
         case .chat: return "bubble.left.and.bubble.right.fill"
         case .versionCompare: return "square.split.2x1.fill"
@@ -518,9 +508,8 @@ struct DetailView: View {
     let selectedCharacter: Character?
     let availableVersions: [Character]
     let apiKeyManager: APIKeyManager
-    let localRepository: LocalCharacterRepository
+    let repository: CombinedCharacterRepository
     let videoViewModel: VideoViewModel
-    let githubAuthService: GitHubAuthService
     let onCharacterSaved: (Character) -> Void
     let onCancelEdit: () -> Void
 
@@ -528,10 +517,18 @@ struct DetailView: View {
         Group {
             if let character = selectedCharacter {
                 switch selectedItem {
+                case .dashboard:
+                    CharacterDashboardView(
+                        character: character,
+                        repository: repository,
+                        apiKeyManager: apiKeyManager,
+                        onCharacterUpdated: onCharacterSaved
+                    )
+                    .id(character.id) // Force view recreation when character changes
                 case .editor:
                     CharacterEditorView(
                         mode: .edit(character),
-                        localRepository: localRepository,
+                        repository: repository,
                         onSave: onCharacterSaved,
                         onCancel: onCancelEdit
                     )
@@ -543,7 +540,7 @@ struct DetailView: View {
                     VersionComparisonChatView(
                         characterName: character.name,
                         initialVersions: availableVersions,
-                        localRepository: localRepository,
+                        repository: repository,
                         apiKeyManager: apiKeyManager,
                         onClose: {
                             // Navigation handled by sidebar
@@ -553,10 +550,10 @@ struct DetailView: View {
                 case .videos:
                     VideoView(viewModel: videoViewModel)
                 case .knowledgeBase:
-                    KnowledgeBaseView(character: character, localRepository: localRepository, apiKeyManager: apiKeyManager)
+                    KnowledgeBaseView(character: character, repository: repository, apiKeyManager: apiKeyManager)
                         .id(character.id) // Force view recreation when character changes
                 case .promptTesting:
-                    PromptTestingView(character: character, apiKeyManager: apiKeyManager, githubAuthService: githubAuthService)
+                    PromptTestingView(character: character, apiKeyManager: apiKeyManager)
                         .id(character.id) // Force view recreation when character changes
                 }
             } else {
@@ -719,7 +716,7 @@ struct QuickSwitcherRow: View {
 }
 
 #Preview {
-    ContentView(githubAuthService: GitHubAuthService())
+    ContentView()
         .environment(APIKeyManager())
         .frame(width: 1000, height: 700)
 }

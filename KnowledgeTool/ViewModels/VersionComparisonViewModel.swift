@@ -28,7 +28,7 @@ final class VersionComparisonViewModel {
 
     // MARK: - Dependencies
 
-    private let localRepository: LocalCharacterRepository
+    private let repository: CombinedCharacterRepository
     private let apiKeyManager: APIKeyManager
 
     // Computed property to get OpenAI service
@@ -44,8 +44,8 @@ final class VersionComparisonViewModel {
 
     // MARK: - Initialization
 
-    init(localRepository: LocalCharacterRepository, apiKeyManager: APIKeyManager) {
-        self.localRepository = localRepository
+    init(repository: CombinedCharacterRepository, apiKeyManager: APIKeyManager) {
+        self.repository = repository
         self.apiKeyManager = apiKeyManager
     }
 
@@ -57,7 +57,7 @@ final class VersionComparisonViewModel {
         error = nil
 
         do {
-            versions = try await localRepository.loadAllVersions(for: characterName)
+            versions = try await repository.loadAllVersions(for: characterName)
             // Sort by version number descending (newest first)
             versions.sort { $0.version > $1.version }
         } catch {

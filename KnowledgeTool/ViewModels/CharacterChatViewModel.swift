@@ -29,20 +29,13 @@ class CharacterChatViewModel {
     // OpenAI service (created lazily when needed)
     private var openAIService: OpenAIService?
 
-    // GitHub API for fetching system prompts
-    private var githubAPI: GitHubAPIService?
+    // System prompt service
+    private let systemPromptService = SystemPromptService.shared
 
     init(character: Character, apiKeyManager: APIKeyManager) {
         self.character = character
         self.selectedPromptType = character.systemPromptType
         self.apiKeyManager = apiKeyManager
-
-        // Create GitHub API service with the hardcoded PAT
-        let authService = GitHubAuthService()
-        self.githubAPI = GitHubAPIService(
-            getToken: { authService.token },
-            isReadOnly: { authService.isReadOnly }
-        )
     }
 
     // MARK: - System Prompt Loading
@@ -51,84 +44,32 @@ class CharacterChatViewModel {
         isLoadingSystemPrompt = true
         error = nil
 
-        // For local characters, use a default conversational system prompt
-        // This avoids requiring GitHub authentication for basic chat functionality
-        if character.isLocalOnly {
-            systemPromptContent = Self.defaultConversationalPrompt
-            systemPromptLoaded = true
-            isLoadingSystemPrompt = false
+        // Reset chat state when loading new prompt
+        messages = []
+        conversationHistory = []
+        hasStartedConversation = false
 
-            // Reset chat when switching prompts
-            messages = []
-            conversationHistory = []
-            hasStartedConversation = false
-
-            // Automatically start conversation with greeting
-            await startConversation()
-            return
-        }
-
-        // For GitHub-backed characters, try to fetch from GitHub
-        guard let githubAPI = githubAPI else {
-            // Fall back to default prompt if no GitHub API
-            systemPromptContent = Self.defaultConversationalPrompt
+        // For local characters without Supabase, use bundled template
+        if character.isLocalOnly && SupabaseConfig.shared == nil {
+            NSLog("[CharacterChatViewModel] Local character without Supabase, using bundled template")
+            systemPromptContent = ASP1Template.content
             systemPromptLoaded = true
             isLoadingSystemPrompt = false
             await startConversation()
             return
         }
 
-        do {
-            // Fetch the system prompt from GitHub
-            let promptPath = "SystemPrompts/\(selectedPromptType.rawValue)/\(selectedPromptType.rawValue)1.md"
-            let file = try await githubAPI.getFile(at: promptPath)
-
-            // Decode the content from base64
-            guard let content = file.decodedContent else {
-                throw KnowledgeToolError.apiError("Could not decode system prompt content")
-            }
-
-            systemPromptContent = content
-            systemPromptLoaded = true
-
-            // Reset chat when switching prompts
-            messages = []
-            conversationHistory = []
-            hasStartedConversation = false
-
-        } catch {
-            // Fall back to default prompt on error
-            NSLog("[CharacterChatViewModel] GitHub fetch failed, using default prompt: %@", error.localizedDescription)
-            systemPromptContent = Self.defaultConversationalPrompt
-            systemPromptLoaded = true
-        }
+        // Fetch system prompt from SystemPromptService (handles caching and fallbacks)
+        let template = await systemPromptService.getTemplate(for: selectedPromptType)
+        systemPromptContent = template
+        systemPromptLoaded = true
 
         isLoadingSystemPrompt = false
 
         // Automatically start conversation with greeting
-        if systemPromptLoaded {
-            await startConversation()
-        }
+        await startConversation()
     }
 
-    // Default system prompt for local characters
-    private static let defaultConversationalPrompt = """
-    You are roleplaying as the character described below. Stay completely in character at all times.
-
-    ## Guidelines
-
-    1. **Stay in Character**: Always respond as the character would, using their speech patterns, mannerisms, and personality.
-
-    2. **Use First Person**: Speak as the character, not about them.
-
-    3. **Be Authentic**: Draw from the character's background, experiences, and worldview.
-
-    4. **React Naturally**: Respond to the conversation context appropriately for your character.
-
-    5. **Show Personality**: Let the character's unique traits shine through in every response.
-
-    Remember: You ARE this character. Think, speak, and react exactly as they would.
-    """
 
     // MARK: - Start Conversation with Greeting
 
@@ -183,19 +124,224 @@ class CharacterChatViewModel {
     // MARK: - Build Full System Prompt
 
     private func buildFullSystemPrompt() -> String {
-        var fullPrompt = ""
+        var fullPrompt = systemPromptContent
 
-        // Add system prompt template
-        if !systemPromptContent.isEmpty {
-            fullPrompt += systemPromptContent
-            fullPrompt += "\n\n"
+        // 1. Replace "## Your Persona" section with actual character content
+        fullPrompt = replacePersonaSection(in: fullPrompt, with: character.markdownContent)
+
+        // 2. Inject active scenario (Current Situation and Live Objective)
+        fullPrompt = injectActiveScenario(in: fullPrompt)
+
+        // 3. Append dialogue examples section
+        let dialogueSection = buildDialogueExamplesSection()
+        if !dialogueSection.isEmpty {
+            fullPrompt += "\n\n" + dialogueSection
         }
 
-        // Add character persona
-        fullPrompt += "# Your Persona\n\n"
-        fullPrompt += character.markdownContent
-
         return fullPrompt
+    }
+
+    // MARK: - Persona Section Replacement
+
+    /// Replace the "## Your Persona" placeholder section with actual character persona content
+    private func replacePersonaSection(in template: String, with personaContent: String) -> String {
+        // Pattern to match from "## Your Persona" through to the end of the template
+        // This replaces the entire placeholder section including My Persona and Example Dialog placeholders
+        // since the character's persona content already includes those sections
+        let pattern = "## Your Persona[:\\s]*\\[?[^\\]]*\\]?[\\s\\S]*\\z"
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            // If regex fails, just append persona at the end
+            NSLog("[CharacterChatViewModel] Regex failed, appending persona to end")
+            return template + "\n\n## Your Persona\n\n" + personaContent
+        }
+
+        let nsString = template as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: template, range: range)
+
+        if matches.isEmpty {
+            // No placeholder found, append persona section
+            NSLog("[CharacterChatViewModel] No persona placeholder found, appending to end")
+            return template + "\n\n## Your Persona\n\n" + personaContent
+        }
+
+        // Replace the placeholder with actual persona content
+        let replacementSection = "## Your Persona\n\n" + personaContent
+        let result = regex.stringByReplacingMatches(
+            in: template,
+            range: range,
+            withTemplate: replacementSection
+        )
+
+        return result
+    }
+
+    // MARK: - Scenario Injection
+
+    /// Inject active scenario content into the system prompt
+    private func injectActiveScenario(in prompt: String) -> String {
+        guard let activeScenario = loadActiveScenario() else {
+            return prompt
+        }
+
+        var result = prompt
+
+        // Replace or inject Current Situation
+        result = replaceOrInjectSection(
+            in: result,
+            sectionName: "Current Situation",
+            content: activeScenario.currentSituation
+        )
+
+        // Replace or inject Live Objective
+        result = replaceOrInjectSection(
+            in: result,
+            sectionName: "Live Objective",
+            content: activeScenario.liveObjective
+        )
+
+        return result
+    }
+
+    /// Load the active scenario from scenarios.jsonl
+    private func loadActiveScenario() -> Scenario? {
+        guard let scenarioFile = character.knowledgeFiles.first(where: { $0.fileName == "scenarios.jsonl" }) else {
+            return nil
+        }
+
+        let scenarios = parseScenariosJSONL(scenarioFile.content)
+        return scenarios.first(where: { $0.isActive })
+    }
+
+    /// Parse scenarios.jsonl content into Scenario objects
+    private func parseScenariosJSONL(_ content: String) -> [Scenario] {
+        let lines = content.components(separatedBy: .newlines)
+        var scenarios: [Scenario] = []
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+
+            guard let data = trimmed.data(using: .utf8) else { continue }
+
+            do {
+                let scenario = try decoder.decode(Scenario.self, from: data)
+                scenarios.append(scenario)
+            } catch {
+                NSLog("[CharacterChatViewModel] Failed to parse scenario: %@", error.localizedDescription)
+            }
+        }
+
+        return scenarios
+    }
+
+    /// Replace or inject a section in the prompt
+    private func replaceOrInjectSection(in prompt: String, sectionName: String, content: String) -> String {
+        // Pattern to match "### Section Name" followed by content until the next section or end
+        let pattern = "###\\s*\(NSRegularExpression.escapedPattern(for: sectionName))\\s*\\n[\\s\\S]*?(?=\\n###|\\n##|$)"
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            // If regex fails, try to append after persona section
+            return prompt + "\n\n### \(sectionName)\n\(content)"
+        }
+
+        let nsString = prompt as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: prompt, range: range)
+
+        if matches.isEmpty {
+            // Section not found - try to insert after "## Your Persona" section
+            let personaPattern = "##\\s*Your Persona[\\s\\S]*?(?=\\n##|$)"
+            if let personaRegex = try? NSRegularExpression(pattern: personaPattern, options: [.caseInsensitive]),
+               let personaMatch = personaRegex.firstMatch(in: prompt, range: range) {
+                let insertPoint = personaMatch.range.location + personaMatch.range.length
+                let before = nsString.substring(to: insertPoint)
+                let after = nsString.substring(from: insertPoint)
+                return before + "\n\n### \(sectionName)\n\(content)" + after
+            }
+            // Fallback: append at end
+            return prompt + "\n\n### \(sectionName)\n\(content)"
+        }
+
+        // Replace existing section
+        let replacement = "### \(sectionName)\n\(content)"
+        return regex.stringByReplacingMatches(
+            in: prompt,
+            range: range,
+            withTemplate: replacement
+        )
+    }
+
+    // MARK: - Dialogue Examples
+
+    /// Build the dialogue examples section from character's knowledge files
+    private func buildDialogueExamplesSection() -> String {
+        // Look for dialog_examples.jsonl in knowledge files
+        guard let dialogFile = character.knowledgeFiles.first(where: { $0.fileName == "dialog_examples.jsonl" }) else {
+            return ""
+        }
+
+        // Parse JSONL content
+        let examples = parseDialogExamplesJSONL(dialogFile.content)
+
+        if examples.isEmpty {
+            return ""
+        }
+
+        // Group examples by category
+        let grouped = Dictionary(grouping: examples) { $0.categoryId }
+
+        var section = "## Dialogue Examples\n"
+
+        // Build each category section (limit 5 examples per category)
+        for category in DialogCategories.all {
+            guard let categoryExamples = grouped[category.id], !categoryExamples.isEmpty else {
+                continue
+            }
+
+            section += "\n### \(category.name)\n"
+
+            let limitedExamples = Array(categoryExamples.prefix(5))
+            for example in limitedExamples {
+                // Format as quoted dialog
+                let cleanDialog = example.dialog
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .replacingOccurrences(of: "\n", with: " ")
+                section += "- \"\(cleanDialog)\"\n"
+            }
+        }
+
+        return section
+    }
+
+    /// Parse dialog_examples.jsonl content into DialogExample objects
+    private func parseDialogExamplesJSONL(_ content: String) -> [DialogExample] {
+        let lines = content.components(separatedBy: .newlines)
+        var examples: [DialogExample] = []
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+
+            guard let data = trimmed.data(using: .utf8) else { continue }
+
+            do {
+                let example = try decoder.decode(DialogExample.self, from: data)
+                examples.append(example)
+            } catch {
+                // Skip malformed lines
+                NSLog("[CharacterChatViewModel] Failed to parse dialog example: %@", error.localizedDescription)
+            }
+        }
+
+        return examples
     }
 
     // MARK: - Send Message

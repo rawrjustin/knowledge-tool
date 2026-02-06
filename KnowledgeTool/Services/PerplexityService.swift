@@ -72,10 +72,17 @@ actor PerplexityService {
 
         let requestData = try JSONEncoder().encode(requestBody)
 
+        // Validate API key format
+        let cleanedApiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedApiKey.isEmpty else {
+            throw PerplexityError.apiError("Perplexity API key is empty. Please check your settings.")
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(cleanedApiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("KnowledgeTool/1.0", forHTTPHeaderField: "User-Agent")
         request.httpBody = requestData
         request.timeoutInterval = 180 // 3 minute timeout
 
@@ -87,7 +94,25 @@ actor PerplexityService {
             throw PerplexityError.networkError
         }
 
-        guard httpResponse.statusCode == 200 else {
+        // Handle various error codes with helpful messages
+        switch httpResponse.statusCode {
+        case 200:
+            break // Success, continue processing
+        case 401:
+            // Check if it's a Cloudflare challenge or actual auth error
+            let errorBody = String(data: data, encoding: .utf8) ?? ""
+            if errorBody.contains("openresty") || errorBody.contains("cloudflare") {
+                throw PerplexityError.apiError("Perplexity API is blocking requests. This may be a temporary issue - please try again in a few minutes, or verify your API key is correct.")
+            } else {
+                throw PerplexityError.apiError("Invalid Perplexity API key. Please check that your API key in Settings is correct and starts with 'pplx-'.")
+            }
+        case 403:
+            throw PerplexityError.apiError("Access denied. Your Perplexity API key may not have permission for this operation.")
+        case 429:
+            throw PerplexityError.apiError("Rate limit exceeded. Please wait a moment before trying again.")
+        case 500, 502, 503:
+            throw PerplexityError.apiError("Perplexity API is temporarily unavailable. Please try again later.")
+        default:
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
             throw PerplexityError.apiError("Perplexity request failed (\(httpResponse.statusCode)): \(errorMessage)")
         }

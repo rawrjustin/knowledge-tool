@@ -3,23 +3,42 @@ import SwiftUI
 @main
 struct KnowledgeToolApp: App {
     @State private var apiKeyManager = APIKeyManager()
-    @State private var githubAuthService = GitHubAuthService()
+    @State private var syncManager: SyncManager?
+    @State private var showSupabaseSetup = false
 
     var body: some Scene {
         WindowGroup {
-            ContentView(githubAuthService: githubAuthService)
+            ContentView()
                 .environment(apiKeyManager)
                 .frame(minWidth: 900, minHeight: 600)
-                .onOpenURL { url in
-                    // Handle OAuth callback from GitHub
-                    if url.scheme == "knowledgetool",
-                       url.host == "oauth",
-                       let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                       let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
-                        Task {
-                            try? await githubAuthService.handleOAuthCallback(code: code)
-                        }
+                .task {
+                    // Initialize combined repository and sync manager
+                    let syncConfig = SupabaseSyncConfig(
+                        supabaseURL: apiKeyManager.supabaseURL,
+                        supabaseAnonKey: apiKeyManager.supabaseAnonKey,
+                        syncEnabled: apiKeyManager.supabaseSyncEnabled
+                    )
+                    let combinedRepo = CombinedCharacterRepository(
+                        localBaseURL: apiKeyManager.repositoryPath,
+                        syncConfig: syncConfig
+                    )
+                    syncManager = SyncManager(apiKeyManager: apiKeyManager, repository: combinedRepo)
+
+                    // Check if Supabase needs setup - show prompt on first launch
+                    if !apiKeyManager.hasSupabaseConfigured && !hasSkippedSupabaseSetup {
+                        showSupabaseSetup = true
+                    } else if apiKeyManager.supabaseSyncEnabled {
+                        // Perform startup sync and start periodic sync
+                        await syncManager?.performStartupSync()
+                        syncManager?.startPeriodicSync()
                     }
+                }
+                .sheet(isPresented: $showSupabaseSetup) {
+                    SupabaseSetupSheet {
+                        // On setup complete, reinitialize sync
+                        syncManager?.onConfigurationChanged()
+                    }
+                    .environment(apiKeyManager)
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -94,4 +113,12 @@ extension Notification.Name {
     static let navigateToSection = Notification.Name("navigateToSection")
     static let quickSwitchCharacter = Notification.Name("quickSwitchCharacter")
     static let refreshCharacters = Notification.Name("refreshCharacters")
+}
+
+// MARK: - Supabase Setup Tracking
+
+/// Track whether user has skipped Supabase setup to avoid prompting every launch
+private var hasSkippedSupabaseSetup: Bool {
+    get { UserDefaults.standard.bool(forKey: "hasSkippedSupabaseSetup") }
+    set { UserDefaults.standard.set(newValue, forKey: "hasSkippedSupabaseSetup") }
 }

@@ -66,7 +66,7 @@ final class CharacterCreationViewModel {
     }
 
     // Services
-    private let localRepository: LocalCharacterRepository
+    private let repository: CombinedCharacterRepository
     private let apiKeyManager: APIKeyManager
     private let asp1Template: String
 
@@ -136,12 +136,13 @@ final class CharacterCreationViewModel {
     }
 
     struct KnowledgeArtifact {
+        let sourceId: UUID?     // nil = root level, otherwise goes in sources/{id}/
         let fileName: String
         let content: String
     }
 
-    init(localRepository: LocalCharacterRepository, apiKeyManager: APIKeyManager) {
-        self.localRepository = localRepository
+    init(repository: CombinedCharacterRepository, apiKeyManager: APIKeyManager) {
+        self.repository = repository
         self.apiKeyManager = apiKeyManager
 
         // Load ASP-1 template from bundled resource
@@ -760,14 +761,42 @@ final class CharacterCreationViewModel {
     }
 
     /// Build knowledge artifacts from processed transcripts
+    /// Uses new source-based folder structure (Knowledge/sources/{uuid}/)
     private func buildKnowledgeArtifacts(from transcripts: [ProcessedTranscript]) {
         knowledgeArtifacts = []
 
-        // Create INDIVIDUAL transcript and knowledge files for each video
+        // Create source folder for each video
         for transcript in transcripts {
-            let safeTitle = sanitizeFileName(transcript.title)
+            let sourceId = UUID()
 
-            // Individual transcript file
+            // Create metadata for this source
+            let metadata = SourceMetadata(
+                id: sourceId,
+                type: "youtube",
+                title: transcript.title,
+                sourceUrl: transcript.url,
+                processedAt: Date(),
+                speaker: transcript.intervieweeName,
+                files: SourceMetadata.Files(
+                    transcript: "transcript.txt",
+                    knowledge: transcript.structuredKnowledgeBase.isEmpty ? nil : "knowledge.jsonl"
+                )
+            )
+
+            // Encode metadata to JSON
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            if let metadataData = try? encoder.encode(metadata),
+               let metadataString = String(data: metadataData, encoding: .utf8) {
+                knowledgeArtifacts.append(KnowledgeArtifact(
+                    sourceId: sourceId,
+                    fileName: "metadata.json",
+                    content: metadataString
+                ))
+            }
+
+            // Transcript file (goes into source folder)
             var transcriptContent = "# \(transcript.title)\n\n"
             transcriptContent += "Source: \(transcript.url)\n\n"
 
@@ -779,57 +808,49 @@ final class CharacterCreationViewModel {
                 transcriptContent += transcript.transcript.text + "\n\n"
             }
             knowledgeArtifacts.append(KnowledgeArtifact(
-                fileName: "transcript_\(safeTitle).txt",
+                sourceId: sourceId,
+                fileName: "transcript.txt",
                 content: transcriptContent
             ))
 
-            // Individual structured knowledge file
+            // Structured knowledge file (goes into source folder)
             if !transcript.structuredKnowledgeBase.isEmpty {
                 knowledgeArtifacts.append(KnowledgeArtifact(
-                    fileName: "knowledge_\(safeTitle).jsonl",
+                    sourceId: sourceId,
+                    fileName: "knowledge.jsonl",
                     content: transcript.structuredKnowledgeBase
                 ))
             }
         }
 
-        // Also create combined files for convenience
-        if transcripts.count > 1 {
-            // Combined transcript
-            var combinedTranscript = "# Combined Video Transcripts\n\n"
-            for (index, transcript) in transcripts.enumerated() {
-                combinedTranscript += "## Video \(index + 1): \(transcript.title)\n"
-                combinedTranscript += "Source: \(transcript.url)\n\n"
+        // NO combined files - dynamic context building via TranscriptContextBuilder
 
-                if let speakerLabels = transcript.transcript.speakerLabels, !speakerLabels.isEmpty {
-                    for utterance in speakerLabels {
-                        combinedTranscript += "[\(formatTimestamp(utterance.start))] \(utterance.speaker): \(utterance.text)\n\n"
-                    }
-                } else {
-                    combinedTranscript += transcript.transcript.text + "\n\n"
-                }
-                combinedTranscript += "---\n\n"
-            }
-            knowledgeArtifacts.append(KnowledgeArtifact(fileName: "all_transcripts_combined.txt", content: combinedTranscript))
-
-            // Combined structured knowledge base
-            var combinedKnowledgeBase = ""
-            for transcript in transcripts {
-                combinedKnowledgeBase += transcript.structuredKnowledgeBase + "\n"
-            }
-            knowledgeArtifacts.append(KnowledgeArtifact(fileName: "all_knowledge_combined.jsonl", content: combinedKnowledgeBase))
-        }
-
-        // Create dialogue examples artifact
+        // Create dialogue examples artifact at root level (consolidated across sources)
         if !combinedDialogueExamples.isEmpty {
-            var dialogueContent = "# Characteristic Dialogue Examples\n\n"
+            var dialogueContent = ""
             for speakerExamples in combinedDialogueExamples {
-                dialogueContent += "## \(speakerExamples.speaker)\n\n"
-                for (index, example) in speakerExamples.examples.enumerated() {
-                    dialogueContent += "\(index + 1). \"\(example)\"\n"
+                for example in speakerExamples.examples {
+                    // Create JSONL entries for dialogue examples
+                    let entry: [String: Any] = [
+                        "id": "dialog-\(UUID().uuidString.prefix(8))",
+                        "section": "Dialogue",
+                        "speaker": speakerExamples.speaker,
+                        "content": example,
+                        "keywords": ["dialogue", "speech", speakerExamples.speaker.lowercased()]
+                    ]
+                    if let data = try? JSONSerialization.data(withJSONObject: entry),
+                       let line = String(data: data, encoding: .utf8) {
+                        dialogueContent += line + "\n"
+                    }
                 }
-                dialogueContent += "\n"
             }
-            knowledgeArtifacts.append(KnowledgeArtifact(fileName: "dialogue_examples.txt", content: dialogueContent))
+            if !dialogueContent.isEmpty {
+                knowledgeArtifacts.append(KnowledgeArtifact(
+                    sourceId: nil,  // Root level
+                    fileName: "dialog_examples.jsonl",
+                    content: dialogueContent
+                ))
+            }
         }
     }
 
@@ -1015,7 +1036,7 @@ final class CharacterCreationViewModel {
         [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
 
         ### Communication & Speech
-        [Detail tone, catchphrases, voice qualities, and vocabulary with specific examples of how they speak]
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
 
         ### Values & Moral Framework
         - [Value #1]: [How it manifests in behavior or choices]
@@ -1086,7 +1107,7 @@ final class CharacterCreationViewModel {
             let characterName = extractCharacterName(from: content) ?? "New Character"
 
             // Create character
-            var character = try await localRepository.createCharacter(
+            var character = try await repository.createCharacter(
                 name: characterName,
                 markdownContent: content
             )
@@ -1095,13 +1116,32 @@ final class CharacterCreationViewModel {
             if !knowledgeArtifacts.isEmpty {
                 var savedKnowledgeFiles: [KnowledgeFile] = []
 
-                for artifact in knowledgeArtifacts {
-                    let knowledgeFile = try await localRepository.createKnowledgeFile(
-                        for: character,
-                        fileName: artifact.fileName,
-                        content: artifact.content
-                    )
-                    savedKnowledgeFiles.append(knowledgeFile)
+                // Group artifacts by sourceId
+                let bySource = Dictionary(grouping: knowledgeArtifacts) { $0.sourceId }
+
+                for (sourceId, artifacts) in bySource {
+                    if let sourceId = sourceId {
+                        // Create source folder and save files there
+                        for artifact in artifacts {
+                            let knowledgeFile = try await repository.createKnowledgeFileInSourceFolder(
+                                for: character,
+                                sourceId: sourceId,
+                                fileName: artifact.fileName,
+                                content: artifact.content
+                            )
+                            savedKnowledgeFiles.append(knowledgeFile)
+                        }
+                    } else {
+                        // Root-level files (dialog_examples.jsonl, etc.)
+                        for artifact in artifacts {
+                            let knowledgeFile = try await repository.createKnowledgeFile(
+                                for: character,
+                                fileName: artifact.fileName,
+                                content: artifact.content
+                            )
+                            savedKnowledgeFiles.append(knowledgeFile)
+                        }
+                    }
                 }
 
                 // Update character with knowledge files
@@ -1203,7 +1243,7 @@ final class CharacterCreationViewModel {
         [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
 
         ### Communication & Speech
-        [Detail tone, catchphrases, voice qualities, and vocabulary with specific examples of how they speak]
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
 
         ### Values & Moral Framework
         - [Value #1]: [How it manifests in behavior or choices]
@@ -1269,7 +1309,7 @@ final class CharacterCreationViewModel {
         [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
 
         ### Communication & Speech
-        [Detail tone, catchphrases, voice qualities, and vocabulary with specific examples of how they speak]
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
 
         ### Values & Moral Framework
         - [Value #1]: [How it manifests in behavior or choices]
@@ -1343,7 +1383,7 @@ final class CharacterCreationViewModel {
         [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
 
         ### Communication & Speech
-        [Detail tone, catchphrases, voice qualities, and vocabulary with specific examples of how they speak]
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
 
         ### Values & Moral Framework
         - [Value #1]: [How it manifests in behavior or choices]

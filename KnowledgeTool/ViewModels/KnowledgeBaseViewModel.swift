@@ -16,12 +16,12 @@ final class KnowledgeBaseViewModel {
     private(set) var error: String?
 
     // Repository
-    private let localRepository: LocalCharacterRepository
+    private let repository: CombinedCharacterRepository
 
-    init(character: Character, localRepository: LocalCharacterRepository) {
+    init(character: Character, repository: CombinedCharacterRepository) {
         self.character = character
         self.knowledgeFiles = character.knowledgeFiles
-        self.localRepository = localRepository
+        self.repository = repository
     }
 
     // MARK: - Computed Properties
@@ -54,7 +54,7 @@ final class KnowledgeBaseViewModel {
 
         do {
             // Reload character to get latest knowledge files
-            let updatedCharacters = try await localRepository.loadAllCharacters()
+            let updatedCharacters = try await repository.loadAllCharacters()
 
             if let updatedCharacter = updatedCharacters.first(where: { $0.id == character.id }) {
                 character = updatedCharacter
@@ -73,7 +73,7 @@ final class KnowledgeBaseViewModel {
         defer { isLoading = false }
 
         do {
-            let newFile = try await localRepository.createKnowledgeFile(
+            let newFile = try await repository.createKnowledgeFile(
                 for: character,
                 fileName: fileName,
                 content: content
@@ -95,7 +95,7 @@ final class KnowledgeBaseViewModel {
         defer { isLoading = false }
 
         do {
-            try await localRepository.saveKnowledgeFile(file)
+            try await repository.saveKnowledgeFile(file, for: character)
 
             // Update in list
             if let index = knowledgeFiles.firstIndex(where: { $0.id == file.id }) {
@@ -116,7 +116,7 @@ final class KnowledgeBaseViewModel {
         defer { isLoading = false }
 
         do {
-            try await localRepository.deleteKnowledgeFile(file)
+            try await repository.deleteKnowledgeFile(file)
 
             knowledgeFiles.removeAll { $0.id == file.id }
 

@@ -69,12 +69,6 @@ struct ChatVariantView: View {
                         MessageBubble(message: message)
                     }
 
-                    // Diff highlighting for latest assistant message
-                    if let diff = diffResult, variantIndex > 0 {
-                        DiffView(diffResult: diff)
-                            .padding(.top, 8)
-                    }
-
                     // Loading indicator
                     if variant.isExecuting {
                         HStack {
@@ -148,7 +142,7 @@ struct DiffView: View {
                     .foregroundStyle(.secondary)
             }
 
-            FlowLayout(spacing: 4) {
+            ChatVariantFlowLayout(spacing: 4) {
                 ForEach(diffResult.segments) { segment in
                     Text(segment.text)
                         .font(.caption)
@@ -180,7 +174,7 @@ struct DiffView: View {
 
 // MARK: - Flow Layout
 
-struct FlowLayout: Layout {
+struct ChatVariantFlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

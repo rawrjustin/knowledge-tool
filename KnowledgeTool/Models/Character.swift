@@ -34,12 +34,26 @@ struct KnowledgeFile: Identifiable, Codable, Hashable {
     let id: UUID
     let fileName: String
     var content: String
-    let path: String            // GitHub path (e.g., "Personas/Jake Paul/Knowledge/interview.txt")
-    var sha: String             // GitHub SHA for updates
+    let path: String            // Path (e.g., "Personas/Jake Paul/Knowledge/interview.txt" or "Personas/.../Knowledge/sources/{uuid}/transcript.txt")
+    var sha: String             // Content hash for change tracking
     let createdAt: Date
     var modifiedAt: Date
 
-    init(id: UUID = UUID(), fileName: String, content: String, path: String, sha: String = "", createdAt: Date = Date(), modifiedAt: Date = Date()) {
+    // Source folder support - for new source-based organization
+    var sourceId: UUID?         // UUID of the source folder (nil for root-level files)
+    var sourceMetadata: SourceMetadata?  // Loaded metadata from source folder
+
+    init(
+        id: UUID = UUID(),
+        fileName: String,
+        content: String,
+        path: String,
+        sha: String = "",
+        createdAt: Date = Date(),
+        modifiedAt: Date = Date(),
+        sourceId: UUID? = nil,
+        sourceMetadata: SourceMetadata? = nil
+    ) {
         self.id = id
         self.fileName = fileName
         self.content = content
@@ -47,11 +61,16 @@ struct KnowledgeFile: Identifiable, Codable, Hashable {
         self.sha = sha
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
+        self.sourceId = sourceId
+        self.sourceMetadata = sourceMetadata
     }
 
-    // Display name without extension and formatting
+    // Display name - prefers source metadata title if available
     var displayName: String {
-        fileName
+        if let metadata = sourceMetadata {
+            return metadata.resolvedDisplayName
+        }
+        return fileName
             .replacingOccurrences(of: "_summary.txt", with: "")
             .replacingOccurrences(of: "_", with: " ")
     }
@@ -62,17 +81,33 @@ struct KnowledgeFile: Identifiable, Codable, Hashable {
             .filter { !$0.isEmpty }
             .count
     }
+
+    // Check if this file is in a source folder
+    var isInSourceFolder: Bool {
+        sourceId != nil
+    }
+
+    // Hashable conformance - exclude sourceMetadata (complex type)
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(fileName)
+        hasher.combine(path)
+    }
+
+    static func == (lhs: KnowledgeFile, rhs: KnowledgeFile) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 // MARK: - Character
 struct Character: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String                    // "Jake Paul"
-    let directoryPath: String           // GitHub path (e.g., "Personas/Jake Paul")
+    let directoryPath: String           // Logical path (e.g., "Personas/Jake Paul")
     let personaFileName: String         // "jakepaul.md" or "jakepaulv2.md"
     var markdownContent: String         // Full persona markdown
     var knowledgeFiles: [KnowledgeFile]
-    var sha: String                     // GitHub SHA for updates
+    var sha: String                     // Content hash for change tracking
     var systemPromptType: SystemPromptType
     var version: Int                    // 1 for base, 2+ for versions
     var createdAt: Date                 // When this version was created

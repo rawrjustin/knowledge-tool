@@ -6,13 +6,13 @@ struct CharacterCreationWizard: View {
     let onCancel: () -> Void
 
     init(
-        localRepository: LocalCharacterRepository,
+        repository: CombinedCharacterRepository,
         apiKeyManager: APIKeyManager,
         onComplete: @escaping (Character) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self._viewModel = State(initialValue: CharacterCreationViewModel(
-            localRepository: localRepository,
+            repository: repository,
             apiKeyManager: apiKeyManager
         ))
         self.onComplete = onComplete

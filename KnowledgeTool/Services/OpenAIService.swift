@@ -72,7 +72,8 @@ actor OpenAIService {
         fullTranscript: String,
         speakerLabels: [SpeakerUtterance]?,
         videoURL: String,
-        videoTitle: String
+        videoTitle: String,
+        sourceId: UUID? = nil
     ) async throws -> String {
         // Build transcript with timestamps if available
         var formattedTranscript = ""
@@ -84,6 +85,19 @@ actor OpenAIService {
         } else {
             formattedTranscript = fullTranscript
         }
+
+        // Include sourceId in prompt if provided
+        let sourceIdField = sourceId != nil ? """
+
+        ### **`sourceId`**
+        "\(sourceId!.uuidString)"
+
+        ### **`timestamp`**
+        The start time in seconds (e.g., 300 for t5-15 which starts at 5 minutes)
+
+        ### **`endTimestamp`**
+        The end time in seconds (e.g., 900 for t5-15 which ends at 15 minutes)
+        """ : ""
 
         let prompt = """
         You are helping build a structured knowledge base for an **AI character**.
@@ -151,6 +165,7 @@ actor OpenAIService {
 
         ### **`title`**
         \(videoTitle)
+        \(sourceIdField)
 
         ### **`chunk_summary`**
 

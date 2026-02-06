@@ -9,24 +9,24 @@ struct VersionComparisonChatView: View {
 
     let characterName: String
     let initialVersions: [Character]
-    let localRepository: LocalCharacterRepository
+    let repository: CombinedCharacterRepository
     let apiKeyManager: APIKeyManager
     let onClose: () -> Void
 
     init(
         characterName: String,
         initialVersions: [Character] = [],
-        localRepository: LocalCharacterRepository,
+        repository: CombinedCharacterRepository,
         apiKeyManager: APIKeyManager,
         onClose: @escaping () -> Void
     ) {
         self.characterName = characterName
         self.initialVersions = initialVersions
-        self.localRepository = localRepository
+        self.repository = repository
         self.apiKeyManager = apiKeyManager
         self.onClose = onClose
         self._viewModel = State(initialValue: VersionComparisonViewModel(
-            localRepository: localRepository,
+            repository: repository,
             apiKeyManager: apiKeyManager
         ))
     }

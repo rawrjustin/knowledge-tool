@@ -26,10 +26,10 @@ struct KnowledgeBaseView: View {
 
     let apiKeyManager: APIKeyManager
 
-    init(character: Character, localRepository: LocalCharacterRepository, apiKeyManager: APIKeyManager) {
+    init(character: Character, repository: CombinedCharacterRepository, apiKeyManager: APIKeyManager) {
         self._viewModel = State(initialValue: KnowledgeBaseViewModel(
             character: character,
-            localRepository: localRepository
+            repository: repository
         ))
         self.apiKeyManager = apiKeyManager
     }

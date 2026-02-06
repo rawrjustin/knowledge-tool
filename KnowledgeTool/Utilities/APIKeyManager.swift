@@ -5,10 +5,9 @@ final class APIKeyManager {
     // MARK: - Settings Keys
     private enum SettingsKey {
         static let repositoryPath = "characterRepositoryPath"
-        static let githubOwner = "github_repo_owner"
-        static let githubRepo = "github_repo_name"
-        static let githubClientID = "github_client_id"
-        static let githubClientSecret = "github_client_secret"
+        static let supabaseURL = "supabase_url"
+        static let supabaseAnonKey = "supabase_anon_key"
+        static let supabaseSyncEnabled = "supabase_sync_enabled"
     }
 
     // MARK: - Default Repository Path
@@ -23,7 +22,6 @@ final class APIKeyManager {
         case openAI = "OpenAI"
         case perplexity = "Perplexity"
         case pinecone = "Pinecone"
-        case gitHubPAT = "GitHub PAT"
 
         var storageKey: String {
             switch self {
@@ -31,7 +29,6 @@ final class APIKeyManager {
             case .openAI: return "apikey_openai"
             case .perplexity: return "apikey_perplexity"
             case .pinecone: return "apikey_pinecone"
-            case .gitHubPAT: return "apikey_github_pat"
             }
         }
 
@@ -85,66 +82,56 @@ final class APIKeyManager {
         }
     }
 
-    // MARK: - GitHub Repository Settings
-    var githubRepoOwner: String {
+    // MARK: - Supabase Settings
+
+    var supabaseURL: String {
         get {
-            UserDefaults.standard.string(forKey: SettingsKey.githubOwner) ?? ""
+            UserDefaults.standard.string(forKey: SettingsKey.supabaseURL) ?? ""
         }
         set {
             if newValue.isEmpty {
-                UserDefaults.standard.removeObject(forKey: SettingsKey.githubOwner)
+                UserDefaults.standard.removeObject(forKey: SettingsKey.supabaseURL)
             } else {
-                UserDefaults.standard.set(newValue, forKey: SettingsKey.githubOwner)
+                UserDefaults.standard.set(newValue, forKey: SettingsKey.supabaseURL)
             }
         }
     }
 
-    var githubRepoName: String {
+    var supabaseAnonKey: String {
         get {
-            UserDefaults.standard.string(forKey: SettingsKey.githubRepo) ?? ""
+            UserDefaults.standard.string(forKey: SettingsKey.supabaseAnonKey) ?? ""
         }
         set {
             if newValue.isEmpty {
-                UserDefaults.standard.removeObject(forKey: SettingsKey.githubRepo)
+                UserDefaults.standard.removeObject(forKey: SettingsKey.supabaseAnonKey)
             } else {
-                UserDefaults.standard.set(newValue, forKey: SettingsKey.githubRepo)
+                UserDefaults.standard.set(newValue, forKey: SettingsKey.supabaseAnonKey)
             }
         }
     }
 
-    var hasGitHubRepoConfigured: Bool {
-        !githubRepoOwner.isEmpty && !githubRepoName.isEmpty
-    }
-
-    // MARK: - GitHub OAuth Settings (Optional - for contributors)
-    var githubClientID: String {
+    var supabaseSyncEnabled: Bool {
         get {
-            UserDefaults.standard.string(forKey: SettingsKey.githubClientID) ?? ""
+            UserDefaults.standard.bool(forKey: SettingsKey.supabaseSyncEnabled)
         }
         set {
-            if newValue.isEmpty {
-                UserDefaults.standard.removeObject(forKey: SettingsKey.githubClientID)
-            } else {
-                UserDefaults.standard.set(newValue, forKey: SettingsKey.githubClientID)
-            }
+            UserDefaults.standard.set(newValue, forKey: SettingsKey.supabaseSyncEnabled)
         }
     }
 
-    var githubClientSecret: String {
-        get {
-            UserDefaults.standard.string(forKey: SettingsKey.githubClientSecret) ?? ""
-        }
-        set {
-            if newValue.isEmpty {
-                UserDefaults.standard.removeObject(forKey: SettingsKey.githubClientSecret)
-            } else {
-                UserDefaults.standard.set(newValue, forKey: SettingsKey.githubClientSecret)
-            }
-        }
+    var hasSupabaseConfigured: Bool {
+        !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty
     }
 
-    var hasGitHubOAuthConfigured: Bool {
-        !githubClientID.isEmpty && !githubClientSecret.isEmpty
+    /// Validate Supabase URL format
+    var isSupabaseURLValid: Bool {
+        guard !supabaseURL.isEmpty,
+              let url = URL(string: supabaseURL),
+              url.scheme == "https",
+              url.host?.contains("supabase") == true else {
+            return false
+        }
+        return true
     }
 
     // MARK: - Repository Path
@@ -171,15 +158,35 @@ final class APIKeyManager {
     // MARK: - API Key Management (UserDefaults)
 
     func getAPIKey(for service: APIService) -> String? {
-        return UserDefaults.standard.string(forKey: service.storageKey)
+        guard let key = UserDefaults.standard.string(forKey: service.storageKey) else {
+            return nil
+        }
+        // Return cleaned key (trimmed, no surrounding quotes)
+        let cleaned = cleanAPIKey(key)
+        return cleaned.isEmpty ? nil : cleaned
     }
 
     func setAPIKey(_ key: String, for service: APIService) {
-        if key.isEmpty {
+        // Clean the key before storing
+        let cleanedKey = cleanAPIKey(key)
+        if cleanedKey.isEmpty {
             UserDefaults.standard.removeObject(forKey: service.storageKey)
         } else {
-            UserDefaults.standard.set(key, forKey: service.storageKey)
+            UserDefaults.standard.set(cleanedKey, forKey: service.storageKey)
         }
+    }
+
+    /// Clean an API key by removing whitespace and surrounding quotes
+    private func cleanAPIKey(_ key: String) -> String {
+        var cleaned = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Remove surrounding quotes if present
+        if cleaned.hasPrefix("\"") && cleaned.hasSuffix("\"") && cleaned.count >= 2 {
+            cleaned = String(cleaned.dropFirst().dropLast())
+        }
+        if cleaned.hasPrefix("'") && cleaned.hasSuffix("'") && cleaned.count >= 2 {
+            cleaned = String(cleaned.dropFirst().dropLast())
+        }
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func deleteAPIKey(for service: APIService) {

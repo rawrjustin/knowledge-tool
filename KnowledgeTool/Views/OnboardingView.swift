@@ -8,7 +8,6 @@ struct OnboardingView: View {
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
     @State private var perplexityKey: String = ""
-    @State private var gitHubPATKey: String = ""
     @State private var showingError: String?
     @FocusState private var focusedField: Field?
 
@@ -16,7 +15,6 @@ struct OnboardingView: View {
         case assemblyAI
         case openAI
         case perplexity
-        case gitHubPAT
     }
 
     var body: some View {
@@ -61,12 +59,6 @@ struct OnboardingView: View {
                         showingError: $showingError,
                         focusedField: $focusedField
                     )
-                case 4:
-                    GitHubPATKeyPage(
-                        gitHubPATKey: $gitHubPATKey,
-                        showingError: $showingError,
-                        focusedField: $focusedField
-                    )
                 default:
                     WelcomePage()
                 }
@@ -80,7 +72,7 @@ struct OnboardingView: View {
             HStack {
                 // Page indicators
                 HStack(spacing: 8) {
-                    ForEach(0..<5, id: \.self) { index in
+                    ForEach(0..<4, id: \.self) { index in
                         Circle()
                             .fill(currentPage == index ? Color.accentColor : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
@@ -110,7 +102,7 @@ struct OnboardingView: View {
                     }
                 }
 
-                if currentPage < 4 {
+                if currentPage < 3 {
                     Button("Next") {
                         withAnimation {
                             currentPage += 1
@@ -135,25 +127,22 @@ struct OnboardingView: View {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedPerplexityKey.isEmpty && !trimmedGitHubPATKey.isEmpty
+        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedPerplexityKey.isEmpty
     }
 
     private var missingKeysMessage: String? {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         var missing: [String] = []
         if trimmedAssemblyAIKey.isEmpty { missing.append("AssemblyAI") }
         if trimmedOpenAIKey.isEmpty { missing.append("OpenAI") }
         if trimmedPerplexityKey.isEmpty { missing.append("Perplexity") }
-        if trimmedGitHubPATKey.isEmpty { missing.append("GitHub PAT") }
 
         if missing.isEmpty {
             return nil
-        } else if missing.count == 4 {
+        } else if missing.count == 3 {
             return "All API keys are required"
         } else {
             return "\(missing.joined(separator: ", ")) API key\(missing.count > 1 ? "s" : "") required"
@@ -169,10 +158,9 @@ struct OnboardingView: View {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedGitHubPATKey = gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Validate that ALL keys are provided
-        if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty || trimmedPerplexityKey.isEmpty || trimmedGitHubPATKey.isEmpty {
+        if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty || trimmedPerplexityKey.isEmpty {
             showingError = missingKeysMessage
             return
         }
@@ -181,7 +169,6 @@ struct OnboardingView: View {
         apiKeyManager.setAPIKey(trimmedAssemblyAIKey, for: .assemblyAI)
         apiKeyManager.setAPIKey(trimmedOpenAIKey, for: .openAI)
         apiKeyManager.setAPIKey(trimmedPerplexityKey, for: .perplexity)
-        apiKeyManager.setAPIKey(trimmedGitHubPATKey, for: .gitHubPAT)
 
         // Mark onboarding as complete
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
@@ -215,7 +202,7 @@ struct WelcomePage: View {
                     FeatureRow(
                         icon: "person.text.rectangle",
                         title: "Character Management",
-                        description: "Create, edit, and organize AI character prompts with GitHub sync"
+                        description: "Create, edit, and organize AI character prompts with cloud sync"
                     )
 
                     FeatureRow(
@@ -480,87 +467,6 @@ struct PerplexityKeyPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
-// MARK: - GitHub PAT Key Page
-struct GitHubPATKeyPage: View {
-    @Binding var gitHubPATKey: String
-    @Binding var showingError: String?
-    var focusedField: FocusState<OnboardingView.Field?>.Binding
-
-    private var isKeyEntered: Bool {
-        !gitHubPATKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            VStack(spacing: 24) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "person.badge.key")
-                        .font(.system(size: 72))
-                        .foregroundStyle(.blue)
-
-                    if isKeyEntered {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.green)
-                            .offset(x: 10, y: -10)
-                    }
-                }
-
-                VStack(spacing: 12) {
-                    HStack(spacing: 8) {
-                        Text("GitHub Personal Access Token")
-                            .font(.largeTitle.bold())
-
-                        Text("Required")
-                            .font(.caption.bold())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(isKeyEntered ? Color.green : Color.red)
-                            .cornerRadius(4)
-                    }
-
-                    Text("Required for accessing and syncing character prompts from the repository")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Enter your GitHub Personal Access Token")
-                        .font(.headline)
-
-                    SecureField("Personal Access Token", text: $gitHubPATKey)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.body)
-                        .focused(focusedField, equals: .gitHubPAT)
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-
-                        Text("Your token is securely stored in the macOS Keychain")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, 4)
-                }
-                .padding(20)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(12)
-                .frame(maxWidth: 500)
-            }
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 
 // MARK: - Feature Row
 struct FeatureRow: View {

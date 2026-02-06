@@ -20,7 +20,7 @@ final class CharacterEditorViewModel {
     private(set) var hasUnsavedChanges = false
 
     // Repository
-    private let localRepository: LocalCharacterRepository
+    private let repository: CombinedCharacterRepository
 
     // Mode
     enum Mode {
@@ -30,9 +30,9 @@ final class CharacterEditorViewModel {
 
     private let mode: Mode
 
-    init(mode: Mode, localRepository: LocalCharacterRepository) {
+    init(mode: Mode, repository: CombinedCharacterRepository) {
         self.mode = mode
-        self.localRepository = localRepository
+        self.repository = repository
 
         switch mode {
         case .create:
@@ -65,7 +65,7 @@ final class CharacterEditorViewModel {
             switch mode {
             case .create:
                 // Create new character
-                let newCharacter = try await localRepository.createCharacter(
+                let newCharacter = try await repository.createCharacter(
                     name: name,
                     markdownContent: markdownContent
                 )
@@ -81,7 +81,7 @@ final class CharacterEditorViewModel {
                 existingCharacter.lastModified = Date()
 
                 // Save as new version (creates v2, v3, etc.)
-                let newVersion = try await localRepository.saveCharacterAsNewVersion(existingCharacter)
+                let newVersion = try await repository.saveCharacterAsNewVersion(existingCharacter)
                 character = newVersion
                 hasUnsavedChanges = false
                 return true
