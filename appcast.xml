@@ -9,15 +9,15 @@
             <title>Version 1.4.0</title>
             <description><![CDATA[
                 <h2>What's New in 1.4.0</h2>
-                <p>Added SportsData.io integration with provider-agnostic architecture for browsing CBB, NBA, and MLB teams, players, stats, and schedules. Attach sports data as character knowledge sources with manual and auto-refresh support.</p>
+                <p>Added SportsData.io integration with provider-agnostic architecture for browsing CBB, NBA, and MLB teams, players, stats, and schedules. Attach sports data as character knowledge sources with manual and auto-refresh support. Improved onboarding with Supabase setup wizard and character creation flow.</p>
             ]]></description>
-            <pubDate>Tue, 10 Feb 2026 13:19:24 -0500</pubDate>
+            <pubDate>Tue, 10 Feb 2026 13:47:45 -0500</pubDate>
             <enclosure
                 url="https://github.com/geniesinc/knowledgetool/releases/download/v1.4.0/KnowledgeTool-1.4.0.zip"
-                sparkle:version="202602101317"
+                sparkle:version="202602101345"
                 sparkle:shortVersionString="1.4.0"
-                sparkle:edSignature="OFyX2auDaALnz0jBFQrx2bnpD6NADaKxRYRYufszY9vauYrn5N/gsqL4UJIfKoFAgx0DWNbLqJGDJ9yNNxiKCA=="
-                length="88349010"
+                sparkle:edSignature="ulGcv/3siPA0eVzF/wuMNgcV+WMHoNfpxy/YvWmhEYB1cxprxDBbt8myM8QJsA+d/CtxS70/RpthfCVCdwVZBw=="
+                length="88423365"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
