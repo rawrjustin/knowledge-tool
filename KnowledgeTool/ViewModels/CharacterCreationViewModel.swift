@@ -518,6 +518,8 @@ final class CharacterCreationViewModel {
         combinedDialogueExamples = []
         knowledgeArtifacts = []
         detectedCharacterName = nil
+        progressLogs = []  // Clear logs for fresh start
+        addLog("Starting video processing for \(validURLs.count) video(s)...")
 
         // Initialize status for all URLs
         for (index, url) in validURLs {
@@ -550,6 +552,7 @@ final class CharacterCreationViewModel {
 
         // Now safely update on main actor
         processedTranscripts = results
+        addLog("All videos processed. \(results.count) successful.")
 
         // Check if we have any successful transcripts
         let successfulTranscripts = processedTranscripts
@@ -624,18 +627,23 @@ final class CharacterCreationViewModel {
             // Step 1: Download video
             print("[KnowledgeTool] Video \(index + 1): Starting download...")
             updateYouTubeStatus(index: index, state: .downloading)
+            await MainActor.run { addLog("Downloading video \(index + 1)...") }
             let result = try await videoService.downloadAndExtractAudio(from: url)
             audioURL = result.audioURL
             let videoInfo = result.videoInfo
 
             updateYouTubeStatus(index: index, state: .downloading, videoTitle: videoInfo.title)
+            await MainActor.run { addLog("Downloaded: \(videoInfo.title)") }
 
             // Step 2: Transcribe
             updateYouTubeStatus(index: index, state: .transcribing)
+            await MainActor.run { addLog("Transcribing audio for video \(index + 1)...") }
             var transcript = try await assemblyAI.transcribeAudio(fileURL: audioURL!)
+            await MainActor.run { addLog("Transcription complete for video \(index + 1)") }
 
             // Step 3: Identify interviewee
             updateYouTubeStatus(index: index, state: .identifying)
+            await MainActor.run { addLog("Identifying speaker in video \(index + 1)...") }
             var intervieweeName: String? = nil
 
             if let speakerLabels = transcript.speakerLabels, !speakerLabels.isEmpty {
@@ -663,9 +671,13 @@ final class CharacterCreationViewModel {
             }
 
             updateYouTubeStatus(index: index, state: .identifying, intervieweeName: intervieweeName)
+            if let name = intervieweeName {
+                await MainActor.run { addLog("Identified speaker: \(name)") }
+            }
 
             // Step 4: Extract dialogue examples
             updateYouTubeStatus(index: index, state: .extractingDialogue)
+            await MainActor.run { addLog("Extracting dialogue examples from video \(index + 1)...") }
             var dialogueExamples: [SpeakerDialogueExamples]? = nil
 
             if let speakerLabels = transcript.speakerLabels, !speakerLabels.isEmpty, let name = intervieweeName {
@@ -677,6 +689,7 @@ final class CharacterCreationViewModel {
 
             // Step 5: Generate structured knowledge base
             updateYouTubeStatus(index: index, state: .generatingKnowledge)
+            await MainActor.run { addLog("Generating knowledge base for video \(index + 1)...") }
             let characterName = intervieweeName ?? "the subject"
             let knowledgeBase = try await openAI.generateStructuredKnowledgeBase(
                 characterName: characterName,
@@ -697,6 +710,7 @@ final class CharacterCreationViewModel {
             )
 
             updateYouTubeStatus(index: index, state: .completed)
+            await MainActor.run { addLog("Video \(index + 1) processing complete!") }
 
             // Cleanup
             if let audioURL = audioURL {
@@ -900,7 +914,7 @@ final class CharacterCreationViewModel {
         }
 
         currentStep = .generating
-        progressLogs = []
+        // Don't clear progressLogs - keep the video processing logs visible
         sources = processedTranscripts.map { $0.url }
 
         let characterName = detectedCharacterName ?? "Character"

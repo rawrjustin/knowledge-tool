@@ -523,18 +523,46 @@ struct YouTubeProcessingView: View {
                 }
             }
 
-            // Video processing status
-            ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(viewModel.youtubeProcessingStatus.values.sorted(by: { $0.id < $1.id })) { status in
-                        VideoProcessingStatusRow(status: status)
+            // Two-column layout: Video status + Activity log
+            HStack(alignment: .top, spacing: 16) {
+                // Video processing status
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text("Video Status")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(viewModel.youtubeProcessingStatus.count) videos")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+
+                    Divider()
+
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(viewModel.youtubeProcessingStatus.values.sorted(by: { $0.id < $1.id })) { status in
+                                VideoProcessingStatusRow(status: status)
+                            }
+                        }
+                        .padding()
                     }
                 }
-                .padding()
+                .frame(maxWidth: 350, maxHeight: 280)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+
+                // Activity Log
+                ActivityLogView(progressLogs: viewModel.progressLogs)
+                    .frame(maxWidth: 350, maxHeight: 280)
             }
-            .frame(maxWidth: 600, maxHeight: 350)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(12)
+            .frame(maxWidth: 720)
 
             // Summary
             if !viewModel.processedTranscripts.isEmpty {
@@ -819,6 +847,12 @@ struct GeneratingView: View {
                             }
                         }
                         .padding(.vertical, 8)
+                    }
+                    .onAppear {
+                        // Scroll to top when view appears
+                        if !uniqueLogs.isEmpty {
+                            proxy.scrollTo(0, anchor: .top)
+                        }
                     }
                     .onChange(of: viewModel.progressLogs.count) { _, _ in
                         withAnimation {

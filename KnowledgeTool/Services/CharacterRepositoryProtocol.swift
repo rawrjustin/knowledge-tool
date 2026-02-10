@@ -328,7 +328,7 @@ actor CombinedCharacterRepository {
     /// Sync all local characters to Supabase (for initial sync or manual sync)
     func syncAllToSupabase() async throws {
         guard syncEnabled, let supabase = supabase else {
-            NSLog("[CombinedRepository] Sync skipped - not enabled or not configured")
+            // Only log at debug level - this is expected when sync isn't configured
             return
         }
 
@@ -364,7 +364,7 @@ actor CombinedCharacterRepository {
     /// Pull all characters from Supabase to local (for initial download)
     func pullAllFromSupabase() async throws {
         guard syncEnabled, let supabase = supabase else {
-            NSLog("[CombinedRepository] Pull skipped - not enabled or not configured")
+            // Only log at debug level - this is expected when sync isn't configured
             return
         }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 struct OnboardingView: View {
     @Environment(APIKeyManager.self) private var apiKeyManager
@@ -8,13 +9,19 @@ struct OnboardingView: View {
     @State private var assemblyAIKey: String = ""
     @State private var openAIKey: String = ""
     @State private var perplexityKey: String = ""
+    @State private var supabaseURL: String = ""
+    @State private var supabaseAnonKey: String = ""
     @State private var showingError: String?
+    @State private var isTestingConnection = false
+    @State private var connectionTestPassed = false
     @FocusState private var focusedField: Field?
 
     enum Field {
         case assemblyAI
         case openAI
         case perplexity
+        case supabaseURL
+        case supabaseAnonKey
     }
 
     var body: some View {
@@ -42,18 +49,28 @@ struct OnboardingView: View {
                 case 0:
                     WelcomePage()
                 case 1:
+                    SupabaseSetupPage(
+                        supabaseURL: $supabaseURL,
+                        supabaseAnonKey: $supabaseAnonKey,
+                        showingError: $showingError,
+                        isTestingConnection: $isTestingConnection,
+                        connectionTestPassed: $connectionTestPassed,
+                        focusedField: $focusedField,
+                        onTestConnection: testSupabaseConnection
+                    )
+                case 2:
                     AssemblyAIKeyPage(
                         assemblyAIKey: $assemblyAIKey,
                         showingError: $showingError,
                         focusedField: $focusedField
                     )
-                case 2:
+                case 3:
                     OpenAIKeyPage(
                         openAIKey: $openAIKey,
                         showingError: $showingError,
                         focusedField: $focusedField
                     )
-                case 3:
+                case 4:
                     PerplexityKeyPage(
                         perplexityKey: $perplexityKey,
                         showingError: $showingError,
@@ -72,7 +89,7 @@ struct OnboardingView: View {
             HStack {
                 // Page indicators
                 HStack(spacing: 8) {
-                    ForEach(0..<4, id: \.self) { index in
+                    ForEach(0..<5, id: \.self) { index in
                         Circle()
                             .fill(currentPage == index ? Color.accentColor : Color.secondary.opacity(0.3))
                             .frame(width: 8, height: 8)
@@ -97,18 +114,26 @@ struct OnboardingView: View {
                 if currentPage > 0 {
                     Button("Back") {
                         withAnimation {
+                            showingError = nil
                             currentPage -= 1
                         }
                     }
                 }
 
-                if currentPage < 3 {
+                if currentPage < 4 {
                     Button("Next") {
                         withAnimation {
+                            showingError = nil
+                            // Validate Supabase on page 1 before proceeding
+                            if currentPage == 1 && !connectionTestPassed {
+                                showingError = "Please test your Supabase connection before continuing"
+                                return
+                            }
                             currentPage += 1
                         }
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(currentPage == 1 && !connectionTestPassed)
                 } else {
                     Button("Get Started") {
                         completeOnboarding()
@@ -120,14 +145,14 @@ struct OnboardingView: View {
             }
             .padding(24)
         }
-        .frame(width: 700, height: 550)
+        .frame(width: 700, height: 600)
     }
 
     private var canContinue: Bool {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedPerplexityKey.isEmpty
+        return !trimmedAssemblyAIKey.isEmpty && !trimmedOpenAIKey.isEmpty && !trimmedPerplexityKey.isEmpty && connectionTestPassed
     }
 
     private var missingKeysMessage: String? {
@@ -136,17 +161,55 @@ struct OnboardingView: View {
         let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         var missing: [String] = []
+        if !connectionTestPassed { missing.append("Supabase") }
         if trimmedAssemblyAIKey.isEmpty { missing.append("AssemblyAI") }
         if trimmedOpenAIKey.isEmpty { missing.append("OpenAI") }
         if trimmedPerplexityKey.isEmpty { missing.append("Perplexity") }
 
         if missing.isEmpty {
             return nil
-        } else if missing.count == 3 {
-            return "All API keys are required"
+        } else if missing.count == 4 {
+            return "All configuration is required"
         } else {
-            return "\(missing.joined(separator: ", ")) API key\(missing.count > 1 ? "s" : "") required"
+            return "\(missing.joined(separator: ", ")) \(missing.count > 1 ? "are" : "is") required"
         }
+    }
+
+    private func testSupabaseConnection() async {
+        isTestingConnection = true
+        showingError = nil
+        connectionTestPassed = false
+
+        do {
+            guard let url = URL(string: supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                showingError = "Invalid URL format"
+                isTestingConnection = false
+                return
+            }
+
+            let client = SupabaseClient(
+                supabaseURL: url,
+                supabaseKey: supabaseAnonKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+
+            // Test by querying characters table
+            struct CharacterIdOnly: Decodable {
+                let id: UUID
+            }
+
+            let _: [CharacterIdOnly] = try await client
+                .from("characters")
+                .select("id")
+                .limit(1)
+                .execute()
+                .value
+
+            connectionTestPassed = true
+        } catch {
+            showingError = "Connection failed: \(error.localizedDescription)"
+        }
+
+        isTestingConnection = false
     }
 
     private func completeOnboarding() {
@@ -158,12 +221,24 @@ struct OnboardingView: View {
         let trimmedAssemblyAIKey = assemblyAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOpenAIKey = openAIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPerplexityKey = perplexityKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSupabaseURL = supabaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSupabaseAnonKey = supabaseAnonKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Validate that ALL keys are provided
         if trimmedAssemblyAIKey.isEmpty || trimmedOpenAIKey.isEmpty || trimmedPerplexityKey.isEmpty {
             showingError = missingKeysMessage
             return
         }
+
+        if !connectionTestPassed {
+            showingError = "Please configure and test Supabase connection"
+            return
+        }
+
+        // Save Supabase configuration
+        apiKeyManager.supabaseURL = trimmedSupabaseURL
+        apiKeyManager.supabaseAnonKey = trimmedSupabaseAnonKey
+        apiKeyManager.supabaseSyncEnabled = true
 
         // Save API keys
         apiKeyManager.setAPIKey(trimmedAssemblyAIKey, for: .assemblyAI)
@@ -200,9 +275,15 @@ struct WelcomePage: View {
 
                 VStack(alignment: .leading, spacing: 16) {
                     FeatureRow(
+                        icon: "icloud.fill",
+                        title: "Team Collaboration",
+                        description: "Sync characters and knowledge across your team with Supabase"
+                    )
+
+                    FeatureRow(
                         icon: "person.text.rectangle",
                         title: "Character Management",
-                        description: "Create, edit, and organize AI character prompts with cloud sync"
+                        description: "Create, edit, and organize AI character prompts"
                     )
 
                     FeatureRow(
@@ -220,6 +301,127 @@ struct WelcomePage: View {
                 .padding()
                 .background(Color(nsColor: .controlBackgroundColor))
                 .cornerRadius(12)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Supabase Setup Page
+struct SupabaseSetupPage: View {
+    @Binding var supabaseURL: String
+    @Binding var supabaseAnonKey: String
+    @Binding var showingError: String?
+    @Binding var isTestingConnection: Bool
+    @Binding var connectionTestPassed: Bool
+    var focusedField: FocusState<OnboardingView.Field?>.Binding
+    var onTestConnection: () async -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 24) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "icloud.fill")
+                        .font(.system(size: 72))
+                        .foregroundStyle(.blue)
+
+                    if connectionTestPassed {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.green)
+                            .offset(x: 10, y: -10)
+                    }
+                }
+
+                VStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        Text("Team Sync Setup")
+                            .font(.largeTitle.bold())
+
+                        Text("Required")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(connectionTestPassed ? Color.green : Color.red)
+                            .cornerRadius(4)
+                    }
+
+                    Text("Connect to Supabase to sync characters across your team")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Project URL", systemImage: "link")
+                            .font(.headline)
+
+                        TextField("https://xxxx.supabase.co", text: $supabaseURL)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body)
+                            .focused(focusedField, equals: .supabaseURL)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Anon Key", systemImage: "key")
+                            .font(.headline)
+
+                        SecureField("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", text: $supabaseAnonKey)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body)
+                            .focused(focusedField, equals: .supabaseAnonKey)
+                    }
+
+                    HStack {
+                        Button {
+                            Task {
+                                await onTestConnection()
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if isTestingConnection {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else if connectionTestPassed {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                }
+                                Text(connectionTestPassed ? "Connected" : "Test Connection")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(supabaseURL.isEmpty || supabaseAnonKey.isEmpty || isTestingConnection)
+
+                        Spacer()
+
+                        if connectionTestPassed {
+                            Text("Ready to sync!")
+                                .font(.subheadline)
+                                .foregroundStyle(.green)
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.3.fill")
+                            .foregroundStyle(.blue)
+                            .font(.caption)
+
+                        Text("All team members should use the same Supabase project to share characters")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(20)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(12)
+                .frame(maxWidth: 500)
             }
 
             Spacer()

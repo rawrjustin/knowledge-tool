@@ -24,8 +24,10 @@ struct KnowledgeToolApp: App {
                     )
                     syncManager = SyncManager(apiKeyManager: apiKeyManager, repository: combinedRepo)
 
-                    // Check if Supabase needs setup - show prompt on first launch
-                    if !apiKeyManager.hasSupabaseConfigured && !hasSkippedSupabaseSetup {
+                    // For users who completed old onboarding without Supabase, prompt them to set it up
+                    let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+                    if hasCompletedOnboarding && !apiKeyManager.hasSupabaseConfigured && !hasSkippedSupabaseSetup {
+                        // User completed old onboarding but doesn't have Supabase - prompt them
                         showSupabaseSetup = true
                     } else if apiKeyManager.supabaseSyncEnabled {
                         // Perform startup sync and start periodic sync
@@ -35,7 +37,7 @@ struct KnowledgeToolApp: App {
                 }
                 .sheet(isPresented: $showSupabaseSetup) {
                     SupabaseSetupSheet {
-                        // On setup complete, reinitialize sync
+                        // On setup complete, reinitialize sync via SyncManager
                         syncManager?.onConfigurationChanged()
                     }
                     .environment(apiKeyManager)
