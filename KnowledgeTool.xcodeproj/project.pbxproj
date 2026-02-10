@@ -91,6 +91,13 @@
 		A232 /* TranscriptContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B232 /* TranscriptContextBuilder.swift */; };
 		A233 /* MultiSourceAugmentationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B233 /* MultiSourceAugmentationService.swift */; };
 		A240 /* SourceMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B240 /* SourceMetadata.swift */; };
+		A250 /* SportsData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B250 /* SportsData.swift */; };
+		A251 /* SportsDataProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B251 /* SportsDataProtocol.swift */; };
+		A252 /* SportsDataIOProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B252 /* SportsDataIOProvider.swift */; };
+		A253 /* SportsDataKnowledgeMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B253 /* SportsDataKnowledgeMapper.swift */; };
+		A254 /* SportsDataSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B254 /* SportsDataSyncManager.swift */; };
+		A255 /* SportsDataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B255 /* SportsDataViewModel.swift */; };
+		A256 /* SportsDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B256 /* SportsDataView.swift */; };
 		B137A /* PineconeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B137 /* PineconeService.swift */; };
 		B138A /* MemoryGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B138 /* MemoryGenerationService.swift */; };
 		B139A /* ASP1Template.swift in Sources */ = {isa = PBXBuildFile; fileRef = B139 /* ASP1Template.swift */; };
@@ -196,6 +203,13 @@
 		B232 /* TranscriptContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptContextBuilder.swift; sourceTree = "<group>"; };
 		B233 /* MultiSourceAugmentationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiSourceAugmentationService.swift; sourceTree = "<group>"; };
 		B240 /* SourceMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceMetadata.swift; sourceTree = "<group>"; };
+		B250 /* SportsData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsData.swift; sourceTree = "<group>"; };
+		B251 /* SportsDataProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsDataProtocol.swift; sourceTree = "<group>"; };
+		B252 /* SportsDataIOProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsDataIOProvider.swift; sourceTree = "<group>"; };
+		B253 /* SportsDataKnowledgeMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsDataKnowledgeMapper.swift; sourceTree = "<group>"; };
+		B254 /* SportsDataSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsDataSyncManager.swift; sourceTree = "<group>"; };
+		B255 /* SportsDataViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsDataViewModel.swift; sourceTree = "<group>"; };
+		B256 /* SportsDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SportsDataView.swift; sourceTree = "<group>"; };
 		BINREF1 /* yt-dlp */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "yt-dlp"; sourceTree = "<group>"; };
 		BINREF2 /* ffmpeg */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffmpeg; sourceTree = "<group>"; };
 		BINREF3 /* ffprobe */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ffprobe; sourceTree = "<group>"; };
@@ -309,6 +323,7 @@
 				B143 /* VersionComparisonViewModel.swift */,
 				B201 /* AugmentationViewModel.swift */,
 				B223 /* SourceSummaryViewModel.swift */,
+				B255 /* SportsDataViewModel.swift */,
 			);
 			name = ViewModels;
 			path = KnowledgeTool/ViewModels;
@@ -329,6 +344,8 @@
 				B230 /* BrainSource.swift */,
 				B231 /* AnimationMarker.swift */,
 				B240 /* SourceMetadata.swift */,
+				B250 /* SportsData.swift */,
+				B251 /* SportsDataProtocol.swift */,
 			);
 			name = Models;
 			path = KnowledgeTool/Models;
@@ -359,6 +376,9 @@
 				B222 /* SourceSummaryService.swift */,
 				B232 /* TranscriptContextBuilder.swift */,
 				B233 /* MultiSourceAugmentationService.swift */,
+				B252 /* SportsDataIOProvider.swift */,
+				B253 /* SportsDataKnowledgeMapper.swift */,
+				B254 /* SportsDataSyncManager.swift */,
 			);
 			name = Services;
 			path = KnowledgeTool/Services;
@@ -436,6 +456,7 @@
 				B212 /* KnowledgeSourcesPanel.swift */,
 				B224 /* SummarySection.swift */,
 				B225 /* SourceDeletionSheet.swift */,
+				B256 /* SportsDataView.swift */,
 			);
 			path = Characters;
 			sourceTree = "<group>";
@@ -611,6 +632,13 @@
 				A232 /* TranscriptContextBuilder.swift in Sources */,
 				A233 /* MultiSourceAugmentationService.swift in Sources */,
 				A240 /* SourceMetadata.swift in Sources */,
+				A250 /* SportsData.swift in Sources */,
+				A251 /* SportsDataProtocol.swift in Sources */,
+				A252 /* SportsDataIOProvider.swift in Sources */,
+				A253 /* SportsDataKnowledgeMapper.swift in Sources */,
+				A254 /* SportsDataSyncManager.swift in Sources */,
+				A255 /* SportsDataViewModel.swift in Sources */,
+				A256 /* SportsDataView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

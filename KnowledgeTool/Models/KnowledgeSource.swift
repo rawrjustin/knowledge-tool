@@ -9,6 +9,7 @@ enum KnowledgeSourceType: String, Codable, CaseIterable {
     case manualText = "text"
     case personaExtraction = "persona"
     case research = "research"
+    case sportsData = "sports"
 
     var displayName: String {
         switch self {
@@ -17,6 +18,7 @@ enum KnowledgeSourceType: String, Codable, CaseIterable {
         case .manualText: return "Manual Notes"
         case .personaExtraction: return "Persona Extraction"
         case .research: return "Research"
+        case .sportsData: return "Sports Data"
         }
     }
 
@@ -27,6 +29,7 @@ enum KnowledgeSourceType: String, Codable, CaseIterable {
         case .manualText: return "note.text"
         case .personaExtraction: return "person.text.rectangle"
         case .research: return "magnifyingglass"
+        case .sportsData: return "sportscourt.fill"
         }
     }
 
@@ -37,6 +40,7 @@ enum KnowledgeSourceType: String, Codable, CaseIterable {
         case .manualText: return "purple"
         case .personaExtraction: return "orange"
         case .research: return "green"
+        case .sportsData: return "orange"
         }
     }
 }
@@ -384,6 +388,8 @@ extension KnowledgeSource {
             return .personaExtraction
         } else if lowercased.contains("research") || lowercased.contains("perplexity") {
             return .research
+        } else if lowercased.contains("sports_") {
+            return .sportsData
         } else {
             return .manualText
         }
@@ -462,6 +468,8 @@ extension KnowledgeSource {
             sourceType = .personaExtraction
         case "research":
             sourceType = .research
+        case "sports":
+            sourceType = .sportsData
         default:
             sourceType = .manualText
         }

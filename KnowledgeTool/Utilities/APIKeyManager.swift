@@ -22,6 +22,7 @@ final class APIKeyManager {
         case openAI = "OpenAI"
         case perplexity = "Perplexity"
         case pinecone = "Pinecone"
+        case sportsDataIO = "SportsData.io"
 
         var storageKey: String {
             switch self {
@@ -29,6 +30,7 @@ final class APIKeyManager {
             case .openAI: return "apikey_openai"
             case .perplexity: return "apikey_perplexity"
             case .pinecone: return "apikey_pinecone"
+            case .sportsDataIO: return "apikey_sportsdataio"
             }
         }
 

@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var perplexityKey: String = ""
     @State private var pineconeKey: String = ""
     @State private var pineconeIndexName: String = ""
+    @State private var sportsDataIOKey: String = ""
 
     @State private var isSelectingFolder = false
     @State private var selectedPineconeEnvironment: APIKeyManager.PineconeEnvironment = .development
@@ -156,6 +157,33 @@ struct SettingsView: View {
                         Image(systemName: "link")
                             .foregroundStyle(.secondary)
                         Link("Create an index at pinecone.io", destination: URL(string: "https://www.pinecone.io")!)
+                    }
+                    .font(.caption)
+                }
+
+                // MARK: - Sports Data
+                Section {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                        APIKeyRow(
+                            title: "SportsData.io",
+                            icon: "sportscourt.fill",
+                            placeholder: "Your API key",
+                            key: $sportsDataIOKey,
+                            isConfigured: !sportsDataIOKey.isEmpty,
+                            recentlySaved: recentlySavedKey == .sportsDataIO,
+                            description: "Powers live sports data for teams, players, and stats"
+                        ) { newValue in
+                            saveKeyWithFeedback(newValue, for: .sportsDataIO)
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+                } header: {
+                    SettingsSectionHeader(title: "Sports Data", icon: "sportscourt.fill", optional: true)
+                } footer: {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: "link")
+                            .foregroundStyle(.secondary)
+                        Link("Get a key at sportsdata.io", destination: URL(string: "https://sportsdata.io")!)
                     }
                     .font(.caption)
                 }
@@ -326,6 +354,9 @@ struct SettingsView: View {
         }
         if let key = apiKeyManager.getAPIKey(for: .pinecone) {
             pineconeKey = key
+        }
+        if let key = apiKeyManager.getAPIKey(for: .sportsDataIO) {
+            sportsDataIOKey = key
         }
         // Load Pinecone index name
         pineconeIndexName = apiKeyManager.pineconeIndexName

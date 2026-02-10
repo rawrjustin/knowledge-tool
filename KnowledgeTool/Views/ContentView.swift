@@ -20,6 +20,7 @@ enum NavigationItem: String, Identifiable {
     // Character Refinement section
     case videos = "Videos"
     case knowledgeBase = "Knowledge Base"
+    case sportsData = "Sports Data"
 
     // System Prompt Refinement section
     case promptTesting = "Prompt Testing"
@@ -34,6 +35,7 @@ enum NavigationItem: String, Identifiable {
         case .versionCompare: return "square.split.2x1"
         case .videos: return "video.fill"
         case .knowledgeBase: return "books.vertical.fill"
+        case .sportsData: return "sportscourt.fill"
         case .promptTesting: return "network"
         }
     }
@@ -42,7 +44,7 @@ enum NavigationItem: String, Identifiable {
         switch self {
         case .dashboard, .editor, .chat, .versionCompare:
             return .character
-        case .videos, .knowledgeBase:
+        case .videos, .knowledgeBase, .sportsData:
             return .characterRefinement
         case .promptTesting:
             return .systemPromptRefinement
@@ -54,7 +56,7 @@ enum NavigationItem: String, Identifiable {
     }
 
     static var allItems: [NavigationItem] {
-        [.dashboard, .editor, .chat, .versionCompare, .videos, .knowledgeBase, .promptTesting]
+        [.dashboard, .editor, .chat, .versionCompare, .videos, .knowledgeBase, .sportsData, .promptTesting]
     }
 
     static func items(for section: NavigationSection) -> [NavigationItem] {
@@ -172,6 +174,7 @@ struct ContentView: View {
                 case 3: selectedItem = .videos
                 case 4: selectedItem = .knowledgeBase
                 case 5: selectedItem = .promptTesting
+                case 6: selectedItem = .sportsData
                 default: break
                 }
             }
@@ -237,6 +240,7 @@ struct ContentView: View {
                     case 3: selectedItem = .videos
                     case 4: selectedItem = .knowledgeBase
                     case 5: selectedItem = .promptTesting
+                    case 6: selectedItem = .sportsData
                     default: break
                     }
                 }
@@ -497,6 +501,7 @@ struct SidebarNavigationItem: View {
         case .versionCompare: return "square.split.2x1.fill"
         case .videos: return "video.fill"
         case .knowledgeBase: return "books.vertical.fill"
+        case .sportsData: return "sportscourt.fill"
         case .promptTesting: return "network"
         }
     }
@@ -552,6 +557,9 @@ struct DetailView: View {
                 case .knowledgeBase:
                     KnowledgeBaseView(character: character, repository: repository, apiKeyManager: apiKeyManager)
                         .id(character.id) // Force view recreation when character changes
+                case .sportsData:
+                    SportsDataView(character: character, repository: repository, apiKeyManager: apiKeyManager)
+                        .id(character.id)
                 case .promptTesting:
                     PromptTestingView(character: character, apiKeyManager: apiKeyManager)
                         .id(character.id) // Force view recreation when character changes

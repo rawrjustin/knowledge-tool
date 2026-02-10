@@ -91,6 +91,11 @@ struct KnowledgeToolApp: App {
                 }
                 .keyboardShortcut("5", modifiers: .command)
 
+                Button("Sports Data") {
+                    NotificationCenter.default.post(name: .navigateToSection, object: 6)
+                }
+                .keyboardShortcut("6", modifiers: .command)
+
                 Divider()
 
                 Button("Quick Switch Character") {
