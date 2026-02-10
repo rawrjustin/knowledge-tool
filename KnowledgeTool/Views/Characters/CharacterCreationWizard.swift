@@ -638,6 +638,108 @@ struct YouTubeProcessingView: View {
     }
 }
 
+// MARK: - Activity Log View (Reusable)
+struct ActivityLogView: View {
+    let progressLogs: [String]
+
+    // Deduplicate and get unique logs (filter out repetitive polling messages)
+    private var uniqueLogs: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+
+        for log in progressLogs {
+            // Normalize polling messages to avoid duplicates
+            let normalizedLog: String
+            if log.contains("Research in progress") {
+                normalizedLog = "Research in progress..."
+            } else if log.contains("Processing...") {
+                normalizedLog = "Processing..."
+            } else {
+                normalizedLog = log
+            }
+
+            if !seen.contains(normalizedLog) {
+                seen.insert(normalizedLog)
+                result.append(log)  // Keep the original log text
+            } else if log.contains("Research in progress") || log.contains("Processing...") {
+                // Update the last occurrence with the latest time
+                if let lastIndex = result.lastIndex(where: { $0.contains("Research in progress") || $0.contains("Processing...") }) {
+                    result[lastIndex] = log
+                }
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Activity Log")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(progressLogs.count) events")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(uniqueLogs.enumerated()), id: \.offset) { index, log in
+                            let isCurrentItem = index == uniqueLogs.count - 1
+                            HStack(alignment: .top, spacing: 8) {
+                                // Status indicator - spinner for current item, checkmark for completed
+                                if isCurrentItem {
+                                    ProgressView()
+                                        .scaleEffect(0.5)
+                                        .frame(width: 12, height: 12)
+                                        .padding(.top, 2)
+                                } else {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.green)
+                                        .frame(width: 12, height: 12)
+                                        .padding(.top, 3)
+                                }
+
+                                Text(log)
+                                    .font(.caption)
+                                    .foregroundStyle(isCurrentItem ? .primary : .secondary)
+                            }
+                            .id(index)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+                .onAppear {
+                    // Scroll to top when view appears, then to bottom if there are logs
+                    if !uniqueLogs.isEmpty {
+                        proxy.scrollTo(0, anchor: .top)
+                    }
+                }
+                .onChange(of: progressLogs.count) { _, _ in
+                    withAnimation {
+                        proxy.scrollTo(uniqueLogs.count - 1, anchor: .bottom)
+                    }
+                }
+            }
+        }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - Video Processing Status Row
 struct VideoProcessingStatusRow: View {
     let status: CharacterCreationViewModel.YouTubeVideoStatus
@@ -721,35 +823,6 @@ struct VideoProcessingStatusRow: View {
 struct GeneratingView: View {
     @Bindable var viewModel: CharacterCreationViewModel
 
-    // Deduplicate and get unique logs (filter out repetitive polling messages)
-    private var uniqueLogs: [String] {
-        var seen = Set<String>()
-        var result: [String] = []
-
-        for log in viewModel.progressLogs {
-            // Normalize polling messages to avoid duplicates
-            let normalizedLog: String
-            if log.contains("Research in progress") {
-                normalizedLog = "Research in progress..."
-            } else if log.contains("Processing...") {
-                normalizedLog = "Processing..."
-            } else {
-                normalizedLog = log
-            }
-
-            if !seen.contains(normalizedLog) {
-                seen.insert(normalizedLog)
-                result.append(log)  // Keep the original log text
-            } else if log.contains("Research in progress") || log.contains("Processing...") {
-                // Update the last occurrence with the latest time
-                if let lastIndex = result.lastIndex(where: { $0.contains("Research in progress") || $0.contains("Processing...") }) {
-                    result[lastIndex] = log
-                }
-            }
-        }
-        return result
-    }
-
     // Get the current status message (last meaningful log)
     private var currentStatus: String {
         if let last = viewModel.progressLogs.last {
@@ -801,73 +874,9 @@ struct GeneratingView: View {
                     .animation(.easeInOut(duration: 0.3), value: currentStatus)
             }
 
-            // Compact log view - shows unique steps only
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Text("Activity Log")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(viewModel.progressLogs.count) events")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-
-                Divider()
-
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(uniqueLogs.enumerated()), id: \.offset) { index, log in
-                                let isCurrentItem = index == uniqueLogs.count - 1
-                                HStack(alignment: .top, spacing: 8) {
-                                    // Status indicator - spinner for current item, checkmark for completed
-                                    if isCurrentItem {
-                                        ProgressView()
-                                            .scaleEffect(0.5)
-                                            .frame(width: 12, height: 12)
-                                            .padding(.top, 2)
-                                    } else {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(.green)
-                                            .frame(width: 12, height: 12)
-                                            .padding(.top, 3)
-                                    }
-
-                                    Text(log)
-                                        .font(.caption)
-                                        .foregroundStyle(isCurrentItem ? .primary : .secondary)
-                                }
-                                .id(index)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    .onAppear {
-                        // Scroll to top when view appears
-                        if !uniqueLogs.isEmpty {
-                            proxy.scrollTo(0, anchor: .top)
-                        }
-                    }
-                    .onChange(of: viewModel.progressLogs.count) { _, _ in
-                        withAnimation {
-                            proxy.scrollTo(uniqueLogs.count - 1, anchor: .bottom)
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: 500, maxHeight: 200)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
-            )
+            // Compact log view using reusable component
+            ActivityLogView(progressLogs: viewModel.progressLogs)
+                .frame(maxWidth: 500, maxHeight: 200)
 
             Spacer()
         }
