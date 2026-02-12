@@ -36,6 +36,7 @@ struct CharacterDashboardView: View {
     let apiKeyManager: APIKeyManager
     let onCharacterUpdated: (Character) -> Void
 
+    @Environment(SyncManager.self) private var syncManager
     @State private var selectedTab: DashboardTab = .persona
     @State private var showingAugmentSheet = false
     @State private var showingEditSheet = false
@@ -99,6 +100,11 @@ struct CharacterDashboardView: View {
                             .background(Color.blue.opacity(0.15))
                             .foregroundStyle(.blue)
                             .clipShape(Capsule())
+
+                        // Cloud sync status
+                        if syncManager.canSync {
+                            SyncStatusIndicator()
+                        }
 
                         // Last modified
                         Text(character.lastModified.formatted(.relative(presentation: .named)))

@@ -407,6 +407,112 @@ struct HelperText: View {
     }
 }
 
+// MARK: - Sync Status Indicator
+
+/// Shows cloud sync status using SyncManager from the environment
+struct SyncStatusIndicator: View {
+    @Environment(SyncManager.self) private var syncManager
+
+    /// Compact mode shows just the icon (for toolbar use)
+    var compact: Bool = false
+
+    var body: some View {
+        if compact {
+            compactView
+        } else {
+            labelView
+        }
+    }
+
+    private var compactView: some View {
+        Group {
+            if syncManager.isSyncing {
+                ProgressView()
+                    .controlSize(.small)
+                    .help("Syncing to cloud...")
+            } else if let error = syncManager.syncError {
+                Image(systemName: "exclamationmark.icloud.fill")
+                    .foregroundStyle(DesignSystem.Colors.error)
+                    .help("Sync error: \(error)")
+            } else if !syncManager.canSync {
+                Image(systemName: "icloud.slash")
+                    .foregroundStyle(.secondary)
+                    .help("Cloud sync not configured")
+            } else if let lastSync = syncManager.lastSyncDate {
+                Image(systemName: "checkmark.icloud.fill")
+                    .foregroundStyle(DesignSystem.Colors.success)
+                    .help("Last synced \(lastSync.formatted(.relative(presentation: .named)))")
+            } else {
+                Image(systemName: "icloud.fill")
+                    .foregroundStyle(.secondary)
+                    .help("Cloud sync enabled")
+            }
+        }
+        .font(.system(size: 14))
+    }
+
+    private var labelView: some View {
+        HStack(spacing: 4) {
+            if syncManager.isSyncing {
+                ProgressView()
+                    .controlSize(.mini)
+                Image(systemName: "icloud.and.arrow.up")
+                    .font(.caption2)
+                Text("Syncing...")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            } else if syncManager.syncError != nil {
+                Image(systemName: "exclamationmark.icloud.fill")
+                    .font(.caption2)
+                Text("Sync error")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            } else if !syncManager.canSync {
+                Image(systemName: "icloud.slash")
+                    .font(.caption2)
+                Text("Offline")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            } else {
+                Image(systemName: "checkmark.icloud.fill")
+                    .font(.caption2)
+                Text("Synced")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+        }
+        .foregroundStyle(labelColor)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(labelBackground)
+        .clipShape(Capsule())
+    }
+
+    private var labelColor: Color {
+        if syncManager.isSyncing {
+            return DesignSystem.Colors.info
+        } else if syncManager.syncError != nil {
+            return DesignSystem.Colors.error
+        } else if !syncManager.canSync {
+            return .secondary
+        } else {
+            return DesignSystem.Colors.success
+        }
+    }
+
+    private var labelBackground: Color {
+        if syncManager.isSyncing {
+            return DesignSystem.Colors.infoBackground
+        } else if syncManager.syncError != nil {
+            return DesignSystem.Colors.errorBackground
+        } else if !syncManager.canSync {
+            return Color.secondary.opacity(0.12)
+        } else {
+            return DesignSystem.Colors.successBackground
+        }
+    }
+}
+
 // MARK: - Animated Components
 
 /// Animated typing indicator with smoother animation

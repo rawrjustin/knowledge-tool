@@ -322,6 +322,7 @@ struct SportsDataView: View {
                 HStack {
                     Text(team.fullName)
                         .font(.title2.weight(.bold))
+                        .textSelection(.enabled)
 
                     if let rank = team.apRank, rank > 0 {
                         StatusBadge(text: "#\(rank) AP", status: .warning, showIcon: false)
@@ -347,6 +348,7 @@ struct SportsDataView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .textSelection(.enabled)
             }
 
             Spacer()
@@ -393,19 +395,25 @@ struct SportsDataView: View {
                 ForEach(vm.players) { player in
                     Text(player.fullName)
                         .font(.subheadline.weight(.medium))
+                        .textSelection(.enabled)
                     Text(player.jersey != nil ? "\(player.jersey!)" : "-")
                         .font(.subheadline)
+                        .textSelection(.enabled)
                     Text(player.position ?? "-")
                         .font(.subheadline)
+                        .textSelection(.enabled)
                     Text(player.heightDisplay ?? "-")
                         .font(.subheadline)
+                        .textSelection(.enabled)
                     Text(player.playerClass ?? "-")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                     Text(player.hometown ?? "-")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .textSelection(.enabled)
                 }
             }
         }
@@ -471,22 +479,31 @@ struct SportsDataView: View {
                 Text(stat.playerName)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
+                    .textSelection(.enabled)
                 Text("\(stat.games)")
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatStat(stat.points))
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatStat(stat.rebounds))
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatStat(stat.assists))
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatStat(stat.steals))
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatStat(stat.blocks))
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatPct(stat.fieldGoalPercentage))
                     .font(.subheadline)
+                    .textSelection(.enabled)
                 Text(formatPct(stat.threePointPercentage))
                     .font(.subheadline)
+                    .textSelection(.enabled)
             }
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
@@ -532,6 +549,7 @@ struct SportsDataView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(width: 50)
+                    .textSelection(.enabled)
             }
 
             // Status indicator
@@ -555,16 +573,19 @@ struct SportsDataView: View {
             Text(isHome ? "vs \(game.awayTeamName)" : "at \(game.homeTeamName)")
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
 
             // Score
             if let hs = game.homeScore, let as_ = game.awayScore {
                 Text("\(isHome ? hs : as_) - \(isHome ? as_ : hs)")
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
+                    .textSelection(.enabled)
             } else {
                 Text(game.status)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
             }
 
             // Channel
@@ -573,6 +594,7 @@ struct SportsDataView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .frame(width: 50)
+                    .textSelection(.enabled)
             }
         }
         .padding(.vertical, DesignSystem.Spacing.xs)
@@ -680,10 +702,12 @@ struct SportsDataView: View {
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                             Text(entry.section)
                                 .font(.subheadline.weight(.semibold))
+                                .textSelection(.enabled)
                             Text(entry.content)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(3)
+                                .textSelection(.enabled)
                         }
                         .padding(DesignSystem.Spacing.md)
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -9,6 +9,7 @@ struct CharacterEditorView: View {
     @State private var showingSaveConfirmation = false
     @State private var showSaveSuccess = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(SyncManager.self) private var syncManager
 
     init(
         mode: CharacterEditorViewModel.Mode,
@@ -95,10 +96,15 @@ struct CharacterEditorView: View {
                         .font(.title3.weight(.semibold))
 
                     // Status indicator
-                    if viewModel.hasUnsavedChanges {
-                        StatusBadge(text: "Unsaved changes", status: .warning)
-                    } else if viewModel.character != nil {
-                        StatusBadge(text: "All changes saved", status: .success)
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        if viewModel.hasUnsavedChanges {
+                            StatusBadge(text: "Unsaved changes", status: .warning)
+                        } else if viewModel.character != nil {
+                            StatusBadge(text: "Saved", status: .success)
+                            if syncManager.canSync {
+                                SyncStatusIndicator()
+                            }
+                        }
                     }
                 }
             }

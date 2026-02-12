@@ -10,6 +10,7 @@ struct KnowledgeSourcesPanel: View {
     let onSourceAdded: () -> Void
     let onCharacterUpdated: (Character) -> Void
 
+    @Environment(SyncManager.self) private var syncManager
     @State private var selectedSource: KnowledgeSource?
     @State private var showingAddSource = false
     @State private var isUploadingAll = false
@@ -300,6 +301,7 @@ struct SourceRow: View {
     let isSelected: Bool
     let onSelect: () -> Void
 
+    @Environment(SyncManager.self) private var syncManager
     @State private var isHovered = false
 
     var body: some View {
@@ -330,6 +332,13 @@ struct SourceRow: View {
                 }
 
                 Spacer()
+
+                // Cloud sync icon
+                if syncManager.canSync {
+                    Image(systemName: syncManager.isSyncing ? "icloud.and.arrow.up" : (syncManager.syncError != nil ? "exclamationmark.icloud.fill" : "checkmark.icloud.fill"))
+                        .font(.caption)
+                        .foregroundStyle(syncManager.isSyncing ? DesignSystem.Colors.info : (syncManager.syncError != nil ? DesignSystem.Colors.error : DesignSystem.Colors.success))
+                }
 
                 // Upload status icon
                 Image(systemName: source.uploadStatus.icon)
@@ -379,6 +388,7 @@ struct SourceDetailView: View {
     let onCharacterUpdated: ((Character) -> Void)?
     let onSourceDeleted: (() -> Void)?
 
+    @Environment(SyncManager.self) private var syncManager
     @State private var searchText = ""
     @State private var selectedEntry: KnowledgeEntry?
     @State private var showingDeleteConfirmation = false
@@ -456,6 +466,11 @@ struct SourceDetailView: View {
                         }
                         .menuStyle(.borderlessButton)
                         .frame(width: 30)
+                    }
+
+                    // Cloud sync badge
+                    if syncManager.canSync {
+                        SyncStatusIndicator()
                     }
 
                     // Upload status badge

@@ -413,12 +413,16 @@ struct SidebarView: View {
         .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                Button {
-                    NotificationCenter.default.post(name: .openSettings, object: nil)
-                } label: {
-                    Label("Settings", systemImage: "gear")
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    SyncStatusIndicator(compact: true)
+
+                    Button {
+                        NotificationCenter.default.post(name: .openSettings, object: nil)
+                    } label: {
+                        Label("Settings", systemImage: "gear")
+                    }
+                    .help("Open Settings (⌘,)")
                 }
-                .help("Open Settings (⌘,)")
             }
         }
     }

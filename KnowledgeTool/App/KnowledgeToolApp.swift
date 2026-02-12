@@ -3,27 +3,31 @@ import SwiftUI
 @main
 struct KnowledgeToolApp: App {
     @State private var apiKeyManager = APIKeyManager()
-    @State private var syncManager: SyncManager?
+    @State private var syncManager: SyncManager
     @State private var showSupabaseSetup = false
+
+    init() {
+        let akm = APIKeyManager()
+        let syncConfig = SupabaseSyncConfig(
+            supabaseURL: akm.supabaseURL,
+            supabaseAnonKey: akm.supabaseAnonKey,
+            syncEnabled: akm.supabaseSyncEnabled
+        )
+        let combinedRepo = CombinedCharacterRepository(
+            localBaseURL: akm.repositoryPath,
+            syncConfig: syncConfig
+        )
+        self._apiKeyManager = State(initialValue: akm)
+        self._syncManager = State(initialValue: SyncManager(apiKeyManager: akm, repository: combinedRepo))
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(apiKeyManager)
+                .environment(syncManager)
                 .frame(minWidth: 900, minHeight: 600)
                 .task {
-                    // Initialize combined repository and sync manager
-                    let syncConfig = SupabaseSyncConfig(
-                        supabaseURL: apiKeyManager.supabaseURL,
-                        supabaseAnonKey: apiKeyManager.supabaseAnonKey,
-                        syncEnabled: apiKeyManager.supabaseSyncEnabled
-                    )
-                    let combinedRepo = CombinedCharacterRepository(
-                        localBaseURL: apiKeyManager.repositoryPath,
-                        syncConfig: syncConfig
-                    )
-                    syncManager = SyncManager(apiKeyManager: apiKeyManager, repository: combinedRepo)
-
                     // For users who completed old onboarding without Supabase, prompt them to set it up
                     let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
                     if hasCompletedOnboarding && !apiKeyManager.hasSupabaseConfigured && !hasSkippedSupabaseSetup {
@@ -31,14 +35,14 @@ struct KnowledgeToolApp: App {
                         showSupabaseSetup = true
                     } else if apiKeyManager.supabaseSyncEnabled {
                         // Perform startup sync and start periodic sync
-                        await syncManager?.performStartupSync()
-                        syncManager?.startPeriodicSync()
+                        await syncManager.performStartupSync()
+                        syncManager.startPeriodicSync()
                     }
                 }
                 .sheet(isPresented: $showSupabaseSetup) {
                     SupabaseSetupSheet {
                         // On setup complete, reinitialize sync via SyncManager
-                        syncManager?.onConfigurationChanged()
+                        syncManager.onConfigurationChanged()
                     }
                     .environment(apiKeyManager)
                 }
