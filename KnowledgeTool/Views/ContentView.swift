@@ -5,6 +5,7 @@ import SwiftUI
 enum NavigationSection: String, CaseIterable {
     case character = "Character"
     case characterRefinement = "Character Refinement"
+    case tools = "Tools"
     case systemPromptRefinement = "System Prompt Refinement"
 }
 
@@ -13,7 +14,7 @@ enum NavigationSection: String, CaseIterable {
 enum NavigationItem: String, Identifiable {
     // Character section
     case dashboard = "Dashboard"
-    case editor = "Editor"
+    case rawMarkdown = "Raw Markdown"
     case chat = "Chat"
     case versionCompare = "Compare Versions"
 
@@ -21,6 +22,9 @@ enum NavigationItem: String, Identifiable {
     case videos = "Videos"
     case knowledgeBase = "Knowledge Base"
     case sportsData = "Sports Data"
+
+    // Tools section
+    case chatLogVisualizer = "Chat Visualizer"
 
     // System Prompt Refinement section
     case promptTesting = "Prompt Testing"
@@ -30,33 +34,41 @@ enum NavigationItem: String, Identifiable {
     var icon: String {
         switch self {
         case .dashboard: return "rectangle.3.group"
-        case .editor: return "square.and.pencil"
+        case .rawMarkdown: return "doc.plaintext"
         case .chat: return "bubble.left.and.bubble.right"
         case .versionCompare: return "square.split.2x1"
         case .videos: return "video.fill"
         case .knowledgeBase: return "books.vertical.fill"
         case .sportsData: return "sportscourt.fill"
+        case .chatLogVisualizer: return "text.bubble"
         case .promptTesting: return "network"
         }
     }
 
     var section: NavigationSection {
         switch self {
-        case .dashboard, .editor, .chat, .versionCompare:
+        case .dashboard, .rawMarkdown, .chat, .versionCompare:
             return .character
         case .videos, .knowledgeBase, .sportsData:
             return .characterRefinement
+        case .chatLogVisualizer:
+            return .tools
         case .promptTesting:
             return .systemPromptRefinement
         }
     }
 
     var requiresCharacter: Bool {
-        return true
+        switch self {
+        case .chatLogVisualizer:
+            return false
+        default:
+            return true
+        }
     }
 
     static var allItems: [NavigationItem] {
-        [.dashboard, .editor, .chat, .versionCompare, .videos, .knowledgeBase, .sportsData, .promptTesting]
+        [.dashboard, .rawMarkdown, .chat, .versionCompare, .videos, .knowledgeBase, .sportsData, .chatLogVisualizer, .promptTesting]
     }
 
     static func items(for section: NavigationSection) -> [NavigationItem] {
@@ -68,6 +80,7 @@ enum NavigationItem: String, Identifiable {
 
 struct ContentView: View {
     @Environment(APIKeyManager.self) private var apiKeyManager
+    @Environment(SyncManager.self) private var syncManager
     @State private var selectedItem: NavigationItem? = .dashboard // Optional for sidebar selection
     @State private var showingSettings = false
     @State private var showingOnboarding = false
@@ -139,7 +152,7 @@ struct ContentView: View {
                 Divider()
 
                 DetailView(
-                    selectedItem: selectedItem ?? .editor,
+                    selectedItem: selectedItem ?? .dashboard,
                     selectedCharacter: selectedCharacter,
                     availableVersions: availableVersions,
                     apiKeyManager: apiKeyManager,
@@ -152,9 +165,6 @@ struct ContentView: View {
                             selectedCharacter = character
                             await loadVersions(for: character)
                         }
-                    },
-                    onCancelEdit: {
-                        // Stay on editor
                     }
                 )
             }
@@ -169,12 +179,13 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSection"))) { notification in
             if let section = notification.object as? Int {
                 switch section {
-                case 1: selectedItem = .editor
+                case 1: selectedItem = .rawMarkdown
                 case 2: selectedItem = .chat
                 case 3: selectedItem = .videos
                 case 4: selectedItem = .knowledgeBase
                 case 5: selectedItem = .promptTesting
                 case 6: selectedItem = .sportsData
+                case 7: selectedItem = .chatLogVisualizer
                 default: break
                 }
             }
@@ -198,22 +209,14 @@ struct ContentView: View {
                     }
                 )
             } else {
-                // Show simple editor for editing existing characters
-                CharacterEditorView(
-                    mode: .edit(characterToEdit!),
-                    repository: combinedRepository,
-                    onSave: { character in
-                        showingCharacterEditor = false
-                        Task {
-                            await loadCharacters()
-                            selectedCharacter = character
-                            await loadVersions(for: character)
-                        }
-                    },
-                    onCancel: {
+                // Editing existing characters is now done inline on the dashboard
+                // Navigate there and dismiss the sheet
+                Color.clear
+                    .onAppear {
+                        selectedCharacter = characterToEdit
+                        selectedItem = .dashboard
                         showingCharacterEditor = false
                     }
-                )
             }
         }
         .onAppear {
@@ -235,12 +238,13 @@ struct ContentView: View {
             if let section = notification.object as? Int {
                 withAnimation(DesignSystem.Animation.quick) {
                     switch section {
-                    case 1: selectedItem = .editor
+                    case 1: selectedItem = .rawMarkdown
                     case 2: selectedItem = .chat
                     case 3: selectedItem = .videos
                     case 4: selectedItem = .knowledgeBase
                     case 5: selectedItem = .promptTesting
                     case 6: selectedItem = .sportsData
+                    case 7: selectedItem = .chatLogVisualizer
                     default: break
                     }
                 }
@@ -374,7 +378,7 @@ struct SidebarView: View {
                         item: item,
                         isSelected: selectedItem == item,
                         isDisabled: !hasCharacterSelected && item.requiresCharacter,
-                        showActivityDot: item == .editor && hasUnsavedChanges
+                        showActivityDot: false
                     )
                 }
             } header: {
@@ -393,6 +397,19 @@ struct SidebarView: View {
                 }
             } header: {
                 SidebarSectionHeader(title: "Refinement", icon: "wand.and.stars")
+            }
+
+            // Tools section
+            Section {
+                ForEach(NavigationItem.items(for: .tools)) { item in
+                    SidebarNavigationItem(
+                        item: item,
+                        isSelected: selectedItem == item,
+                        isDisabled: false
+                    )
+                }
+            } header: {
+                SidebarSectionHeader(title: "Tools", icon: "wrench.and.screwdriver")
             }
 
             // System Prompt Refinement section
@@ -500,12 +517,13 @@ struct SidebarNavigationItem: View {
     private var filledIcon: String {
         switch item {
         case .dashboard: return "rectangle.3.group.fill"
-        case .editor: return "square.and.pencil"
+        case .rawMarkdown: return "doc.plaintext.fill"
         case .chat: return "bubble.left.and.bubble.right.fill"
         case .versionCompare: return "square.split.2x1.fill"
         case .videos: return "video.fill"
         case .knowledgeBase: return "books.vertical.fill"
         case .sportsData: return "sportscourt.fill"
+        case .chatLogVisualizer: return "text.bubble.fill"
         case .promptTesting: return "network"
         }
     }
@@ -520,11 +538,18 @@ struct DetailView: View {
     let repository: CombinedCharacterRepository
     let videoViewModel: VideoViewModel
     let onCharacterSaved: (Character) -> Void
-    let onCancelEdit: () -> Void
 
     var body: some View {
         Group {
-            if let character = selectedCharacter {
+            // Tools that don't require a character
+            if !selectedItem.requiresCharacter {
+                switch selectedItem {
+                case .chatLogVisualizer:
+                    ChatLogView()
+                default:
+                    EmptyView()
+                }
+            } else if let character = selectedCharacter {
                 switch selectedItem {
                 case .dashboard:
                     CharacterDashboardView(
@@ -533,18 +558,13 @@ struct DetailView: View {
                         apiKeyManager: apiKeyManager,
                         onCharacterUpdated: onCharacterSaved
                     )
-                    .id(character.id) // Force view recreation when character changes
-                case .editor:
-                    CharacterEditorView(
-                        mode: .edit(character),
-                        repository: repository,
-                        onSave: onCharacterSaved,
-                        onCancel: onCancelEdit
-                    )
-                    .id(character.id) // Force view recreation when character changes
+                    .id(character.id)
+                case .rawMarkdown:
+                    RawMarkdownView(character: character)
+                        .id(character.id)
                 case .chat:
                     CharacterChatView(character: character, apiKeyManager: apiKeyManager)
-                        .id(character.id) // Force view recreation when character changes
+                        .id(character.id)
                 case .versionCompare:
                     VersionComparisonChatView(
                         characterName: character.name,
@@ -560,13 +580,15 @@ struct DetailView: View {
                     VideoView(viewModel: videoViewModel)
                 case .knowledgeBase:
                     KnowledgeBaseView(character: character, repository: repository, apiKeyManager: apiKeyManager)
-                        .id(character.id) // Force view recreation when character changes
+                        .id(character.id)
                 case .sportsData:
                     SportsDataView(character: character, repository: repository, apiKeyManager: apiKeyManager)
                         .id(character.id)
                 case .promptTesting:
                     PromptTestingView(character: character, apiKeyManager: apiKeyManager)
-                        .id(character.id) // Force view recreation when character changes
+                        .id(character.id)
+                case .chatLogVisualizer:
+                    ChatLogView()
                 }
             } else {
                 EmptyStateView(

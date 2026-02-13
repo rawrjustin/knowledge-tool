@@ -1,110 +1,55 @@
 import SwiftUI
 
-struct CharacterEditorView: View {
-    @State private var viewModel: CharacterEditorViewModel
-    let onSave: (Character) -> Void
-    let onCancel: () -> Void
+// MARK: - Raw Markdown View
 
-    @State private var showingDiscardAlert = false
-    @State private var showingSaveConfirmation = false
-    @State private var showSaveSuccess = false
+struct RawMarkdownView: View {
+    let character: Character
+
+    @State private var showCopySuccess = false
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(SyncManager.self) private var syncManager
-
-    init(
-        mode: CharacterEditorViewModel.Mode,
-        repository: CombinedCharacterRepository,
-        onSave: @escaping (Character) -> Void,
-        onCancel: @escaping () -> Void
-    ) {
-        self._viewModel = State(initialValue: CharacterEditorViewModel(
-            mode: mode,
-            repository: repository
-        ))
-        self.onSave = onSave
-        self.onCancel = onCancel
-    }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            editorHeader
+            rawMarkdownHeader
 
             Divider()
 
-            // Error banner
-            if let error = viewModel.error {
-                ErrorBanner(
-                    message: error,
-                    onDismiss: { viewModel.error = nil }
-                )
-                .padding(DesignSystem.Spacing.md)
-            }
-
-            // Editor content
+            // Content
             HSplitView {
                 // Left sidebar - metadata
                 metadataSidebar
 
-                // Right side - markdown editor
-                markdownEditor
+                // Right side - read-only markdown
+                markdownContent
             }
         }
         .frame(minWidth: 800, minHeight: 600)
-        .toast(isShowing: $showSaveSuccess, message: "Character saved successfully", style: .success)
-        .alert("Revert Changes?", isPresented: $showingDiscardAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Revert", role: .destructive) {
-                viewModel.discardChanges()
-            }
-        } message: {
-            Text("This will revert all unsaved changes to the persona markdown.")
-        }
-        .sheet(isPresented: $showingSaveConfirmation) {
-            SaveConfirmationSheet(
-                viewModel: viewModel,
-                onConfirm: {
-                    Task {
-                        if await viewModel.save() {
-                            showingSaveConfirmation = false
-                            showSaveSuccess = true
-                            if let character = viewModel.character {
-                                onSave(character)
-                            }
-                        }
-                    }
-                },
-                onCancel: {
-                    showingSaveConfirmation = false
-                }
-            )
-        }
+        .toast(isShowing: $showCopySuccess, message: "Markdown copied to clipboard", style: .success)
     }
 
-    // MARK: - Editor Header
-    private var editorHeader: some View {
+    // MARK: - Header
+
+    private var rawMarkdownHeader: some View {
         HStack {
-            // Title and status
+            // Title and info
             HStack(spacing: DesignSystem.Spacing.md) {
-                // Character avatar (for existing characters)
-                if let character = viewModel.character {
-                    CharacterAvatar(name: character.name, size: 36)
-                }
+                CharacterAvatar(name: character.name, size: 36)
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
-                    Text(viewModel.character == nil ? "Create Character" : viewModel.character?.name ?? "")
+                    Text(character.name)
                         .font(.title3.weight(.semibold))
 
-                    // Status indicator
                     HStack(spacing: DesignSystem.Spacing.xs) {
-                        if viewModel.hasUnsavedChanges {
-                            StatusBadge(text: "Unsaved changes", status: .warning)
-                        } else if viewModel.character != nil {
-                            StatusBadge(text: "Saved", status: .success)
-                            if syncManager.canSync {
-                                SyncStatusIndicator()
-                            }
-                        }
+                        Text(character.versionDisplay)
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.15))
+                            .foregroundStyle(.purple)
+                            .clipShape(Capsule())
+
+                        StatusBadge(text: "Read-only", status: .info)
                     }
                 }
             }
@@ -124,104 +69,100 @@ struct CharacterEditorView: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(Capsule())
 
-            // Actions
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                if viewModel.hasUnsavedChanges && viewModel.character != nil {
-                    Button {
-                        handleCancel()
-                    } label: {
-                        Label("Revert", systemImage: "arrow.uturn.backward")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Revert all changes (⌘Z)")
-                }
-
-                Button {
-                    if viewModel.hasUnsavedChanges {
-                        showingSaveConfirmation = true
-                    }
-                } label: {
-                    Label("Save", systemImage: "square.and.arrow.down")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(viewModel.name.isEmpty || viewModel.isSaving || !viewModel.hasUnsavedChanges)
-                .help("Save changes (⌘S)")
-                .keyboardShortcut("s", modifiers: .command)
+            // Copy All button
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(character.markdownContent, forType: .string)
+                showCopySuccess = true
+            } label: {
+                Label("Copy All", systemImage: "doc.on.doc")
             }
+            .buttonStyle(.borderedProminent)
+            .help("Copy full markdown to clipboard")
         }
         .padding(DesignSystem.Spacing.lg)
     }
 
     // MARK: - Metadata Sidebar
+
     private var metadataSidebar: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
-            // Character Name Section
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Label("Character Name", systemImage: "person.text.rectangle")
+            // Metadata Section
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                Label("Character Info", systemImage: "info.circle")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
 
-                TextField("Enter character name", text: $viewModel.name)
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(viewModel.character != nil)
-                    .onChange(of: viewModel.name) {
-                        viewModel.markAsChanged()
-                    }
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    MetadataCard(
+                        icon: "tag",
+                        label: "Version",
+                        value: character.versionDisplay
+                    )
 
-                HelperText(text: "Sets the folder name in Personas/", icon: "folder")
+                    MetadataCard(
+                        icon: "calendar.badge.plus",
+                        label: "Created",
+                        value: character.createdAt.formatted(date: .abbreviated, time: .shortened)
+                    )
+
+                    MetadataCard(
+                        icon: "clock",
+                        label: "Modified",
+                        value: character.lastModified.formatted(date: .abbreviated, time: .shortened)
+                    )
+                }
             }
 
             Divider()
 
-            // Metadata Section
-            if let character = viewModel.character {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                    Label("Character Info", systemImage: "info.circle")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            // Knowledge Base Stats
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                Label("Knowledge Base", systemImage: "books.vertical")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
 
-                    VStack(spacing: DesignSystem.Spacing.sm) {
-                        MetadataCard(
-                            icon: "tag",
-                            label: "Version",
-                            value: character.versionDisplay
-                        )
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    StatCard(
+                        value: "\(character.knowledgeFiles.count)",
+                        label: "Files",
+                        icon: "doc.text"
+                    )
 
-                        MetadataCard(
-                            icon: "calendar.badge.plus",
-                            label: "Created",
-                            value: character.createdAt.formatted(date: .abbreviated, time: .shortened)
-                        )
-
-                        MetadataCard(
-                            icon: "clock",
-                            label: "Modified",
-                            value: character.lastModified.formatted(date: .abbreviated, time: .shortened)
-                        )
-                    }
+                    StatCard(
+                        value: formatNumber(character.totalKnowledgeWords),
+                        label: "Words",
+                        icon: "text.word.spacing"
+                    )
                 }
+            }
 
-                Divider()
+            Divider()
 
-                // Knowledge Base Stats
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                    Label("Knowledge Base", systemImage: "books.vertical")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            // Document Stats
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                Label("Document Stats", systemImage: "chart.bar")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
 
-                    HStack(spacing: DesignSystem.Spacing.md) {
-                        StatCard(
-                            value: "\(character.knowledgeFiles.count)",
-                            label: "Files",
-                            icon: "doc.text"
-                        )
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    MetadataCard(
+                        icon: "text.word.spacing",
+                        label: "Words",
+                        value: "\(wordCount)"
+                    )
 
-                        StatCard(
-                            value: formatNumber(character.totalKnowledgeWords),
-                            label: "Words",
-                            icon: "text.word.spacing"
-                        )
-                    }
+                    MetadataCard(
+                        icon: "list.number",
+                        label: "Lines",
+                        value: "\(lineCount)"
+                    )
+
+                    MetadataCard(
+                        icon: "number",
+                        label: "Sections",
+                        value: "\(sectionCount)"
+                    )
                 }
             }
 
@@ -232,23 +173,15 @@ struct CharacterEditorView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    // MARK: - Markdown Editor
-    private var markdownEditor: some View {
+    // MARK: - Markdown Content
+
+    private var markdownContent: some View {
         VStack(spacing: 0) {
-            // Editor toolbar
+            // Toolbar
             HStack {
-                Label("Persona Markdown", systemImage: "doc.text")
+                Label("Raw Markdown", systemImage: "doc.text")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
-
-                if viewModel.hasUnsavedChanges {
-                    let changedCount = viewModel.getChangedLineNumbers().count
-                    StatusBadge(
-                        text: "\(changedCount) line\(changedCount == 1 ? "" : "s") changed",
-                        status: .warning,
-                        showIcon: false
-                    )
-                }
 
                 Spacer()
 
@@ -267,36 +200,30 @@ struct CharacterEditorView: View {
 
             Divider()
 
-            // Editor with line indicators
-            GeometryReader { geometry in
-                HStack(alignment: .top, spacing: 0) {
-                    // Line change indicators
-                    if viewModel.hasUnsavedChanges {
-                        LineChangeIndicatorView(
-                            content: viewModel.markdownContent,
-                            changedLines: viewModel.getChangedLineNumbers()
-                        )
-                    }
-
-                    TextEditor(text: $viewModel.markdownContent)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(width: geometry.size.width - (viewModel.hasUnsavedChanges ? 4 : 0), height: geometry.size.height)
-                        .onChange(of: viewModel.markdownContent) {
-                            viewModel.markAsChanged()
-                        }
-                }
+            // Read-only content
+            ScrollView {
+                Text(character.markdownContent)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(DesignSystem.Spacing.lg)
             }
             .background(Color(nsColor: .textBackgroundColor))
         }
     }
 
     // MARK: - Helpers
+
     private var wordCount: Int {
-        viewModel.markdownContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+        character.markdownContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
     }
 
     private var lineCount: Int {
-        viewModel.markdownContent.components(separatedBy: .newlines).count
+        character.markdownContent.components(separatedBy: .newlines).count
+    }
+
+    private var sectionCount: Int {
+        character.markdownContent.components(separatedBy: "\n").filter { $0.hasPrefix("## ") }.count
     }
 
     private func formatNumber(_ num: Int) -> String {
@@ -304,14 +231,6 @@ struct CharacterEditorView: View {
             return String(format: "%.1fK", Double(num) / 1000.0)
         }
         return "\(num)"
-    }
-
-    private func handleCancel() {
-        if viewModel.hasUnsavedChanges {
-            showingDiscardAlert = true
-        } else {
-            onCancel()
-        }
     }
 }
 
@@ -373,7 +292,7 @@ struct StatCard: View {
 
 // MARK: - Save Confirmation Sheet
 struct SaveConfirmationSheet: View {
-    let viewModel: CharacterEditorViewModel
+    @Bindable var viewModel: CharacterEditorViewModel
     let onConfirm: () -> Void
     let onCancel: () -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -407,11 +326,31 @@ struct SaveConfirmationSheet: View {
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .help("Save changes (⌘⏎)")
+                    .help("Save changes")
                 }
             }
             .padding(DesignSystem.Spacing.lg)
             .background(.regularMaterial)
+
+            Divider()
+
+            // Version name input
+            HStack(spacing: DesignSystem.Spacing.md) {
+                Image(systemName: "tag")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                TextField("Version name (e.g. \"new info\", \"justin\")", text: $viewModel.versionName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.subheadline)
+
+                Text("Optional")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.vertical, DesignSystem.Spacing.md)
+            .background(Color(nsColor: .controlBackgroundColor))
 
             Divider()
 

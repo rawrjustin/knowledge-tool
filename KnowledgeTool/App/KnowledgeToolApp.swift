@@ -72,7 +72,7 @@ struct KnowledgeToolApp: App {
 
             // Navigation shortcuts
             CommandMenu("Navigate") {
-                Button("Editor") {
+                Button("Raw Markdown") {
                     NotificationCenter.default.post(name: .navigateToSection, object: 1)
                 }
                 .keyboardShortcut("1", modifiers: .command)
@@ -101,6 +101,11 @@ struct KnowledgeToolApp: App {
                     NotificationCenter.default.post(name: .navigateToSection, object: 6)
                 }
                 .keyboardShortcut("6", modifiers: .command)
+
+                Button("Chat Visualizer") {
+                    NotificationCenter.default.post(name: .navigateToSection, object: 7)
+                }
+                .keyboardShortcut("7", modifiers: .command)
 
                 Divider()
 

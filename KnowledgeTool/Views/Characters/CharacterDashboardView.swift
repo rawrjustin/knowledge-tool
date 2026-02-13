@@ -39,7 +39,26 @@ struct CharacterDashboardView: View {
     @Environment(SyncManager.self) private var syncManager
     @State private var selectedTab: DashboardTab = .persona
     @State private var showingAugmentSheet = false
-    @State private var showingEditSheet = false
+    @State private var editorViewModel: CharacterEditorViewModel
+    @State private var showingSaveConfirmation = false
+    @State private var showSaveSuccess = false
+    @State private var showingDiscardAlert = false
+
+    init(
+        character: Character,
+        repository: CombinedCharacterRepository,
+        apiKeyManager: APIKeyManager,
+        onCharacterUpdated: @escaping (Character) -> Void
+    ) {
+        self.character = character
+        self.repository = repository
+        self.apiKeyManager = apiKeyManager
+        self.onCharacterUpdated = onCharacterUpdated
+        self._editorViewModel = State(initialValue: CharacterEditorViewModel(
+            mode: .edit(character),
+            repository: repository
+        ))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -68,6 +87,34 @@ struct CharacterDashboardView: View {
                 onCancel: { showingAugmentSheet = false }
             )
         }
+        .toast(isShowing: $showSaveSuccess, message: "Character saved successfully", style: .success)
+        .alert("Revert Changes?", isPresented: $showingDiscardAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Revert", role: .destructive) {
+                editorViewModel.discardChanges()
+            }
+        } message: {
+            Text("This will revert all unsaved changes to the persona markdown.")
+        }
+        .sheet(isPresented: $showingSaveConfirmation) {
+            SaveConfirmationSheet(
+                viewModel: editorViewModel,
+                onConfirm: {
+                    Task {
+                        if await editorViewModel.save() {
+                            showingSaveConfirmation = false
+                            showSaveSuccess = true
+                            if let character = editorViewModel.character {
+                                onCharacterUpdated(character)
+                            }
+                        }
+                    }
+                },
+                onCancel: {
+                    showingSaveConfirmation = false
+                }
+            )
+        }
     }
 
     // MARK: - Header
@@ -93,7 +140,7 @@ struct CharacterDashboardView: View {
                             .clipShape(Capsule())
 
                         // System prompt type
-                        Text(character.systemPromptType.rawValue)
+                        Text(character.systemPromptType.shortDisplayName)
                             .font(.caption.weight(.medium))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -104,6 +151,11 @@ struct CharacterDashboardView: View {
                         // Cloud sync status
                         if syncManager.canSync {
                             SyncStatusIndicator()
+                        }
+
+                        // Unsaved changes indicator
+                        if editorViewModel.hasUnsavedChanges {
+                            StatusBadge(text: "Unsaved changes", status: .warning)
                         }
 
                         // Last modified
@@ -120,7 +172,7 @@ struct CharacterDashboardView: View {
             HStack(spacing: DesignSystem.Spacing.xl) {
                 QuickStat(
                     icon: "doc.text",
-                    value: "\(wordCount(character.markdownContent))",
+                    value: "\(wordCount(editorViewModel.markdownContent))",
                     label: "Words"
                 )
 
@@ -147,12 +199,27 @@ struct CharacterDashboardView: View {
                 .buttonStyle(.bordered)
                 .help("Add source content to enhance this persona")
 
+                if editorViewModel.hasUnsavedChanges {
+                    Button {
+                        showingDiscardAlert = true
+                    } label: {
+                        Label("Revert", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Revert all changes")
+                }
+
                 Button {
-                    showingEditSheet = true
+                    if editorViewModel.hasUnsavedChanges {
+                        showingSaveConfirmation = true
+                    }
                 } label: {
-                    Label("Edit", systemImage: "square.and.pencil")
+                    Label("Save", systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(!editorViewModel.hasUnsavedChanges || editorViewModel.isSaving)
+                .help("Save changes (Cmd+S)")
+                .keyboardShortcut("s", modifiers: .command)
             }
         }
         .padding(DesignSystem.Spacing.lg)
@@ -221,10 +288,8 @@ struct CharacterDashboardView: View {
         switch selectedTab {
         case .persona:
             PersonaTabView(
-                character: character,
-                onSectionSelected: { section in
-                    // Could scroll to section or show knowledge for it
-                }
+                viewModel: editorViewModel,
+                knowledgeBySection: character.sectionsWithKnowledge
             )
 
         case .knowledge:
@@ -331,8 +396,11 @@ struct DashboardTabButton: View {
 // MARK: - Persona Tab View
 
 struct PersonaTabView: View {
-    let character: Character
-    let onSectionSelected: (String) -> Void
+    @Bindable var viewModel: CharacterEditorViewModel
+    let knowledgeBySection: [String: [KnowledgeSource]]
+
+    @State private var editingSectionTitle: String?
+    @State private var editableContent: String = ""
 
     var body: some View {
         ScrollView {
@@ -341,8 +409,24 @@ struct PersonaTabView: View {
                 ForEach(parsedSections, id: \.title) { section in
                     PersonaSectionCard(
                         section: section,
-                        knowledgeSources: character.sectionsWithKnowledge[section.title] ?? [],
-                        onTap: { onSectionSelected(section.title) }
+                        knowledgeSources: knowledgeBySection[section.title] ?? [],
+                        isEditing: editingSectionTitle == section.title,
+                        editableContent: editingSectionTitle == section.title ? $editableContent : nil,
+                        onStartEditing: {
+                            // Auto-commit previous section if switching
+                            if let previousTitle = editingSectionTitle, previousTitle != section.title {
+                                commitCurrentEdit()
+                            }
+                            editingSectionTitle = section.title
+                            editableContent = section.content
+                        },
+                        onDoneEditing: {
+                            commitCurrentEdit()
+                        },
+                        onCancelEditing: {
+                            editingSectionTitle = nil
+                            editableContent = ""
+                        }
                     )
                 }
             }
@@ -352,7 +436,31 @@ struct PersonaTabView: View {
     }
 
     private var parsedSections: [PersonaSection] {
-        parseMarkdownSections(character.markdownContent)
+        parseMarkdownSections(viewModel.markdownContent)
+    }
+
+    private func commitCurrentEdit() {
+        guard let title = editingSectionTitle else { return }
+        updateSection(title: title, newContent: editableContent)
+        editingSectionTitle = nil
+        editableContent = ""
+    }
+
+    private func updateSection(title: String, newContent: String) {
+        let escaped = NSRegularExpression.escapedPattern(for: title)
+        let pattern = "(##\\s*\(escaped)\\s*\\n)([\\s\\S]*?)(?=\\n##\\s|\\z)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return }
+
+        let nsString = viewModel.markdownContent as NSString
+        let fullRange = NSRange(location: 0, length: nsString.length)
+
+        guard let match = regex.firstMatch(in: viewModel.markdownContent, range: fullRange),
+              match.numberOfRanges >= 3 else { return }
+
+        let contentRange = match.range(at: 2)
+        let replacement = newContent.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
+        viewModel.markdownContent = nsString.replacingCharacters(in: contentRange, with: replacement)
+        viewModel.markAsChanged()
     }
 
     private func parseMarkdownSections(_ markdown: String) -> [PersonaSection] {
@@ -392,7 +500,11 @@ struct PersonaSection {
 struct PersonaSectionCard: View {
     let section: PersonaSection
     let knowledgeSources: [KnowledgeSource]
-    let onTap: () -> Void
+    let isEditing: Bool
+    let editableContent: Binding<String>?
+    let onStartEditing: () -> Void
+    let onDoneEditing: () -> Void
+    let onCancelEditing: () -> Void
 
     @State private var isExpanded = false
     @State private var showingKnowledge = false
@@ -432,6 +544,25 @@ struct PersonaSectionCard: View {
                         .buttonStyle(.plain)
                     }
 
+                    // Edit button
+                    if !isEditing {
+                        Button {
+                            if !isExpanded {
+                                withAnimation(DesignSystem.Animation.quick) {
+                                    isExpanded = true
+                                }
+                            }
+                            onStartEditing()
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(DesignSystem.Spacing.xs)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Edit this section")
+                    }
+
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -442,15 +573,44 @@ struct PersonaSectionCard: View {
             .buttonStyle(.plain)
 
             // Content (collapsible)
-            if isExpanded {
+            if isExpanded || isEditing {
                 Divider()
 
-                Text(section.content)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
+                if isEditing, let binding = editableContent {
+                    // Editing mode
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        TextEditor(text: binding)
+                            .font(.system(.body, design: .monospaced))
+                            .frame(minHeight: 150, maxHeight: 400)
+                            .scrollContentBackground(.hidden)
+                            .background(Color(nsColor: .textBackgroundColor))
+
+                        HStack {
+                            Spacer()
+
+                            Button("Cancel") {
+                                onCancelEditing()
+                            }
+                            .buttonStyle(.bordered)
+                            .keyboardShortcut(.cancelAction)
+
+                            Button("Done") {
+                                onDoneEditing()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                        }
+                    }
                     .padding(DesignSystem.Spacing.md)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    // Read-only display
+                    Text(section.content)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .padding(DesignSystem.Spacing.md)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             // Knowledge popover
@@ -486,6 +646,12 @@ struct PersonaSectionCard: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+        .onChange(of: isEditing) { _, newValue in
+            if newValue && !isExpanded {
+                withAnimation(DesignSystem.Animation.quick) {
+                    isExpanded = true
+                }
+            }
+        }
     }
 }
-
