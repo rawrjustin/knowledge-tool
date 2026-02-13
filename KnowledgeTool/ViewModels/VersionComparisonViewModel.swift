@@ -193,7 +193,7 @@ final class VersionComparisonViewModel {
 
         // Add the new user message (already in history, but needed for API call)
         // Actually, it's already added, so we just call the API
-        return try await openAIService.chat(messages: messages, model: "gpt-4o")
+        return try await openAIService.chat(messages: messages, model: "gpt-5")
     }
 
     /// Clear chat history for all versions

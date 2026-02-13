@@ -3,7 +3,7 @@ import Foundation
 /// Service for generating roleplay scenarios for AI characters
 actor ScenarioGenerationService {
     private let openAIApiKey: String
-    private let model = "gpt-4o"
+    private let model = "gpt-5"
 
     init(openAIApiKey: String) {
         self.openAIApiKey = openAIApiKey
@@ -70,7 +70,7 @@ actor ScenarioGenerationService {
                 ["role": "system", "content": "You are an expert at creating immersive roleplay scenarios that bring characters to life. Generate creative, engaging scenarios that feel immediate and grounded."],
                 ["role": "user", "content": prompt]
             ],
-            "max_tokens": 4000,
+            "max_completion_tokens": 4000,
             "temperature": 0.85,
             "response_format": ["type": "json_object"]
         ]
@@ -144,7 +144,7 @@ actor ScenarioGenerationService {
             "messages": [
                 ["role": "user", "content": prompt]
             ],
-            "max_tokens": 1500,
+            "max_completion_tokens": 1500,
             "temperature": 0.9,
             "response_format": ["type": "json_object"]
         ]

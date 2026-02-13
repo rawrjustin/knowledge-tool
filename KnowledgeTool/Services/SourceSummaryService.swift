@@ -5,7 +5,7 @@ import Foundation
 /// Service for generating 2-page summaries of knowledge sources
 actor SourceSummaryService {
     private let openAIApiKey: String
-    private let model = "gpt-4o"
+    private let model = "gpt-5"
     private let session: URLSession
 
     init(openAIApiKey: String) {
@@ -160,7 +160,7 @@ actor SourceSummaryService {
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": truncatedContent]
             ],
-            "max_tokens": 4000,
+            "max_completion_tokens": 4000,
             "response_format": ["type": "json_object"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

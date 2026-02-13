@@ -35,7 +35,7 @@ actor MemoryGenerationService {
                 ["role": "system", "content": prompt],
                 ["role": "user", "content": text]
             ],
-            "max_tokens": 8000
+            "max_completion_tokens": 8000
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -126,7 +126,7 @@ actor MemoryGenerationService {
                 ["role": "system", "content": prompt],
                 ["role": "user", "content": personaContent]
             ],
-            "max_tokens": 8000
+            "max_completion_tokens": 8000
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

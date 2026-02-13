@@ -388,7 +388,7 @@ actor AugmentationService {
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userContent]
             ],
-            "max_tokens": 8000,
+            "max_completion_tokens": 8000,
             "response_format": ["type": "json_object"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

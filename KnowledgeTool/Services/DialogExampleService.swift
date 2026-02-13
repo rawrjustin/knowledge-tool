@@ -5,7 +5,7 @@ import Foundation
 actor DialogExampleService {
     private let openAIApiKey: String
     private let perplexityApiKey: String?
-    private let model = "gpt-4o"
+    private let model = "gpt-5"
 
     init(openAIApiKey: String, perplexityApiKey: String? = nil) {
         self.openAIApiKey = openAIApiKey
@@ -124,7 +124,7 @@ actor DialogExampleService {
                 ["role": "user", "content": query]
             ],
             "temperature": 0.3,
-            "max_tokens": 4000
+            "max_completion_tokens": 4000
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -282,7 +282,7 @@ actor DialogExampleService {
                 ["role": "system", "content": prompt],
                 ["role": "user", "content": truncatedContent]
             ],
-            "max_tokens": 6000,
+            "max_completion_tokens": 6000,
             "response_format": ["type": "json_object"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -441,7 +441,7 @@ actor DialogExampleService {
                 ["role": "system", "content": prompt],
                 ["role": "user", "content": truncatedContent]
             ],
-            "max_tokens": 4000,
+            "max_completion_tokens": 4000,
             "response_format": ["type": "json_object"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -567,7 +567,7 @@ actor DialogExampleService {
                 ["role": "system", "content": "You are an expert at capturing character voices and generating authentic dialog."],
                 ["role": "user", "content": prompt]
             ],
-            "max_tokens": 2000,
+            "max_completion_tokens": 2000,
             "temperature": 0.8,
             "response_format": ["type": "json_object"]
         ]
@@ -630,7 +630,7 @@ actor DialogExampleService {
             "messages": [
                 ["role": "user", "content": prompt]
             ],
-            "max_tokens": 500,
+            "max_completion_tokens": 500,
             "temperature": 0.9,
             "response_format": ["type": "json_object"]
         ]
