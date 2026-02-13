@@ -50,6 +50,7 @@ struct SettingsView: View {
         }
     }
 
+
     var body: some View {
         NavigationStack {
             Form {
@@ -377,14 +378,11 @@ struct SettingsView: View {
                 return
             }
 
-            // Create Supabase client directly to test connection
             let client = SupabaseClient(
                 supabaseURL: url,
                 supabaseKey: supabaseAnonKey
             )
 
-            // Try to query the profiles table - this validates the connection
-            // Using a simple struct just for the test query
             struct ProfileIdOnly: Decodable {
                 let id: UUID
             }

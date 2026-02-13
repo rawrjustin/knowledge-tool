@@ -100,9 +100,9 @@ struct PathSelectionView: View {
                     .font(.headline)
 
                 Picker("Default Chat Mode", selection: $viewModel.systemPromptType) {
-                    Text(SystemPromptType.conversational.shortDisplayName).tag(SystemPromptType.conversational)
-                    Text(SystemPromptType.roleplay.shortDisplayName).tag(SystemPromptType.roleplay)
-                    Text(SystemPromptType.action.shortDisplayName).tag(SystemPromptType.action)
+                    ForEach(SystemPromptType.availableTypes, id: \.self) { type in
+                        Text(type.shortDisplayName).tag(type)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .frame(maxWidth: 420)
@@ -215,9 +215,9 @@ struct UnifiedInputView: View {
                         .font(.headline)
 
                     Picker("Default Chat Mode", selection: $viewModel.systemPromptType) {
-                        Text(SystemPromptType.conversational.shortDisplayName).tag(SystemPromptType.conversational)
-                        Text(SystemPromptType.roleplay.shortDisplayName).tag(SystemPromptType.roleplay)
-                        Text(SystemPromptType.action.shortDisplayName).tag(SystemPromptType.action)
+                        ForEach(SystemPromptType.availableTypes, id: \.self) { type in
+                            Text(type.shortDisplayName).tag(type)
+                        }
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 420)

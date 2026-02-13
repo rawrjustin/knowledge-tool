@@ -1,5 +1,4 @@
 import Foundation
-import Supabase
 
 /// Manages synchronization between local storage and Supabase
 @MainActor
@@ -10,6 +9,7 @@ final class SyncManager {
     private(set) var isSyncing = false
     private(set) var lastSyncDate: Date?
     private(set) var syncError: String?
+    private var consecutiveFailures = 0
 
     /// Whether Supabase is configured and sync is enabled
     var canSync: Bool {
@@ -98,20 +98,33 @@ final class SyncManager {
             // Also pull any remote-only characters
             try await repository.pullAllFromSupabase()
 
+            consecutiveFailures = 0
             lastSyncDate = Date()
             NSLog("[SyncManager] Sync completed successfully at \(lastSyncDate!)")
 
         } catch {
+            consecutiveFailures += 1
             syncError = error.localizedDescription
-            NSLog("[SyncManager] Sync failed: \(error.localizedDescription)")
+            NSLog("[SyncManager] Sync failed (%d consecutive): %@", consecutiveFailures, error.localizedDescription)
+
+            // Stop periodic sync on persistent errors
+            if consecutiveFailures >= 3 {
+                NSLog("[SyncManager] Too many consecutive failures, stopping periodic sync")
+                stopPeriodicSync()
+            }
         }
 
         isSyncing = false
     }
 
-    /// Force a manual sync
+    /// Force a manual sync (resets failure counter)
     func forceSync() async {
+        consecutiveFailures = 0
         await sync()
+        // Restart periodic sync if it was stopped due to errors
+        if syncError == nil {
+            startPeriodicSync()
+        }
     }
 
     // MARK: - Configuration Changes
@@ -127,6 +140,10 @@ final class SyncManager {
         Task {
             await repository.updateSyncConfiguration(newConfig)
         }
+
+        // Reset failure counter on reconfiguration
+        consecutiveFailures = 0
+        syncError = nil
 
         if canSync {
             Task {

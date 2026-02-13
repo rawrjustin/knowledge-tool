@@ -131,7 +131,7 @@ struct PromptTestingView: View {
                 Text("Prompt Testing")
                     .font(.headline)
 
-                Text(selectedSection == .variants ? "Compare system prompt variations" : "Edit ASP, CSP, RSP templates")
+                Text(selectedSection == .variants ? "Compare system prompt variations" : "Edit ASP1, CSP1, RSP2 templates")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

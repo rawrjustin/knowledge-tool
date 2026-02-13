@@ -13,7 +13,11 @@ protocol CharacterRepositoryProtocol: Actor {
     func saveCharacterAsNewVersion(_ character: Character) async throws -> Character
 
     /// Create a new character
-    func createCharacter(name: String, markdownContent: String) async throws -> Character
+    func createCharacter(
+        name: String,
+        markdownContent: String,
+        systemPromptType: SystemPromptType
+    ) async throws -> Character
 
     /// Create or update a knowledge file for a character
     /// This is the key method for dialog examples - it handles upsert semantics
@@ -122,8 +126,16 @@ actor CombinedCharacterRepository {
     }
 
     /// Create a new character locally, then sync to Supabase
-    func createCharacter(name: String, markdownContent: String) async throws -> Character {
-        let character = try await local.createCharacter(name: name, markdownContent: markdownContent)
+    func createCharacter(
+        name: String,
+        markdownContent: String,
+        systemPromptType: SystemPromptType = .conversational
+    ) async throws -> Character {
+        let character = try await local.createCharacter(
+            name: name,
+            markdownContent: markdownContent,
+            systemPromptType: systemPromptType
+        )
         NSLog("[CombinedRepository] Created character locally: %@", name)
 
         // Sync to Supabase
@@ -132,7 +144,8 @@ actor CombinedCharacterRepository {
                 do {
                     _ = try await supabase.createCharacter(
                         name: name,
-                        markdownContent: markdownContent
+                        markdownContent: markdownContent,
+                        systemPromptType: systemPromptType
                     )
                     NSLog("[CombinedRepository] Synced new character to Supabase: %@", name)
                 } catch {
@@ -328,25 +341,51 @@ actor CombinedCharacterRepository {
     /// Sync all local characters to Supabase (for initial sync or manual sync)
     func syncAllToSupabase() async throws {
         guard syncEnabled, let supabase = supabase else {
-            // Only log at debug level - this is expected when sync isn't configured
             return
         }
 
-        let characters = try await local.loadAllCharacters()
-        NSLog("[CombinedRepository] Starting bulk sync of %d characters", characters.count)
+        let localCharacters = try await local.loadAllCharacters()
+        NSLog("[CombinedRepository] Starting bulk sync of %d characters", localCharacters.count)
 
-        for character in characters {
+        // Fetch existing remote characters to avoid duplicate inserts
+        let remoteCharacters = try await supabase.loadAllCharacters()
+        var remoteByName: [String: Character] = [:]
+        for rc in remoteCharacters {
+            remoteByName[rc.name.lowercased()] = rc
+        }
+
+        for character in localCharacters {
             do {
-                // Sync character
-                _ = try await supabase.createCharacter(
-                    name: character.name,
-                    markdownContent: character.markdownContent
-                )
+                if let existing = remoteByName[character.name.lowercased()] {
+                    // Update existing remote character using a copy with the remote ID
+                    let synced = Character(
+                        id: existing.id,
+                        name: character.name,
+                        directoryPath: character.directoryPath,
+                        personaFileName: character.personaFileName,
+                        markdownContent: character.markdownContent,
+                        knowledgeFiles: character.knowledgeFiles,
+                        sha: character.sha,
+                        systemPromptType: character.systemPromptType,
+                        version: character.version
+                    )
+                    try await supabase.updateCharacter(synced)
+                    NSLog("[CombinedRepository] Updated existing character: %@", character.name)
+                } else {
+                    // Create new remote character
+                    _ = try await supabase.createCharacter(
+                        name: character.name,
+                        markdownContent: character.markdownContent,
+                        systemPromptType: character.systemPromptType
+                    )
+                    NSLog("[CombinedRepository] Created new character: %@", character.name)
+                }
 
-                // Sync all knowledge files
+                // Sync knowledge files using the remote ID if it exists
+                let remoteChar = remoteByName[character.name.lowercased()] ?? character
                 for knowledgeFile in character.knowledgeFiles {
                     _ = try await supabase.createKnowledgeFile(
-                        for: character,
+                        for: remoteChar,
                         fileName: knowledgeFile.fileName,
                         content: knowledgeFile.content
                     )
@@ -364,7 +403,6 @@ actor CombinedCharacterRepository {
     /// Pull all characters from Supabase to local (for initial download)
     func pullAllFromSupabase() async throws {
         guard syncEnabled, let supabase = supabase else {
-            // Only log at debug level - this is expected when sync isn't configured
             return
         }
 
@@ -379,7 +417,11 @@ actor CombinedCharacterRepository {
 
                 if !existsLocally {
                     // Create locally
-                    _ = try await local.createCharacter(name: character.name, markdownContent: character.markdownContent)
+                    _ = try await local.createCharacter(
+                        name: character.name,
+                        markdownContent: character.markdownContent,
+                        systemPromptType: character.systemPromptType
+                    )
 
                     // TODO: Also pull knowledge files
                     NSLog("[CombinedRepository] Pulled new character from Supabase: %@", character.name)

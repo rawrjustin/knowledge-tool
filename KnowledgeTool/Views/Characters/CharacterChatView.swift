@@ -102,8 +102,8 @@ struct CharacterChatView: View {
                     .foregroundStyle(.secondary)
 
                 Picker("Mode", selection: $viewModelState.selectedPromptType) {
-                    ForEach(SystemPromptType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
+                    ForEach(SystemPromptType.availableTypes, id: \.self) { type in
+                        Text(type.shortDisplayName).tag(type)
                     }
                 }
                 .pickerStyle(.segmented)

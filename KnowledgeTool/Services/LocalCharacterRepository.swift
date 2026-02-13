@@ -4,6 +4,12 @@ import Foundation
 /// Used for local-only characters and offline access
 actor LocalCharacterRepository {
     private let baseURL: URL
+    private static let characterMetadataFileName = "character.json"
+
+    private struct CharacterMetadata: Codable {
+        var systemPromptType: SystemPromptType
+        var versionNames: [String: String]?  // "2" -> "justin", "3" -> "new information"
+    }
 
     init(baseURL: URL) {
         self.baseURL = baseURL
@@ -130,6 +136,10 @@ actor LocalCharacterRepository {
             with: ""
         )
 
+        let metadata = loadCharacterMetadata(from: directoryURL)
+        let systemPromptType = metadata?.systemPromptType ?? .conversational
+        let versionName = metadata?.versionNames?[String(version)]
+
         return Character(
             name: characterName,
             directoryPath: relativePath,
@@ -137,8 +147,9 @@ actor LocalCharacterRepository {
             markdownContent: markdownContent,
             knowledgeFiles: knowledgeFiles,
             sha: "",
-            systemPromptType: .conversational,
+            systemPromptType: systemPromptType,
             version: version,
+            versionName: versionName,
             createdAt: createdAt,
             lastModified: lastModified,
             isLocalOnly: true
@@ -351,6 +362,18 @@ actor LocalCharacterRepository {
             encoding: .utf8
         )
 
+        // Merge version name into existing metadata
+        var existingMetadata = loadCharacterMetadata(from: characterURL)
+        var versionNames = existingMetadata?.versionNames ?? [:]
+        if let vName = character.versionName, !vName.isEmpty {
+            versionNames[String(newVersion)] = vName
+        }
+
+        try saveCharacterMetadata(
+            CharacterMetadata(systemPromptType: character.systemPromptType, versionNames: versionNames),
+            to: characterURL
+        )
+
         // Return updated character with new version info
         return Character(
             id: UUID(), // Generate new UUID for new version
@@ -362,6 +385,7 @@ actor LocalCharacterRepository {
             sha: character.sha,
             systemPromptType: character.systemPromptType,
             version: newVersion,
+            versionName: character.versionName,
             createdAt: Date(), // New version gets new creation date
             lastModified: Date(),
             isLocalOnly: true
@@ -385,10 +409,21 @@ actor LocalCharacterRepository {
             atomically: true,
             encoding: .utf8
         )
+
+        // Preserve existing version names when overwriting
+        let existingMetadata = loadCharacterMetadata(from: characterURL)
+        try saveCharacterMetadata(
+            CharacterMetadata(systemPromptType: character.systemPromptType, versionNames: existingMetadata?.versionNames),
+            to: characterURL
+        )
     }
 
     /// Create a new character
-    func createCharacter(name: String, markdownContent: String) async throws -> Character {
+    func createCharacter(
+        name: String,
+        markdownContent: String,
+        systemPromptType: SystemPromptType = .conversational
+    ) async throws -> Character {
         // Sanitize name for directory/file
         let sanitizedName = name.replacingOccurrences(of: " ", with: "")
             .lowercased()
@@ -403,7 +438,7 @@ actor LocalCharacterRepository {
             markdownContent: markdownContent,
             knowledgeFiles: [],
             sha: "",
-            systemPromptType: .conversational,
+            systemPromptType: systemPromptType,
             lastModified: Date(),
             isLocalOnly: true
         )
@@ -411,6 +446,35 @@ actor LocalCharacterRepository {
         try await saveCharacter(character)
 
         return character
+    }
+
+    // MARK: - Metadata
+
+    private func loadCharacterMetadata(from directoryURL: URL) -> CharacterMetadata? {
+        let metadataURL = directoryURL.appendingPathComponent(Self.characterMetadataFileName)
+        guard FileManager.default.fileExists(atPath: metadataURL.path) else {
+            return nil
+        }
+
+        do {
+            let data = try Data(contentsOf: metadataURL)
+            return try JSONDecoder().decode(CharacterMetadata.self, from: data)
+        } catch {
+            NSLog(
+                "[LocalCharacterRepository] Failed to load character metadata at %@: %@",
+                metadataURL.path,
+                error.localizedDescription
+            )
+            return nil
+        }
+    }
+
+    private func saveCharacterMetadata(_ metadata: CharacterMetadata, to directoryURL: URL) throws {
+        let metadataURL = directoryURL.appendingPathComponent(Self.characterMetadataFileName)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(metadata)
+        try data.write(to: metadataURL, options: [.atomic])
     }
 
     // MARK: - Knowledge File Management

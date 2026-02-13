@@ -78,7 +78,7 @@ final class CharacterCreationViewModel {
 
     private(set) var currentStep: Step = .unifiedInput
     private(set) var selectedPath: CreationPath? = .unified
-    var systemPromptType: SystemPromptType = .conversational
+    var systemPromptType: SystemPromptType = .action
 
     // Input state
     var wikipediaURL: String = ""
@@ -242,7 +242,7 @@ final class CharacterCreationViewModel {
         selectedPath = .unified
         wikipediaURL = ""
         originalDescription = ""
-        systemPromptType = .conversational
+        systemPromptType = .action
         generatedContent = ""
         progressLogs = []
         error = nil

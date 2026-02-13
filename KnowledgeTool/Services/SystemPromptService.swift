@@ -16,7 +16,7 @@ actor SystemPromptService {
     // MARK: - Public API
 
     /// Get system prompt template content for a given type
-    /// Fallback chain: Cache (if fresh) -> Supabase -> Cache (stale) -> Bundled ASP1Template
+    /// Fallback chain: Cache (if fresh) -> Supabase -> Cache (stale) -> Bundled fallback template
     /// - Parameters:
     ///   - type: The system prompt type (ASP, CSP, RSP)
     ///   - forceRefresh: If true, skip fresh cache and fetch from Supabase
@@ -50,8 +50,8 @@ actor SystemPromptService {
             }
 
             // 4. Fall back to bundled template
-            NSLog("[SystemPromptService] Using bundled ASP1Template fallback for \(type.rawValue)")
-            return ASP1Template.content
+            NSLog("[SystemPromptService] Using bundled fallback template for \(type.rawValue)")
+            return BundledSystemPromptTemplates.content(for: type)
         }
     }
 

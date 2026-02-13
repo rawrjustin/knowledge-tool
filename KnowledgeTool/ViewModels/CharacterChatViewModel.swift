@@ -52,7 +52,7 @@ class CharacterChatViewModel {
         // For local characters without Supabase, use bundled template
         if character.isLocalOnly && SupabaseConfig.shared == nil {
             NSLog("[CharacterChatViewModel] Local character without Supabase, using bundled template")
-            systemPromptContent = ASP1Template.content
+            systemPromptContent = BundledSystemPromptTemplates.content(for: selectedPromptType)
             systemPromptLoaded = true
             isLoadingSystemPrompt = false
             await startConversation()
@@ -166,15 +166,21 @@ class CharacterChatViewModel {
             return template + "\n\n## Your Persona\n\n" + personaContent
         }
 
-        // Replace the placeholder with actual persona content
-        let replacementSection = "## Your Persona\n\n" + personaContent
-        let result = regex.stringByReplacingMatches(
-            in: template,
-            range: range,
-            withTemplate: replacementSection
-        )
+        // Replace the placeholder with actual persona content (literal replacement, not a regex template)
+        let trimmedPersona = personaContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replacementSection: String
+        if trimmedPersona.range(of: #"(?m)^##\s*Your Persona"#, options: .regularExpression) != nil {
+            replacementSection = trimmedPersona
+        } else {
+            replacementSection = "## Your Persona\n\n" + trimmedPersona
+        }
 
-        return result
+        guard let match = matches.first else {
+            return template + "\n\n" + replacementSection
+        }
+
+        let before = nsString.substring(to: match.range.location)
+        return before + replacementSection
     }
 
     // MARK: - Scenario Injection

@@ -10,6 +10,7 @@ final class CharacterEditorViewModel {
     var name: String
     var markdownContent: String
     var systemPromptType: SystemPromptType
+    var versionName: String = ""
 
     // Original content for diffing
     private(set) var originalMarkdownContent: String
@@ -40,7 +41,7 @@ final class CharacterEditorViewModel {
             self.name = ""
             self.markdownContent = Self.defaultPersonaTemplate
             self.originalMarkdownContent = Self.defaultPersonaTemplate
-            self.systemPromptType = .conversational
+            self.systemPromptType = .action
 
         case .edit(let character):
             self.character = character
@@ -67,7 +68,8 @@ final class CharacterEditorViewModel {
                 // Create new character
                 let newCharacter = try await repository.createCharacter(
                     name: name,
-                    markdownContent: markdownContent
+                    markdownContent: markdownContent,
+                    systemPromptType: systemPromptType
                 )
                 character = newCharacter
                 hasUnsavedChanges = false
@@ -79,11 +81,14 @@ final class CharacterEditorViewModel {
                 existingCharacter.markdownContent = markdownContent
                 existingCharacter.systemPromptType = systemPromptType
                 existingCharacter.lastModified = Date()
+                let trimmedName = versionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                existingCharacter.versionName = trimmedName.isEmpty ? nil : trimmedName
 
                 // Save as new version (creates v2, v3, etc.)
                 let newVersion = try await repository.saveCharacterAsNewVersion(existingCharacter)
                 character = newVersion
                 hasUnsavedChanges = false
+                versionName = ""
                 return true
             }
         } catch {

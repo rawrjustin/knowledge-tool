@@ -37,7 +37,7 @@ struct CharacterOverviewView: View {
                                 .cornerRadius(4)
 
                             // System prompt type badge
-                            Label(character.systemPromptType.rawValue, systemImage: "doc.text.fill")
+                            Label(character.systemPromptType.shortDisplayName, systemImage: "doc.text.fill")
                                 .font(.caption)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)

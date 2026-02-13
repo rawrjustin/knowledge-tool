@@ -5,6 +5,9 @@ import Foundation
 actor SupabaseCharacterRepository {
     private let supabase: SupabaseService
 
+    /// Fixed storage path prefix for anonymous/no-auth usage
+    private static let storagePath = "default"
+
     init(supabase: SupabaseService) {
         self.supabase = supabase
     }
@@ -130,14 +133,19 @@ actor SupabaseCharacterRepository {
     // MARK: - Character Saving
 
     /// Create a new character in Supabase
-    func createCharacter(name: String, markdownContent: String, sourceType: String? = nil, sourceUrls: [String]? = nil) async throws -> Character {
-        guard let userId = await supabase.currentUserId else {
-            throw SupabaseServiceError.notAuthenticated
-        }
-
+    func createCharacter(
+        name: String,
+        markdownContent: String,
+        systemPromptType: SystemPromptType = .conversational,
+        sourceType: String? = nil,
+        sourceUrls: [String]? = nil
+    ) async throws -> Character {
         let slug = name.lowercased()
             .replacingOccurrences(of: " ", with: "-")
             .replacingOccurrences(of: "[^a-z0-9-]", with: "", options: .regularExpression)
+
+        // Use authenticated user ID if available, otherwise nil (owner_id is nullable)
+        let userId = await supabase.currentUserId
 
         // Create character record first
         let insert = CharacterInsert(
@@ -145,10 +153,9 @@ actor SupabaseCharacterRepository {
             name: name,
             slug: slug,
             description: nil,
-            visibility: "private",
-            personaStoragePath: nil, // Will update after upload
-            personaContent: nil, // Store in storage, not DB
-            systemPromptType: "CSP",
+            personaStoragePath: nil,
+            personaContent: markdownContent,
+            systemPromptType: systemPromptType.rawValue,
             version: 1,
             sourceType: sourceType,
             sourceUrls: sourceUrls
@@ -156,18 +163,23 @@ actor SupabaseCharacterRepository {
 
         var supabaseCharacter = try await supabase.createCharacter(insert)
 
-        // Upload persona to storage
-        let storagePath = try await supabase.uploadPersonaFile(
-            userId: userId,
-            characterId: supabaseCharacter.id,
-            content: markdownContent
-        )
+        // Try to upload persona to storage, fall back to DB-only storage
+        let storagePrefix = userId?.uuidString ?? Self.storagePath
+        do {
+            let storagePath = try await supabase.uploadPersonaFile(
+                userId: UUID(uuidString: storagePrefix) ?? UUID(),
+                characterId: supabaseCharacter.id,
+                content: markdownContent
+            )
 
-        // Update character with storage path
-        supabaseCharacter = try await supabase.updateCharacter(
-            id: supabaseCharacter.id,
-            updates: ["persona_storage_path": .string(storagePath)]
-        )
+            supabaseCharacter = try await supabase.updateCharacter(
+                id: supabaseCharacter.id,
+                updates: ["persona_storage_path": .string(storagePath)]
+            )
+        } catch {
+            NSLog("[SupabaseCharacterRepository] Storage upload failed, using DB content: %@", error.localizedDescription)
+            // Content is already stored as persona_content in the insert
+        }
 
         // Convert to local model
         var character = convertToLocal(supabaseCharacter)
@@ -178,50 +190,58 @@ actor SupabaseCharacterRepository {
 
     /// Update character persona content
     func updateCharacter(_ character: Character) async throws {
-        guard let userId = await supabase.currentUserId else {
-            throw SupabaseServiceError.notAuthenticated
-        }
-
-        // Upload updated persona to storage
-        _ = try await supabase.uploadPersonaFile(
-            userId: userId,
-            characterId: character.id,
-            content: character.markdownContent
-        )
-
-        // Update metadata in database
+        // Update persona content in database directly
         try await supabase.updateCharacter(
             id: character.id,
             updates: [
                 "name": .string(character.name),
+                "persona_content": .string(character.markdownContent),
                 "system_prompt_type": .string(character.systemPromptType.rawValue),
                 "version": .integer(character.version)
             ]
         )
+
+        // Also try to upload to storage if possible
+        let userId = await supabase.currentUserId
+        let storagePrefix = userId?.uuidString ?? Self.storagePath
+        do {
+            _ = try await supabase.uploadPersonaFile(
+                userId: UUID(uuidString: storagePrefix) ?? UUID(),
+                characterId: character.id,
+                content: character.markdownContent
+            )
+        } catch {
+            NSLog("[SupabaseCharacterRepository] Storage upload failed, DB content updated: %@", error.localizedDescription)
+        }
     }
 
     /// Save character as a new version
     func saveCharacterAsNewVersion(_ character: Character) async throws -> Character {
-        guard let userId = await supabase.currentUserId else {
-            throw SupabaseServiceError.notAuthenticated
-        }
-
         // Fetch current version
         let current = try await supabase.fetchCharacter(id: character.id)
         let newVersion = current.version + 1
 
-        // Upload new persona
-        _ = try await supabase.uploadPersonaFile(
-            userId: userId,
-            characterId: character.id,
-            content: character.markdownContent
-        )
-
-        // Update version
+        // Update version and content
         let updated = try await supabase.updateCharacter(
             id: character.id,
-            updates: ["version": .integer(newVersion)]
+            updates: [
+                "version": .integer(newVersion),
+                "persona_content": .string(character.markdownContent)
+            ]
         )
+
+        // Also try storage upload
+        let userId = await supabase.currentUserId
+        let storagePrefix = userId?.uuidString ?? Self.storagePath
+        do {
+            _ = try await supabase.uploadPersonaFile(
+                userId: UUID(uuidString: storagePrefix) ?? UUID(),
+                characterId: character.id,
+                content: character.markdownContent
+            )
+        } catch {
+            NSLog("[SupabaseCharacterRepository] Storage upload failed: %@", error.localizedDescription)
+        }
 
         var result = convertToLocal(updated)
         result.markdownContent = character.markdownContent
@@ -230,13 +250,6 @@ actor SupabaseCharacterRepository {
 
     /// Delete a character
     func deleteCharacter(_ character: Character) async throws {
-        // Delete storage files first
-        if let storagePath = character.directoryPath.components(separatedBy: "/").last {
-            // Storage paths follow pattern: userId/characterId/
-            // We need to delete all files in that directory
-            // For now, the cascade delete on the database will handle cleanup
-        }
-
         try await supabase.deleteCharacter(id: character.id)
     }
 
@@ -244,7 +257,6 @@ actor SupabaseCharacterRepository {
 
     /// Detect file type from filename
     private func detectFileType(from fileName: String) -> String {
-        // Handle source folder paths: sources/{uuid}/filename
         let baseName = fileName.components(separatedBy: "/").last ?? fileName
 
         if baseName == "metadata.json" {
@@ -265,27 +277,28 @@ actor SupabaseCharacterRepository {
     }
 
     /// Create or update a knowledge file for a character
-    /// This handles the upsert pattern needed for dialog_examples.jsonl which overwrites on each save
     func createKnowledgeFile(for character: Character, fileName: String, content: String, fileType: String? = nil, sourceUrl: String? = nil, sourceTitle: String? = nil) async throws -> KnowledgeFile {
-        guard let userId = await supabase.currentUserId else {
-            throw SupabaseServiceError.notAuthenticated
-        }
-
-        // Determine file type
         let resolvedFileType = fileType ?? detectFileType(from: fileName)
-
-        // Upload to storage (upsert: true handles overwriting)
-        let storagePath = try await supabase.uploadKnowledgeFile(
-            userId: userId,
-            characterId: character.id,
-            fileName: fileName,
-            content: content
-        )
 
         // Calculate word count
         let wordCount = content.components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
             .count
+
+        // Try to upload to storage
+        var storagePath = "\(Self.storagePath)/\(character.id.uuidString)/\(fileName)"
+        let userId = await supabase.currentUserId
+        let storagePrefix = userId?.uuidString ?? Self.storagePath
+        do {
+            storagePath = try await supabase.uploadKnowledgeFile(
+                userId: UUID(uuidString: storagePrefix) ?? UUID(),
+                characterId: character.id,
+                fileName: fileName,
+                content: content
+            )
+        } catch {
+            NSLog("[SupabaseCharacterRepository] Storage upload failed, storing content in DB: %@", error.localizedDescription)
+        }
 
         // Check if file already exists for this character
         let existingFiles = try await supabase.fetchKnowledgeFiles(characterId: character.id)
@@ -295,6 +308,7 @@ actor SupabaseCharacterRepository {
                 id: existingFile.id,
                 updates: [
                     "storage_path": .string(storagePath),
+                    "content": .string(content),
                     "word_count": .integer(wordCount),
                     "file_size_bytes": .integer(content.utf8.count)
                 ]
@@ -311,13 +325,13 @@ actor SupabaseCharacterRepository {
             )
         }
 
-        // Create new database record
+        // Create new database record (store content in DB as fallback)
         let insert = KnowledgeFileInsert(
             characterId: character.id,
             fileName: fileName,
             fileType: resolvedFileType,
             storagePath: storagePath,
-            content: nil, // Store in storage, not DB
+            content: content,
             fileSizeBytes: content.utf8.count,
             wordCount: wordCount,
             sourceUrl: sourceUrl,
@@ -339,96 +353,43 @@ actor SupabaseCharacterRepository {
 
     /// Update a knowledge file
     func updateKnowledgeFile(_ file: KnowledgeFile, for character: Character) async throws {
-        guard let userId = await supabase.currentUserId else {
-            throw SupabaseServiceError.notAuthenticated
-        }
-
-        // Re-upload to storage
-        _ = try await supabase.uploadKnowledgeFile(
-            userId: userId,
-            characterId: character.id,
-            fileName: file.fileName,
-            content: file.content
-        )
-
-        // Update word count in database
+        // Update content in database
         let wordCount = file.wordCount
-
         try await supabase.updateKnowledgeFile(
             id: file.id,
             updates: [
+                "content": .string(file.content),
                 "word_count": .integer(wordCount),
                 "file_size_bytes": .integer(file.content.utf8.count)
             ]
         )
+
+        // Also try to upload to storage
+        let userId = await supabase.currentUserId
+        let storagePrefix = userId?.uuidString ?? Self.storagePath
+        do {
+            _ = try await supabase.uploadKnowledgeFile(
+                userId: UUID(uuidString: storagePrefix) ?? UUID(),
+                characterId: character.id,
+                fileName: file.fileName,
+                content: file.content
+            )
+        } catch {
+            NSLog("[SupabaseCharacterRepository] Storage upload failed: %@", error.localizedDescription)
+        }
     }
 
     /// Delete a knowledge file
     func deleteKnowledgeFile(_ file: KnowledgeFile) async throws {
-        // Delete from storage
-        try await supabase.deleteStorageFile(bucket: "knowledge", path: file.path)
+        // Try to delete from storage (may fail if path is DB-only)
+        do {
+            try await supabase.deleteStorageFile(bucket: "knowledge", path: file.path)
+        } catch {
+            NSLog("[SupabaseCharacterRepository] Storage delete failed (may be DB-only): %@", error.localizedDescription)
+        }
 
         // Delete database record
         try await supabase.deleteKnowledgeFile(id: file.id)
-    }
-
-    // MARK: - Sharing
-
-    /// Share a character with another user by email
-    func shareCharacter(_ character: Character, withEmail email: String, permission: SharePermission) async throws {
-        guard let userId = await supabase.currentUserId else {
-            throw SupabaseServiceError.notAuthenticated
-        }
-
-        // Find user by email
-        guard let targetUser = try await supabase.findUserByEmail(email) else {
-            throw SupabaseCharacterRepositoryError.userNotFound(email)
-        }
-
-        let share = CharacterShareInsert(
-            characterId: character.id,
-            sharedWith: targetUser.id,
-            permission: permission.rawValue,
-            sharedBy: userId
-        )
-
-        _ = try await supabase.shareCharacter(share)
-
-        // Update character visibility if needed
-        let currentChar = try await supabase.fetchCharacter(id: character.id)
-        if currentChar.visibility == .private {
-            try await supabase.updateCharacter(
-                id: character.id,
-                updates: ["visibility": .string("shared")]
-            )
-        }
-    }
-
-    /// Get shares for a character
-    func getShares(for character: Character) async throws -> [CharacterShare] {
-        let supabaseShares = try await supabase.fetchCharacterShares(characterId: character.id)
-        return supabaseShares.map { share in
-            CharacterShare(
-                id: share.id,
-                userEmail: share.sharedWithProfile?.email ?? "Unknown",
-                userName: share.sharedWithProfile?.displayName ?? "Unknown",
-                permission: share.permission,
-                createdAt: share.createdAt
-            )
-        }
-    }
-
-    /// Remove a share
-    func removeShare(id: UUID) async throws {
-        try await supabase.removeShare(id: id)
-    }
-
-    /// Update character visibility
-    func updateVisibility(_ character: Character, to visibility: CharacterVisibility) async throws {
-        try await supabase.updateCharacter(
-            id: character.id,
-            updates: ["visibility": .string(visibility.rawValue)]
-        )
     }
 
     // MARK: - Conversion Helpers
@@ -471,40 +432,15 @@ actor SupabaseCharacterRepository {
     }
 }
 
-// MARK: - Supporting Types
-
-/// Represents a character share in the UI
-struct CharacterShare: Identifiable {
-    let id: UUID
-    let userEmail: String
-    let userName: String
-    let permission: SharePermission
-    let createdAt: Date
-
-    var permissionDisplayName: String {
-        switch permission {
-        case .viewer: return "Can view"
-        case .editor: return "Can edit"
-        case .admin: return "Admin"
-        }
-    }
-}
-
 // MARK: - Errors
 
 enum SupabaseCharacterRepositoryError: LocalizedError {
-    case userNotFound(String)
     case characterNotFound(UUID)
-    case insufficientPermissions
 
     var errorDescription: String? {
         switch self {
-        case .userNotFound(let email):
-            return "No user found with email: \(email)"
         case .characterNotFound(let id):
             return "Character not found: \(id)"
-        case .insufficientPermissions:
-            return "You don't have permission to perform this action."
         }
     }
 }

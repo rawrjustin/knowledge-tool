@@ -29,20 +29,6 @@ struct SupabaseConfig: Sendable {
 
 // MARK: - Database Models
 
-/// Character visibility levels
-enum CharacterVisibility: String, Codable {
-    case `private` = "private"
-    case shared = "shared"
-    case `public` = "public"
-}
-
-/// Share permission levels
-enum SharePermission: String, Codable {
-    case viewer = "viewer"
-    case editor = "editor"
-    case admin = "admin"
-}
-
 /// User profile from Supabase
 struct SupabaseProfile: Codable, Identifiable {
     let id: UUID
@@ -65,11 +51,10 @@ struct SupabaseProfile: Codable, Identifiable {
 /// Character record from Supabase
 struct SupabaseCharacter: Codable, Identifiable {
     let id: UUID
-    let ownerId: UUID
+    let ownerId: UUID?
     var name: String
     var slug: String
     var description: String?
-    var visibility: CharacterVisibility
     var personaStoragePath: String?
     var personaContent: String?
     var systemPromptType: String
@@ -90,7 +75,6 @@ struct SupabaseCharacter: Codable, Identifiable {
         case name
         case slug
         case description
-        case visibility
         case personaStoragePath = "persona_storage_path"
         case personaContent = "persona_content"
         case systemPromptType = "system_prompt_type"
@@ -138,37 +122,13 @@ struct SupabaseKnowledgeFile: Codable, Identifiable {
     }
 }
 
-/// Character share record
-struct SupabaseCharacterShare: Codable, Identifiable {
-    let id: UUID
-    let characterId: UUID
-    let sharedWith: UUID
-    let permission: SharePermission
-    let sharedBy: UUID
-    let createdAt: Date
-
-    // Joined data
-    var sharedWithProfile: SupabaseProfile?
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case characterId = "character_id"
-        case sharedWith = "shared_with"
-        case permission
-        case sharedBy = "shared_by"
-        case createdAt = "created_at"
-        case sharedWithProfile = "profiles"
-    }
-}
-
 // MARK: - Insert/Update DTOs
 
 struct CharacterInsert: Encodable {
-    let ownerId: UUID
+    let ownerId: UUID?
     let name: String
     let slug: String
     let description: String?
-    let visibility: String
     let personaStoragePath: String?
     let personaContent: String?
     let systemPromptType: String
@@ -181,7 +141,6 @@ struct CharacterInsert: Encodable {
         case name
         case slug
         case description
-        case visibility
         case personaStoragePath = "persona_storage_path"
         case personaContent = "persona_content"
         case systemPromptType = "system_prompt_type"
@@ -215,25 +174,15 @@ struct KnowledgeFileInsert: Encodable {
     }
 }
 
-struct CharacterShareInsert: Encodable {
-    let characterId: UUID
-    let sharedWith: UUID
-    let permission: String
-    let sharedBy: UUID
-
-    enum CodingKeys: String, CodingKey {
-        case characterId = "character_id"
-        case sharedWith = "shared_with"
-        case permission
-        case sharedBy = "shared_by"
-    }
-}
-
 // MARK: - Supabase Service
 
 /// Main service for interacting with Supabase
 actor SupabaseService {
     private let client: SupabaseClient
+
+    private static let authOptions = SupabaseClientOptions.AuthOptions(
+        emitLocalSessionAsInitialSession: true
+    )
 
     init() throws {
         guard let config = SupabaseConfig.shared else {
@@ -242,7 +191,8 @@ actor SupabaseService {
 
         self.client = SupabaseClient(
             supabaseURL: config.url,
-            supabaseKey: config.anonKey
+            supabaseKey: config.anonKey,
+            options: SupabaseClientOptions(auth: Self.authOptions)
         )
     }
 
@@ -250,7 +200,8 @@ actor SupabaseService {
     init(url: URL, anonKey: String) {
         self.client = SupabaseClient(
             supabaseURL: url,
-            supabaseKey: anonKey
+            supabaseKey: anonKey,
+            options: SupabaseClientOptions(auth: Self.authOptions)
         )
     }
 
@@ -260,6 +211,13 @@ actor SupabaseService {
     var currentUserId: UUID? {
         get async {
             try? await client.auth.session.user.id
+        }
+    }
+
+    /// Get current user email
+    var currentUserEmail: String? {
+        get async {
+            try? await client.auth.session.user.email
         }
     }
 
@@ -282,10 +240,13 @@ actor SupabaseService {
         try await client.auth.signOut()
     }
 
-    /// Check if user is authenticated
+    /// Check if user is authenticated (has a valid, non-expired session)
     var isAuthenticated: Bool {
         get async {
-            (try? await client.auth.session) != nil
+            guard let session = try? await client.auth.session else {
+                return false
+            }
+            return !session.isExpired
         }
     }
 
@@ -293,11 +254,11 @@ actor SupabaseService {
 
     /// Fetch all accessible characters (owned, shared, public)
     func fetchCharacters(includeKnowledgeFiles: Bool = false) async throws -> [SupabaseCharacter] {
-        var query = client
+        let query = client
             .from("characters")
             .select(includeKnowledgeFiles
-                ? "*, knowledge_files(*), profiles!owner_id(id, display_name, avatar_url)"
-                : "*, profiles!owner_id(id, display_name, avatar_url)"
+                ? "*, knowledge_files(*)"
+                : "*"
             )
 
         let response: [SupabaseCharacter] = try await query
@@ -312,7 +273,7 @@ actor SupabaseService {
     func fetchCharacter(id: UUID) async throws -> SupabaseCharacter {
         let response: SupabaseCharacter = try await client
             .from("characters")
-            .select("*, knowledge_files(*), profiles!owner_id(id, display_name, avatar_url)")
+            .select("*, knowledge_files(*)")
             .eq("id", value: id.uuidString)
             .single()
             .execute()
@@ -406,54 +367,6 @@ actor SupabaseService {
             .delete()
             .eq("id", value: id.uuidString)
             .execute()
-    }
-
-    // MARK: - Sharing
-
-    /// Fetch shares for a character
-    func fetchCharacterShares(characterId: UUID) async throws -> [SupabaseCharacterShare] {
-        let response: [SupabaseCharacterShare] = try await client
-            .from("character_shares")
-            .select("*, profiles!shared_with(id, display_name, email, avatar_url)")
-            .eq("character_id", value: characterId.uuidString)
-            .execute()
-            .value
-
-        return response
-    }
-
-    /// Share a character with a user
-    func shareCharacter(_ share: CharacterShareInsert) async throws -> SupabaseCharacterShare {
-        let response: SupabaseCharacterShare = try await client
-            .from("character_shares")
-            .insert(share)
-            .select("*, profiles!shared_with(id, display_name, email, avatar_url)")
-            .single()
-            .execute()
-            .value
-
-        return response
-    }
-
-    /// Remove a share
-    func removeShare(id: UUID) async throws {
-        try await client
-            .from("character_shares")
-            .delete()
-            .eq("id", value: id.uuidString)
-            .execute()
-    }
-
-    /// Find a user by email (for sharing)
-    func findUserByEmail(_ email: String) async throws -> SupabaseProfile? {
-        let response: [SupabaseProfile] = try await client
-            .from("profiles")
-            .select("*")
-            .eq("email", value: email)
-            .execute()
-            .value
-
-        return response.first
     }
 
     // MARK: - Storage

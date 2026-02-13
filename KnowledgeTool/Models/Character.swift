@@ -6,14 +6,27 @@ enum SystemPromptType: String, CaseIterable, Codable {
     case conversational = "CSP"
     case roleplay = "RSP"
 
+    /// Short code used in UI where prompt families are shown as versions.
+    /// Note: this reflects the bundled/default prompt version, not necessarily the active Supabase version.
+    var shortDisplayName: String {
+        switch self {
+        case .action:
+            return "ASP1"
+        case .conversational:
+            return "CSP1"
+        case .roleplay:
+            return "RSP2"
+        }
+    }
+
     var displayName: String {
         switch self {
         case .action:
-            return "Action System Prompt"
+            return "Action (ASP1)"
         case .conversational:
-            return "Conversational System Prompt"
+            return "Conversational (CSP1)"
         case .roleplay:
-            return "Roleplay System Prompt"
+            return "Roleplay (RSP2)"
         }
     }
 
@@ -24,9 +37,12 @@ enum SystemPromptType: String, CaseIterable, Codable {
         case .conversational:
             return "Friendly, witty companion mode with dry humor"
         case .roleplay:
-            return "Reserved for future roleplay scenarios"
+            return "Interactive roleplay with co-creation tools (RSP2 fallback)"
         }
     }
+
+    /// Types available for selection in UI (excludes CSP1 which has no template yet)
+    static let availableTypes: [SystemPromptType] = [.action, .roleplay]
 }
 
 // MARK: - Knowledge File
@@ -110,6 +126,7 @@ struct Character: Identifiable, Codable, Hashable {
     var sha: String                     // Content hash for change tracking
     var systemPromptType: SystemPromptType
     var version: Int                    // 1 for base, 2+ for versions
+    var versionName: String?            // Optional user-provided name (e.g., "justin", "new information")
     var createdAt: Date                 // When this version was created
     var lastModified: Date              // When this version was last modified
     var isLocalOnly: Bool               // Not yet in git repo
@@ -124,6 +141,7 @@ struct Character: Identifiable, Codable, Hashable {
         sha: String = "",
         systemPromptType: SystemPromptType = .conversational,
         version: Int = 1,
+        versionName: String? = nil,
         createdAt: Date = Date(),
         lastModified: Date = Date(),
         isLocalOnly: Bool = false
@@ -137,6 +155,7 @@ struct Character: Identifiable, Codable, Hashable {
         self.sha = sha
         self.systemPromptType = systemPromptType
         self.version = version
+        self.versionName = versionName
         self.createdAt = createdAt
         self.lastModified = lastModified
         self.isLocalOnly = isLocalOnly
@@ -255,9 +274,13 @@ struct Character: Identifiable, Codable, Hashable {
         )
     }
 
-    // Version display string
+    // Version display string (e.g., "v2 (justin)" or just "v2")
     var versionDisplay: String {
-        version == 1 ? "v1" : "v\(version)"
+        let base = "v\(version)"
+        if let name = versionName, !name.isEmpty {
+            return "\(base) (\(name))"
+        }
+        return base
     }
 }
 

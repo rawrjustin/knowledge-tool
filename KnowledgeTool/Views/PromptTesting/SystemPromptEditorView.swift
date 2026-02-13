@@ -14,7 +14,7 @@ struct SystemPromptEditorView: View {
                     Text("System Prompts")
                         .font(.headline)
 
-                    Text("Edit ASP, CSP, and RSP templates")
+                    Text("Edit ASP1, CSP1, and RSP2 templates")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -43,9 +43,9 @@ struct SystemPromptEditorView: View {
 
             // Tab picker
             Picker("Prompt Type", selection: $selectedTab) {
-                Text("ASP").tag(SystemPromptType.action)
-                Text("CSP").tag(SystemPromptType.conversational)
-                Text("RSP").tag(SystemPromptType.roleplay)
+                Text(SystemPromptType.action.shortDisplayName).tag(SystemPromptType.action)
+                Text(SystemPromptType.conversational.shortDisplayName).tag(SystemPromptType.conversational)
+                Text(SystemPromptType.roleplay.shortDisplayName).tag(SystemPromptType.roleplay)
             }
             .pickerStyle(.segmented)
             .padding()
