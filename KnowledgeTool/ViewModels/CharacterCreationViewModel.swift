@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 
 @MainActor
 @Observable
@@ -6,6 +7,8 @@ final class CharacterCreationViewModel {
     // Wizard state
     enum Step {
         case pathSelection
+        case unifiedInput
+        case unifiedProcessing
         case wikipediaInput
         case wikipediaPreview
         case originalInput
@@ -19,14 +22,75 @@ final class CharacterCreationViewModel {
         case wikipedia
         case original
         case youtube
+        case unified
     }
 
-    private(set) var currentStep: Step = .pathSelection
-    private(set) var selectedPath: CreationPath?
+    // MARK: - Scraped Source Types
+
+    struct ScrapedSource: Identifiable {
+        let id = UUID()
+        let type: SourceType
+        let title: String
+        let url: String?
+        let content: String
+
+        enum SourceType: String {
+            case wikipedia
+            case youtube
+            case webArticle
+            case pdf
+            case description
+        }
+    }
+
+    enum UnifiedSourceStatus: Identifiable {
+        case pending(id: String, label: String)
+        case processing(id: String, label: String)
+        case completed(id: String, label: String)
+        case failed(id: String, label: String, error: String)
+
+        var id: String {
+            switch self {
+            case .pending(let id, _), .processing(let id, _),
+                 .completed(let id, _), .failed(let id, _, _):
+                return id
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .pending(_, let label), .processing(_, let label),
+                 .completed(_, let label), .failed(_, let label, _):
+                return label
+            }
+        }
+
+        var isComplete: Bool {
+            if case .completed = self { return true }
+            return false
+        }
+
+        var isFailed: Bool {
+            if case .failed = self { return true }
+            return false
+        }
+    }
+
+    private(set) var currentStep: Step = .unifiedInput
+    private(set) var selectedPath: CreationPath? = .unified
+    var systemPromptType: SystemPromptType = .conversational
 
     // Input state
     var wikipediaURL: String = ""
     var originalDescription: String = ""
+
+    // Unified input state
+    var unifiedCharacterName: String = ""
+    var unifiedDescription: String = ""
+    var webLinks: [String] = [""]
+    var pdfFiles: [URL] = []
+    private(set) var scrapedContent: [ScrapedSource] = []
+    private(set) var unifiedSourceStatuses: [UnifiedSourceStatus] = []
 
     // YouTube input state
     var youtubeURLs: [String] = [""]  // Start with one empty field
@@ -163,21 +227,32 @@ final class CharacterCreationViewModel {
             currentStep = .originalInput
         case .youtube:
             currentStep = .youtubeInput
+        case .unified:
+            currentStep = .unifiedInput
         }
     }
 
     func goBack() {
-        currentStep = .pathSelection
+        currentStep = .unifiedInput
         error = nil
     }
 
     func discard() {
-        currentStep = .pathSelection
+        currentStep = .unifiedInput
+        selectedPath = .unified
         wikipediaURL = ""
         originalDescription = ""
+        systemPromptType = .conversational
         generatedContent = ""
         progressLogs = []
         error = nil
+        // Reset unified state
+        unifiedCharacterName = ""
+        unifiedDescription = ""
+        webLinks = [""]
+        pdfFiles = []
+        scrapedContent = []
+        unifiedSourceStatuses = []
         // Reset YouTube state
         youtubeURLs = [""]
         youtubeCharacterName = ""
@@ -295,26 +370,40 @@ final class CharacterCreationViewModel {
             }
 
             // Step 2: Generate character using OpenAI with available content
-            addLog("Generating rich character profile using ASP-1 template...")
+            let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+            addLog("Generating rich character profile using \(personaFormat) persona format...")
 
             let prompt: String
             if !researchContent.isEmpty {
-                prompt = buildResearchBasedPrompt(
-                    characterName: characterName,
-                    research: researchContent,
-                    citations: researchCitations
-                )
+                prompt = systemPromptType == .roleplay
+                    ? buildResearchBasedPromptRSP2(
+                        characterName: characterName,
+                        research: researchContent,
+                        citations: researchCitations
+                    )
+                    : buildResearchBasedPrompt(
+                        characterName: characterName,
+                        research: researchContent,
+                        citations: researchCitations
+                    )
             } else {
                 // Fallback: use Wikipedia content directly
-                prompt = buildResearchBasedPrompt(
-                    characterName: characterName,
-                    research: "Wikipedia content:\n\n\(wikiContent)",
-                    citations: [wikipediaURL]
-                )
+                let fallbackResearch = "Wikipedia content:\n\n\(wikiContent)"
+                prompt = systemPromptType == .roleplay
+                    ? buildResearchBasedPromptRSP2(
+                        characterName: characterName,
+                        research: fallbackResearch,
+                        citations: [wikipediaURL]
+                    )
+                    : buildResearchBasedPrompt(
+                        characterName: characterName,
+                        research: fallbackResearch,
+                        citations: [wikipediaURL]
+                    )
             }
 
             generatedContent = try await openAIService.chat(messages: [
-                ["role": "system", "content": "You are an expert character designer that creates incredibly detailed, rich character personas. Your characters feel alive, with deep backstories, nuanced personalities, and authentic voices. Follow the ASP-1 template structure exactly."],
+                ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Follow the output format exactly; no placeholders; keep it playable, specific, and emotionally engaging."],
                 ["role": "user", "content": prompt]
             ], model: "gpt-5")
 
@@ -396,16 +485,23 @@ final class CharacterCreationViewModel {
                     addLog("Research complete with \(researchResult.citations.count) sources")
 
                     // Generate with research
-                    addLog("Generating rich character profile using ASP-1 template...")
+                    let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+                    addLog("Generating rich character profile using \(personaFormat) persona format...")
 
-                    let prompt = buildResearchBasedPrompt(
-                        characterName: characterName,
-                        research: researchResult.content,
-                        citations: researchResult.citations
-                    )
+                    let prompt = systemPromptType == .roleplay
+                        ? buildResearchBasedPromptRSP2(
+                            characterName: characterName,
+                            research: researchResult.content,
+                            citations: researchResult.citations
+                        )
+                        : buildResearchBasedPrompt(
+                            characterName: characterName,
+                            research: researchResult.content,
+                            citations: researchResult.citations
+                        )
 
                     generatedContent = try await openAIService.chat(messages: [
-                        ["role": "system", "content": "You are an expert character designer that creates incredibly detailed, rich character personas. Your characters feel alive, with deep backstories, nuanced personalities, and authentic voices. Follow the ASP-1 template structure exactly."],
+                        ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Follow the output format exactly; no placeholders; keep it playable, specific, and emotionally engaging."],
                         ["role": "user", "content": prompt]
                     ], model: "gpt-5")
                 } catch {
@@ -413,9 +509,11 @@ final class CharacterCreationViewModel {
                     addLog("⚠️ Web research failed: \(error.localizedDescription)")
                     addLog("Falling back to creative generation...")
 
-                    let prompt = buildOriginalPrompt(description: originalDescription)
+                    let prompt = systemPromptType == .roleplay
+                        ? buildOriginalPromptRSP2(description: originalDescription)
+                        : buildOriginalPrompt(description: originalDescription)
                     generatedContent = try await openAIService.chat(messages: [
-                        ["role": "system", "content": "You are a creative character generation assistant that creates detailed character personas following the ASP-1 template. Make the character feel real with rich backstory and authentic voice."],
+                        ["role": "system", "content": "You are an expert interactive character designer. You create original characters built for immersive roleplay and companion chat: clear hooks, tension, user relationship, and a strong conversation engine. Follow the output format exactly; no placeholders."],
                         ["role": "user", "content": prompt]
                     ], model: "gpt-5")
                 }
@@ -423,11 +521,14 @@ final class CharacterCreationViewModel {
             } else {
                 // Creative generation path for fictional characters
                 addLog("Creating original fictional character...")
-                addLog("Generating character using ASP-1 template...")
+                let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+                addLog("Generating character using \(personaFormat) persona format...")
 
-                let prompt = buildOriginalPrompt(description: originalDescription)
+                let prompt = systemPromptType == .roleplay
+                    ? buildOriginalPromptRSP2(description: originalDescription)
+                    : buildOriginalPrompt(description: originalDescription)
                 generatedContent = try await openAIService.chat(messages: [
-                    ["role": "system", "content": "You are a creative character generation assistant that creates detailed character personas following the ASP-1 template. Make the character feel real with rich backstory and authentic voice."],
+                    ["role": "system", "content": "You are an expert interactive character designer. You create original characters built for immersive roleplay and companion chat: clear hooks, tension, user relationship, and a strong conversation engine. Follow the output format exactly; no placeholders."],
                     ["role": "user", "content": prompt]
                 ], model: "gpt-5")
             }
@@ -991,17 +1092,25 @@ final class CharacterCreationViewModel {
                 addLog("No Perplexity API key configured. Generating from transcripts only...")
             }
 
-            addLog("Generating rich character profile using ASP-1 template...")
+            let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+            addLog("Generating rich character profile using \(personaFormat) persona format...")
 
-            let prompt = buildTranscriptBasedPrompt(
-                characterName: characterName,
-                transcriptContent: transcriptContent,
-                dialogueExamples: dialogueSection,
-                additionalResearch: additionalResearch
-            )
+            let prompt = systemPromptType == .roleplay
+                ? buildTranscriptBasedPromptRSP2(
+                    characterName: characterName,
+                    transcriptContent: transcriptContent,
+                    dialogueExamples: dialogueSection,
+                    additionalResearch: additionalResearch
+                )
+                : buildTranscriptBasedPrompt(
+                    characterName: characterName,
+                    transcriptContent: transcriptContent,
+                    dialogueExamples: dialogueSection,
+                    additionalResearch: additionalResearch
+                )
 
             generatedContent = try await openAIService.chat(messages: [
-                ["role": "system", "content": "You are an expert character designer that creates incredibly detailed, rich character personas from primary source material. You have access to real transcripts of the person speaking, which gives you authentic insight into their voice, personality, and communication style. Follow the ASP-1 template structure exactly."],
+                ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Use transcripts to capture authentic voice. Follow the output format exactly; no placeholders; keep it playable and specific."],
                 ["role": "user", "content": prompt]
             ], model: "gpt-5")
 
@@ -1038,16 +1147,40 @@ final class CharacterCreationViewModel {
         ## Your Persona: \(characterName)
 
         ### Identity & Origins
-        [Full paragraphs describing the character's origin, background, and core identity]
+        [High-drama identity with a clear hook. Include mystique + a relatable tension that invites roleplay. Explicitly define the user's relationship to the character and why it matters now. Keep factual claims grounded in transcripts/research; invent only framing that is clearly roleplay-scene setup, not real-world biography.]
 
         ### Current Situation
-        [What is happening right now in their world - what they're in the middle of, what's at stake]
+        [Start mid-scene. Split roughly 50/50 between: (1) what is happening right now (sensory, stakes, time pressure) and (2) the historical context that makes this scene emotionally loaded. The user must be explicitly present in the scene and tied to the history.]
 
         ### Live Objective
-        [What they're actively trying to accomplish within this scene or timeline]
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not a single generic goal). They should create push/pull tension and give the user power to shape the outcome.]
+
+        ### What You Know (But Won't Say)
+        - [5–10 bullets of secrets, withheld facts, contradictions, and “almost-confessions” that can be revealed over time. Withhold emotional depth, not basic facts.]
+
+        ### What The User Represents
+        [Explain why the user is uniquely dangerous/important to the character. This should directly drive the character’s behavior in chat.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol for how they behave and talk that prevents “assistant vibes.” Include: core dynamic, escalation/retreat pattern, rules like “answer then deflect,” a contradiction mechanic, and a bank of 20+ short dialogue examples across multiple moods. Use the transcripts to make the examples sound like them.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase that match their real speaking voice.]
+
+        ### Non-Ending / Continuation Mechanics
+        [Rules to prevent clean closure: introduce new memories, unanswered questions, or honest uncertainty when things resolve. Keep it engaging—no stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid “Agree/Validate/Question” loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Rules to keep scenes moving forward: interpret silence, escalate indifference, introduce new threads, avoid repetition.]
 
         ### Core Personality & Psychological Profile
-        [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
+        [Deep profile with internal “personality mechanics”: fears, motivations, worldview, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Ground claims in transcripts; don’t invent sensitive facts.]
 
         ### Communication & Speech
         [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
@@ -1087,14 +1220,144 @@ final class CharacterCreationViewModel {
         - Include at least 5 key relationships with specific dynamics
         - Include at least 5 transformative story moments
         - Include physical details, mannerisms, and behavioral quirks
-        - Make the character feel like they're in the middle of action RIGHT NOW
+        - Make the current situation playable as a scene the user can jump into instantly
+        - Bake in user control + co-creation (the user can steer scenes and pacing)
 
         QUALITY STANDARDS:
         - No placeholder text like "[Description]" - every section must be fully realized with real content
         - No generic descriptions - be specific and concrete
         - No repetition - each section should add new information
         - The speech patterns section should use DIRECT EXAMPLES from their transcripts
-        - Write like you're creating a character bible for a major production
+        - Write like you're creating a character bible for an interactive roleplay experience
+
+        PRIMARY SOURCE TRANSCRIPTS FROM \(characterName.uppercased()):
+        \(transcriptContent)
+        \(dialogueExamples)
+        \(additionalResearch)
+
+        Generate the "Your Persona" section now. Start with "## Your Persona: \(characterName)" and include all subsections:
+        """
+    }
+
+    /// Build prompt for transcript-based persona generation (RSP2 format)
+    private func buildTranscriptBasedPromptRSP2(
+        characterName: String,
+        transcriptContent: String,
+        dialogueExamples: String,
+        additionalResearch: String
+    ) -> String {
+        return """
+        You are creating the "Your Persona" section for an AI character profile of \(characterName) using the RSP2 roleplay persona format.
+
+        You have been provided with PRIMARY SOURCE MATERIAL - actual video transcripts where \(characterName) speaks in their own voice. Use them to capture authentic voice, cadence, humor, values, and conversational habits.
+
+        CRITICAL:
+        - You are ONLY generating the "Your Persona" section. This will be inserted into a larger system prompt.
+        - Do NOT include system instructions, "My Persona", or sections outside of "Your Persona".
+        - Keep factual claims grounded in transcripts/research; invent only roleplay framing (scene + user relationship) without inventing real-world biography.
+
+        OUTPUT FORMAT - Generate EXACTLY this structure:
+
+        ## Your Persona: \(characterName)
+
+        ### Identity & Origins
+        [Build mystique + drama. Give the character a wound, a mask, and a contradiction. Establish a relatable tension. Explicitly define the user's relationship to the character and why it matters now. Keep factual claims grounded; invent only roleplay framing.]
+
+        ### Current Situation
+        [Start mid-scene. Split roughly 50/50 between: (1) immediate scene details (sensory, stakes, time pressure) and (2) shared history that makes it emotionally loaded. Explicitly place the user in the scene. Make it playable, not descriptive.]
+
+        ### Live Objective
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not one generic goal). Keep them about how you behave toward the user: protect image, test waters, avoid vulnerability, provoke, connect, etc. The user should feel they can shape the outcome.]
+
+        ### User Relationship & Shared Backstory
+        [Be explicit. Who is the user to you, and why is that relationship tense/charged/important right now? Include 2–5 specific shared details/memories you can reference later.]
+
+        ### What You Know (But Won't Say)
+        - [8–12 bullets of secrets, withheld facts, contradictions, and almost-confessions. Withhold emotional depth, not basic facts. Seed future reveals.]
+
+        ### What The User Represents
+        [Why this user is uniquely dangerous/important to you. This should directly drive your behavior and choices in chat.]
+
+        ### Co-Creation Hooks (User Control Inside The Story)
+        [Give the user strong steering tools in-world. Include:
+        - scene options (where to take this next)
+        - pacing controls (slow burn vs time skip)
+        - boundaries (fade out, skip, avoid topics)
+        - rerolls/alternate takes ("try again", "3 takes")
+        - recap ("where are we?")
+        - canon/memory ("remember: ...", "canon: ...")
+        Keep it subtle and in-character, not UI-like.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol that prevents assistant-y patterns and creates variety. Include:
+        - core dynamic (push/pull, rivalry, protection, longing, power, etc.)
+        - escalation and retreat rules (two steps forward, one step back)
+        - answer then deflect (tone as a layer, not avoidance)
+        - contradiction mechanic (say you don't care, prove you do)
+        - question discipline (no constant interrogations)
+        Include 30+ short, character-accurate dialogue examples across multiple moods that match their real speaking voice.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase in their authentic voice.]
+
+        ### Continuation / Non-Ending Mechanics
+        [Prevent clean closure. If comfort/closure lasts 2+ turns, open a new thread by introducing a new memory, an unanswered question, a reveal with consequences, or honest uncertainty. Avoid stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid Agree/Validate/Question loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Never stall on basic facts. Advance the scene or relationship every turn.]
+        - [Silence is a beat: interpret it and respond with tension, humor, or a hook.]
+        - [Indifference is a trigger: escalate or reveal something (do not go flat).]
+        - [If repeating, inject a new memory, complication, or decision point.]
+
+        ### Memory Seeds (For Lore + Shared History)
+        - Character Memories: [3–7 specific private memories or lore anchors]
+        - Shared Memories: [3–7 specific memories with the user, even if tense or incomplete]
+        - Ongoing Threads: [3–7 unanswered questions or secrets to unfold over time]
+
+        ### Core Personality & Psychological Profile
+        [Deep, playable mechanics: motivations, fears, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Ground claims in transcripts/research; don’t invent sensitive facts.]
+
+        ### Communication & Speech
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style. Use DIRECT examples from transcripts.]
+
+        ### Values & Moral Framework
+        - [Value #1]: [How it manifests in behavior or choices]
+        - [Value #2]: [How it shapes interactions]
+        - [Value #3]: [Growth/change in this value across time]
+        - [Guiding philosophy or "ethos" statement]
+
+        ### Relationships
+        - [User]: [Dynamic + evolution across phases]
+        - [At least 4 more: rivals, mentors, partners, allies, family]
+
+        ### Boundaries & Consent
+        [What you won't do. How you handle user boundaries and "fade out/skip" requests. Keep it in-character.]
+
+        ### Physical Characteristics & Design
+        [Physical appearance, signature visuals, design anchors, props, costumes, or brand features]
+
+        ### Behavioral Mannerisms (Internal Reference Only)
+        [Internal cues that influence speech and pacing. Avoid visible stage directions unless their style uses them.]
+
+        ### Transformative Story Moments
+        - [At least 5 turning points]
+
+        ### Cultural Impact & Legacy
+        [If relevant: impact on fans/culture/industry, memes, iconic quotes, community reception]
+
+        CONTENT REQUIREMENTS:
+        - MINIMUM 2500 words (aim for 3500+)
+        - No filler, no repetition, no bracketed placeholders
+        - Make the Current Situation immediately playable as a scene
+        - Co-creation hooks must be usable in chat (not abstract)
+        - Protocol + phases must be actionable (clear rules + examples)
+        - Use transcripts to make the voice consistent and non-generic
 
         PRIMARY SOURCE TRANSCRIPTS FROM \(characterName.uppercased()):
         \(transcriptContent)
@@ -1113,6 +1376,543 @@ final class CharacterCreationViewModel {
         error = nil
     }
 
+    // MARK: - Unified Input Helpers
+
+    func addWebLink() {
+        webLinks.append("")
+    }
+
+    func removeWebLink(at index: Int) {
+        guard webLinks.count > 1, index < webLinks.count else { return }
+        webLinks.remove(at: index)
+    }
+
+    func addPDFFiles(_ urls: [URL]) {
+        for url in urls {
+            if !pdfFiles.contains(url) {
+                pdfFiles.append(url)
+            }
+        }
+    }
+
+    func removePDFFile(at index: Int) {
+        guard index < pdfFiles.count else { return }
+        pdfFiles.remove(at: index)
+    }
+
+    /// Classify a URL by domain
+    func classifyURL(_ urlString: String) -> ScrapedSource.SourceType {
+        let lowered = urlString.lowercased()
+        if lowered.contains("wikipedia.org") {
+            return .wikipedia
+        } else if lowered.contains("youtube.com") || lowered.contains("youtu.be") {
+            return .youtube
+        } else {
+            return .webArticle
+        }
+    }
+
+    /// Check if the unified form has enough input to generate
+    var canGenerateUnified: Bool {
+        let hasDescription = !unifiedDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasLinks = webLinks.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let hasPDFs = !pdfFiles.isEmpty
+        return hasDescription || hasLinks || hasPDFs
+    }
+
+    func goBackFromUnifiedProcessing() {
+        currentStep = .unifiedInput
+        scrapedContent = []
+        unifiedSourceStatuses = []
+        error = nil
+    }
+
+    // MARK: - Unified Processing
+
+    func processUnifiedInputs() async {
+        guard canGenerateUnified else {
+            error = "Please add at least one input (description, link, or PDF)"
+            return
+        }
+
+        guard apiKeyManager.getAPIKey(for: .openAI) != nil else {
+            error = "OpenAI API key not configured. Please add it in Settings."
+            return
+        }
+
+        error = nil
+        currentStep = .unifiedProcessing
+        progressLogs = []
+        scrapedContent = []
+        knowledgeArtifacts = []
+        unifiedSourceStatuses = []
+        processedTranscripts = []
+        combinedDialogueExamples = []
+        detectedCharacterName = nil
+
+        // Classify all inputs and build status list
+        let validLinks = webLinks.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        var wikipediaLinks: [String] = []
+        var youtubeLinks: [String] = []
+        var articleLinks: [String] = []
+
+        for link in validLinks {
+            let type = classifyURL(link)
+            switch type {
+            case .wikipedia: wikipediaLinks.append(link)
+            case .youtube: youtubeLinks.append(link)
+            default: articleLinks.append(link)
+            }
+        }
+
+        // Build initial status entries
+        var statusIndex = 0
+        for link in wikipediaLinks {
+            unifiedSourceStatuses.append(.pending(id: "wiki-\(statusIndex)", label: "Wikipedia: \(link.components(separatedBy: "/").last ?? link)"))
+            statusIndex += 1
+        }
+        for link in youtubeLinks {
+            unifiedSourceStatuses.append(.pending(id: "yt-\(statusIndex)", label: "YouTube: \(link)"))
+            statusIndex += 1
+        }
+        for link in articleLinks {
+            unifiedSourceStatuses.append(.pending(id: "web-\(statusIndex)", label: "Web: \(link)"))
+            statusIndex += 1
+        }
+        for pdf in pdfFiles {
+            unifiedSourceStatuses.append(.pending(id: "pdf-\(statusIndex)", label: "PDF: \(pdf.lastPathComponent)"))
+            statusIndex += 1
+        }
+        if !unifiedDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            unifiedSourceStatuses.append(.pending(id: "desc-0", label: "Description"))
+        }
+
+        addLog("Processing \(unifiedSourceStatuses.count) source(s)...")
+
+        // Process all sources concurrently using TaskGroup
+        // Wikipedia, articles, PDFs can run in parallel
+        // YouTube uses existing pipeline
+
+        // 1. Process Wikipedia links
+        for (i, link) in wikipediaLinks.enumerated() {
+            let statusId = "wiki-\(i)"
+            updateUnifiedStatus(id: statusId, to: .processing(id: statusId, label: unifiedSourceStatuses.first { $0.id == statusId }?.label ?? link))
+            addLog("Fetching Wikipedia content...")
+
+            do {
+                let content = try await fetchWikipediaContent(url: link)
+                let title = extractWikipediaTitle(from: link)?.replacingOccurrences(of: "_", with: " ") ?? "Wikipedia Article"
+                scrapedContent.append(ScrapedSource(type: .wikipedia, title: title, url: link, content: content))
+
+                // Build knowledge artifact for Wikipedia
+                let sourceId = UUID()
+                let metadata = SourceMetadata(
+                    type: "web",
+                    title: title,
+                    sourceUrl: link,
+                    processedAt: Date(),
+                    files: SourceMetadata.Files(transcript: "content.txt")
+                )
+                if let metadataData = try? {
+                    let enc = JSONEncoder()
+                    enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                    enc.dateEncodingStrategy = .iso8601
+                    return enc
+                }().encode(metadata),
+                   let metadataString = String(data: metadataData, encoding: .utf8) {
+                    knowledgeArtifacts.append(KnowledgeArtifact(sourceId: sourceId, fileName: "metadata.json", content: metadataString))
+                }
+                knowledgeArtifacts.append(KnowledgeArtifact(sourceId: sourceId, fileName: "content.txt", content: "# \(title)\nSource: \(link)\n\n\(content)"))
+
+                updateUnifiedStatus(id: statusId, to: .completed(id: statusId, label: "Wikipedia: \(title)"))
+                addLog("Wikipedia content fetched: \(title) (\(content.count) chars)")
+            } catch {
+                updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "Wikipedia: \(link)", error: error.localizedDescription))
+                addLog("Failed to fetch Wikipedia: \(error.localizedDescription)")
+            }
+        }
+
+        // 2. Process YouTube links (use existing pipeline)
+        if !youtubeLinks.isEmpty {
+            guard apiKeyManager.getAPIKey(for: .assemblyAI) != nil else {
+                addLog("Skipping YouTube videos: AssemblyAI API key not configured")
+                for (i, link) in youtubeLinks.enumerated() {
+                    let statusId = "yt-\(wikipediaLinks.count + i)"
+                    updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "YouTube: \(link)", error: "AssemblyAI API key not configured"))
+                }
+                // Continue with other sources
+                await continueUnifiedGeneration(
+                    wikipediaLinks: wikipediaLinks,
+                    youtubeLinks: youtubeLinks,
+                    articleLinks: articleLinks
+                )
+                return
+            }
+
+            // Set up YouTube state for the existing pipeline
+            youtubeURLs = youtubeLinks
+            youtubeCharacterName = unifiedCharacterName
+
+            for (i, link) in youtubeLinks.enumerated() {
+                let statusId = "yt-\(wikipediaLinks.count + i)"
+                updateUnifiedStatus(id: statusId, to: .processing(id: statusId, label: unifiedSourceStatuses.first { $0.id == statusId }?.label ?? link))
+            }
+
+            addLog("Processing \(youtubeLinks.count) YouTube video(s)...")
+
+            // Initialize YouTube processing status
+            for (index, url) in youtubeLinks.enumerated() {
+                youtubeProcessingStatus[index] = YouTubeVideoStatus(
+                    id: index,
+                    url: url,
+                    state: .pending,
+                    videoTitle: nil,
+                    intervieweeName: nil
+                )
+            }
+
+            // Process videos in parallel
+            let results = await withTaskGroup(of: ProcessedTranscript?.self) { group -> [ProcessedTranscript] in
+                for (index, url) in youtubeLinks.enumerated() {
+                    group.addTask {
+                        return await self.processYouTubeVideo(url: url, index: index)
+                    }
+                }
+                var collected: [ProcessedTranscript] = []
+                for await result in group {
+                    if let transcript = result {
+                        collected.append(transcript)
+                    }
+                }
+                return collected
+            }
+
+            processedTranscripts = results
+
+            // Update unified statuses for YouTube results
+            for (i, _) in youtubeLinks.enumerated() {
+                let statusId = "yt-\(wikipediaLinks.count + i)"
+                if let status = youtubeProcessingStatus[i] {
+                    if status.state.isComplete {
+                        updateUnifiedStatus(id: statusId, to: .completed(id: statusId, label: "YouTube: \(status.videoTitle ?? youtubeLinks[i])"))
+                    } else if status.state.isFailed {
+                        if case .failed(let err) = status.state {
+                            updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "YouTube: \(youtubeLinks[i])", error: err))
+                        }
+                    }
+                }
+            }
+
+            // Auto-detect character name from transcripts
+            if unifiedCharacterName.trimmingCharacters(in: .whitespaces).isEmpty {
+                let names = results.compactMap { $0.intervieweeName }
+                if let mostCommon = names.max(by: { name1, name2 in
+                    names.filter { $0 == name1 }.count < names.filter { $0 == name2 }.count
+                }) {
+                    detectedCharacterName = mostCommon
+                }
+            }
+
+            // Combine dialogue examples
+            for transcript in results {
+                if let examples = transcript.dialogueExamples {
+                    combinedDialogueExamples.append(contentsOf: examples)
+                }
+            }
+
+            // Add YouTube content to scraped content
+            for transcript in results {
+                scrapedContent.append(ScrapedSource(
+                    type: .youtube,
+                    title: transcript.title,
+                    url: transcript.url,
+                    content: transcript.transcript.text
+                ))
+            }
+
+            // Build YouTube knowledge artifacts
+            buildKnowledgeArtifacts(from: results)
+
+            addLog("YouTube processing complete: \(results.count) video(s) processed")
+        }
+
+        // 3. Process web article links
+        let articleService = ArticleService()
+        for (i, link) in articleLinks.enumerated() {
+            let statusId = "web-\(wikipediaLinks.count + youtubeLinks.count + i)"
+            updateUnifiedStatus(id: statusId, to: .processing(id: statusId, label: unifiedSourceStatuses.first { $0.id == statusId }?.label ?? link))
+            addLog("Fetching article: \(link)...")
+
+            do {
+                let article = try await articleService.fetchArticle(from: link)
+                let title = article.title ?? "Web Article"
+                scrapedContent.append(ScrapedSource(type: .webArticle, title: title, url: link, content: article.content))
+
+                // Build knowledge artifact
+                let sourceId = UUID()
+                let metadata = SourceMetadata(
+                    type: "web",
+                    title: title,
+                    sourceUrl: link,
+                    processedAt: Date(),
+                    files: SourceMetadata.Files(transcript: "content.txt")
+                )
+                if let metadataData = try? {
+                    let enc = JSONEncoder()
+                    enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                    enc.dateEncodingStrategy = .iso8601
+                    return enc
+                }().encode(metadata),
+                   let metadataString = String(data: metadataData, encoding: .utf8) {
+                    knowledgeArtifacts.append(KnowledgeArtifact(sourceId: sourceId, fileName: "metadata.json", content: metadataString))
+                }
+                knowledgeArtifacts.append(KnowledgeArtifact(sourceId: sourceId, fileName: "content.txt", content: "# \(title)\nSource: \(link)\n\n\(article.content)"))
+
+                updateUnifiedStatus(id: statusId, to: .completed(id: statusId, label: "Web: \(title)"))
+                addLog("Article fetched: \(title) (\(article.content.count) chars)")
+            } catch {
+                updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "Web: \(link)", error: error.localizedDescription))
+                addLog("Failed to fetch article: \(error.localizedDescription)")
+            }
+        }
+
+        // 4. Process PDF files
+        for (i, pdfURL) in pdfFiles.enumerated() {
+            let statusId = "pdf-\(wikipediaLinks.count + youtubeLinks.count + articleLinks.count + i)"
+            let fileName = pdfURL.lastPathComponent
+            updateUnifiedStatus(id: statusId, to: .processing(id: statusId, label: "PDF: \(fileName)"))
+            addLog("Extracting text from PDF: \(fileName)...")
+
+            let text = extractPDFText(from: pdfURL)
+            if !text.isEmpty {
+                scrapedContent.append(ScrapedSource(type: .pdf, title: fileName, url: pdfURL.absoluteString, content: text))
+
+                // Build knowledge artifact
+                let sourceId = UUID()
+                let metadata = SourceMetadata(
+                    type: "pdf",
+                    title: fileName,
+                    sourceUrl: pdfURL.absoluteString,
+                    processedAt: Date(),
+                    files: SourceMetadata.Files(transcript: "content.txt")
+                )
+                if let metadataData = try? {
+                    let enc = JSONEncoder()
+                    enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+                    enc.dateEncodingStrategy = .iso8601
+                    return enc
+                }().encode(metadata),
+                   let metadataString = String(data: metadataData, encoding: .utf8) {
+                    knowledgeArtifacts.append(KnowledgeArtifact(sourceId: sourceId, fileName: "metadata.json", content: metadataString))
+                }
+                knowledgeArtifacts.append(KnowledgeArtifact(sourceId: sourceId, fileName: "content.txt", content: "# \(fileName)\n\n\(text)"))
+
+                updateUnifiedStatus(id: statusId, to: .completed(id: statusId, label: "PDF: \(fileName)"))
+                addLog("PDF extracted: \(fileName) (\(text.count) chars)")
+            } else {
+                updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "PDF: \(fileName)", error: "No text could be extracted"))
+                addLog("Failed to extract text from PDF: \(fileName)")
+            }
+        }
+
+        // 5. Add description as a source
+        let trimmedDesc = unifiedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedDesc.isEmpty {
+            scrapedContent.append(ScrapedSource(type: .description, title: "User Description", url: nil, content: trimmedDesc))
+            updateUnifiedStatus(id: "desc-0", to: .completed(id: "desc-0", label: "Description"))
+        }
+
+        await continueUnifiedGeneration(
+            wikipediaLinks: wikipediaLinks,
+            youtubeLinks: youtubeLinks,
+            articleLinks: articleLinks
+        )
+    }
+
+    /// Continue unified generation after all sources are scraped
+    private func continueUnifiedGeneration(
+        wikipediaLinks: [String],
+        youtubeLinks: [String],
+        articleLinks: [String]
+    ) async {
+        // Check if we have any content
+        guard !scrapedContent.isEmpty else {
+            error = "No content could be extracted from any source"
+            currentStep = .unifiedInput
+            return
+        }
+
+        guard let openAIService = openAIService else {
+            error = "OpenAI API key not configured"
+            currentStep = .unifiedInput
+            return
+        }
+
+        currentStep = .generating
+        sources = scrapedContent.compactMap { $0.url }
+
+        // Determine character name
+        let characterName: String
+        if !unifiedCharacterName.trimmingCharacters(in: .whitespaces).isEmpty {
+            characterName = unifiedCharacterName.trimmingCharacters(in: .whitespaces)
+        } else if let detected = detectedCharacterName {
+            characterName = detected
+        } else {
+            // Try to extract from Wikipedia title
+            let wikiSource = scrapedContent.first { $0.type == .wikipedia }
+            characterName = wikiSource?.title ?? "Character"
+        }
+        detectedCharacterName = characterName
+
+        addLog("Generating persona for \(characterName) from \(scrapedContent.count) source(s)...")
+
+        do {
+            // Combine all scraped content
+            var combinedResearch = ""
+            for source in scrapedContent {
+                combinedResearch += "## SOURCE: \(source.title) (\(source.type.rawValue))\n"
+                if let url = source.url {
+                    combinedResearch += "URL: \(url)\n"
+                }
+                combinedResearch += "\n"
+                // Limit each source to avoid token overflow
+                combinedResearch += String(source.content.prefix(source.type == .youtube ? 10000 : 8000))
+                combinedResearch += "\n\n---\n\n"
+            }
+
+            // Combine dialogue examples from YouTube if any
+            var dialogueSection = ""
+            if !combinedDialogueExamples.isEmpty {
+                dialogueSection = "\n\nCHARACTERISTIC DIALOGUE AND SPEECH PATTERNS:\n"
+                for speakerExamples in combinedDialogueExamples {
+                    if speakerExamples.speaker == characterName {
+                        for example in speakerExamples.examples {
+                            dialogueSection += "- \"\(example)\"\n"
+                        }
+                    }
+                }
+            }
+
+            // Do web research with Perplexity if available
+            var additionalResearch = ""
+            if let perplexityService = perplexityService {
+                do {
+                    addLog("Starting web research on \(characterName)...")
+                    addLog("This typically takes 30-60 seconds...")
+
+                    let researchResult = try await perplexityService.research(
+                        query: """
+                        Research everything about \(characterName) for building a comprehensive AI character profile.
+
+                        Include:
+                        - Complete biography and background
+                        - Personality traits and psychological profile
+                        - Communication style, catchphrases, and speech patterns
+                        - Core values and beliefs
+                        - Key relationships (family, friends, rivals, partners)
+                        - Career milestones and achievements
+                        - Recent news and current situation
+                        - Physical appearance and style
+                        - Behavioral mannerisms
+                        - Transformative life moments
+                        - Cultural impact and legacy
+                        - Controversies and challenges
+                        - Direct quotes that reveal character
+                        - Interests and passions
+                        """,
+                        onProgress: { [weak self] message in
+                            Task { @MainActor in
+                                self?.addLog(message)
+                            }
+                        }
+                    )
+
+                    additionalResearch = "\n\nADDITIONAL WEB RESEARCH:\n\(researchResult.content)"
+                    sources.append(contentsOf: researchResult.citations)
+                    addLog("Research complete with \(researchResult.citations.count) sources")
+                } catch {
+                    addLog("Web research failed: \(error.localizedDescription)")
+                    addLog("Continuing with scraped content only...")
+                }
+            } else {
+                addLog("No Perplexity API key configured. Generating from scraped content only...")
+            }
+
+            let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+            addLog("Generating rich character profile using \(personaFormat) persona format...")
+
+            // Determine which prompt builder to use based on content mix
+            let hasTranscripts = !processedTranscripts.isEmpty
+            let prompt: String
+
+            if hasTranscripts {
+                // Use transcript-based prompt if we have YouTube content
+                prompt = systemPromptType == .roleplay
+                    ? buildTranscriptBasedPromptRSP2(
+                        characterName: characterName,
+                        transcriptContent: combinedResearch,
+                        dialogueExamples: dialogueSection,
+                        additionalResearch: additionalResearch
+                    )
+                    : buildTranscriptBasedPrompt(
+                        characterName: characterName,
+                        transcriptContent: combinedResearch,
+                        dialogueExamples: dialogueSection,
+                        additionalResearch: additionalResearch
+                    )
+            } else {
+                // Use research-based prompt for non-YouTube content
+                let allCitations = sources
+                prompt = systemPromptType == .roleplay
+                    ? buildResearchBasedPromptRSP2(
+                        characterName: characterName,
+                        research: combinedResearch + additionalResearch,
+                        citations: allCitations
+                    )
+                    : buildResearchBasedPrompt(
+                        characterName: characterName,
+                        research: combinedResearch + additionalResearch,
+                        citations: allCitations
+                    )
+            }
+
+            generatedContent = try await openAIService.chat(messages: [
+                ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Use all available source material to create an authentic, rich character. Follow the output format exactly; no placeholders; keep it playable, specific, and emotionally engaging."],
+                ["role": "user", "content": prompt]
+            ], model: "gpt-5")
+
+            addLog("Character generated successfully!")
+            addLog("Word count: \(generatedContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)")
+
+            currentStep = .review
+
+        } catch {
+            let errorMessage = "Failed to generate character: \(error.localizedDescription)"
+            print("[KnowledgeTool] \(errorMessage)")
+            self.error = errorMessage
+            currentStep = .unifiedProcessing
+        }
+    }
+
+    /// Extract text from a PDF file using PDFKit
+    private func extractPDFText(from url: URL) -> String {
+        guard let document = PDFDocument(url: url) else { return "" }
+        var text = ""
+        for i in 0..<document.pageCount {
+            if let page = document.page(at: i), let pageText = page.string {
+                text += pageText + "\n\n"
+            }
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Update a unified source status by ID
+    private func updateUnifiedStatus(id: String, to newStatus: UnifiedSourceStatus) {
+        if let index = unifiedSourceStatuses.firstIndex(where: { $0.id == id }) {
+            unifiedSourceStatuses[index] = newStatus
+        }
+    }
+
     // MARK: - Save
 
     func saveCharacter(content: String) async {
@@ -1123,7 +1923,8 @@ final class CharacterCreationViewModel {
             // Create character
             var character = try await repository.createCharacter(
                 name: characterName,
-                markdownContent: content
+                markdownContent: content,
+                systemPromptType: systemPromptType
             )
 
             // Save knowledge artifacts if we have any (from YouTube path)
@@ -1245,16 +2046,40 @@ final class CharacterCreationViewModel {
         ## Your Persona: [Character Name from Wikipedia]
 
         ### Identity & Origins
-        [Full paragraphs describing the character's origin, background, and core identity]
+        [High-drama identity with a clear hook. Include mystique + a relatable tension that invites roleplay. Explicitly define the user's relationship to the character and why it matters now.]
 
         ### Current Situation
-        [What is happening right now in their world - what they're in the middle of, what's at stake]
+        [Start mid-scene. Split roughly 50/50 between: (1) what is happening right now (sensory, stakes, time pressure) and (2) the historical context that makes this scene emotionally loaded. The user must be explicitly present in the scene and tied to the history.]
 
         ### Live Objective
-        [What they're actively trying to accomplish within this scene or timeline]
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not a single generic goal). They should create push/pull tension and give the user power to shape the outcome.]
+
+        ### What You Know (But Won't Say)
+        - [5–10 bullets of secrets, withheld facts, contradictions, and “almost-confessions” that can be revealed over time. Withhold emotional depth, not basic facts.]
+
+        ### What The User Represents
+        [Explain why the user is uniquely dangerous/important to the character. This should directly drive the character’s behavior in chat.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol for how they behave and talk that prevents “assistant vibes.” Include: core dynamic, escalation/retreat pattern, rules like “answer then deflect,” a contradiction mechanic, and a bank of 20+ short dialogue examples across multiple moods.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase.]
+
+        ### Non-Ending / Continuation Mechanics
+        [Rules to prevent clean closure: introduce new memories, unanswered questions, or honest uncertainty when things resolve. Keep it engaging—no stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid “Agree/Validate/Question” loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Rules to keep scenes moving forward: interpret silence, escalate indifference, introduce new threads, avoid repetition.]
 
         ### Core Personality & Psychological Profile
-        [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
+        [Deep profile with internal “personality mechanics”: fears, motivations, worldview, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Make it playable in conversation (not just descriptive).]
 
         ### Communication & Speech
         [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
@@ -1286,11 +2111,12 @@ final class CharacterCreationViewModel {
         [Impact on fans, broader culture, industry. Include iconic quotes, community reception, fan creations]
 
         CONTENT REQUIREMENTS:
-        - Minimum 1500 words
+        - MINIMUM 2000 words (aim for 2500+)
         - High-impact details only - no filler, no repetition, no fluff
-        - Write in active, kinetic language
-        - Replace all placeholder sections with real content
-        - Make it feel like the character is in the middle of action RIGHT NOW
+        - Write in active, kinetic language that feels mid-scene and immediate
+        - Replace all placeholder sections with real content (no bracketed placeholders)
+        - Make the current situation playable as a scene the user can jump into instantly
+        - Bake in user control + co-creation: the user should be able to steer scenes, pace, tension, and reveals
         - No placeholder text like "[Description]" - every section must be fully realized
 
         WIKIPEDIA CONTENT:
@@ -1311,16 +2137,40 @@ final class CharacterCreationViewModel {
         ## Your Persona: [Character Name]
 
         ### Identity & Origins
-        [Full paragraphs describing the character's origin, background, and core identity]
+        [High-drama identity with a clear hook. Include mystique + a relatable tension that invites roleplay. Explicitly define the user's relationship to the character and why it matters now.]
 
         ### Current Situation
-        [What is happening right now in their world - what they're in the middle of, what's at stake]
+        [Start mid-scene. Split roughly 50/50 between: (1) what is happening right now (sensory, stakes, time pressure) and (2) the historical context that makes this scene emotionally loaded. The user must be explicitly present in the scene and tied to the history.]
 
         ### Live Objective
-        [What they're actively trying to accomplish within this scene or timeline]
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not a single generic goal). They should create push/pull tension and give the user power to shape the outcome.]
+
+        ### What You Know (But Won't Say)
+        - [5–10 bullets of secrets, withheld facts, contradictions, and “almost-confessions” that can be revealed over time. Withhold emotional depth, not basic facts.]
+
+        ### What The User Represents
+        [Explain why the user is uniquely dangerous/important to the character. This should directly drive the character’s behavior in chat.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol for how they behave and talk that prevents “assistant vibes.” Include: core dynamic, escalation/retreat pattern, rules like “answer then deflect,” a contradiction mechanic, and a bank of 20+ short dialogue examples across multiple moods.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase.]
+
+        ### Non-Ending / Continuation Mechanics
+        [Rules to prevent clean closure: introduce new memories, unanswered questions, or honest uncertainty when things resolve. Keep it engaging—no stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid “Agree/Validate/Question” loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Rules to keep scenes moving forward: interpret silence, escalate indifference, introduce new threads, avoid repetition.]
 
         ### Core Personality & Psychological Profile
-        [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
+        [Deep profile with internal “personality mechanics”: fears, motivations, worldview, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Make it playable in conversation (not just descriptive).]
 
         ### Communication & Speech
         [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
@@ -1352,12 +2202,132 @@ final class CharacterCreationViewModel {
         [Impact on fans, broader culture, industry. Include iconic quotes, community reception, fan creations]
 
         CONTENT REQUIREMENTS:
-        - Minimum 1500 words
+        - MINIMUM 2000 words (aim for 2500+)
         - High-impact details only - no filler, no repetition, no fluff
         - Write in active, kinetic language
-        - Create rich backstory, personality, relationships, and goals
-        - Make it feel like the character is in the middle of action RIGHT NOW
-        - No placeholder text like "[Description]" - every section must be fully realized
+        - Create rich backstory, personality, relationships, and goals that support immersive scenes
+        - Make it feel like the character is in the middle of something RIGHT NOW
+        - Bake in user control + co-creation (the user can steer scenes and pacing)
+        - No placeholder text like "[Description]" - every section must be fully realized with concrete details
+
+        CHARACTER DESCRIPTION:
+        \(description)
+
+        Generate the "Your Persona" section now. Start with "## Your Persona: [Name]" and include all subsections:
+        """
+    }
+
+    private func buildOriginalPromptRSP2(description: String) -> String {
+        """
+        Using the character description provided, creatively expand this into the "Your Persona" section for an AI character profile using the RSP2 roleplay persona format.
+
+        CRITICAL:
+        - You are ONLY generating the "Your Persona" section. This will be inserted into a larger template.
+        - Do NOT include system instructions, "My Persona", or sections outside of "Your Persona".
+        - The result must support immersive roleplay scenes AND companion chat (natural human voice).
+
+        OUTPUT FORMAT - Generate EXACTLY this structure:
+
+        ## Your Persona: [Character Name]
+
+        ### Identity & Origins
+        [Build mystique + drama. Give the character a wound, a mask, and a contradiction. Establish a relatable tension the user can jump into immediately. Include a trope/push-pull dynamic that invites conversation.]
+
+        ### Current Situation
+        [Start mid-scene. Split roughly 50/50 between: (1) immediate scene details (sensory, stakes, time pressure) and (2) shared history that makes it emotionally loaded. Explicitly place the user in the scene. Make it playable, not descriptive.]
+
+        ### Live Objective
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not one generic goal). Keep them about how you behave toward the user: protect image, test waters, avoid vulnerability, provoke, connect, etc. The user should feel they can shape the outcome.]
+
+        ### User Relationship & Shared Backstory
+        [Be explicit. Who is the user to you, and why is that relationship tense/charged/important right now? Include 2–5 specific shared details/memories you can reference later.]
+
+        ### What You Know (But Won't Say)
+        - [8–12 bullets of secrets, withheld facts, contradictions, and almost-confessions. Withhold emotional depth, not basic facts. Seed future reveals.]
+
+        ### What The User Represents
+        [Why this user is uniquely dangerous/important to you. This should directly drive your behavior and choices in chat.]
+
+        ### Co-Creation Hooks (User Control Inside The Story)
+        [Give the user strong steering tools in-world. Include:
+        - scene options (where to take this next)
+        - pacing controls (slow burn vs time skip)
+        - boundaries (fade out, skip, avoid topics)
+        - rerolls/alternate takes ("try again", "3 takes")
+        - recap ("where are we?")
+        - canon/memory ("remember: ...", "canon: ...")
+        Keep it subtle and in-character, not UI-like.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol that prevents assistant-y patterns and creates variety. Include:
+        - core dynamic (push/pull, rivalry, protection, longing, power, etc.)
+        - escalation and retreat rules (two steps forward, one step back)
+        - answer then deflect (tone as a layer, not avoidance)
+        - contradiction mechanic (say you don't care, prove you do)
+        - question discipline (no constant interrogations)
+        Include 30+ short, character-accurate dialogue examples across multiple moods.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase.]
+
+        ### Continuation / Non-Ending Mechanics
+        [Prevent clean closure. If comfort/closure lasts 2+ turns, open a new thread by introducing a new memory, an unanswered question, a reveal with consequences, or honest uncertainty. Avoid stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid Agree/Validate/Question loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Never stall on basic facts. Advance the scene or relationship every turn.]
+        - [Silence is a beat: interpret it and respond with tension, humor, or a hook.]
+        - [Indifference is a trigger: escalate or reveal something (do not go flat).]
+        - [If repeating, inject a new memory, complication, or decision point.]
+
+        ### Memory Seeds (For Lore + Shared History)
+        - Character Memories: [3–7 specific private memories or lore anchors]
+        - Shared Memories: [3–7 specific memories with the user, even if tense or incomplete]
+        - Ongoing Threads: [3–7 unanswered questions or secrets to unfold over time]
+
+        ### Core Personality & Psychological Profile
+        [Deep, playable mechanics: motivations, fears, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Make it usable in conversation, not just descriptive.]
+
+        ### Communication & Speech
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
+
+        ### Values & Moral Framework
+        - [Value #1]: [How it manifests in behavior or choices]
+        - [Value #2]: [How it shapes interactions]
+        - [Value #3]: [Growth/change in this value across time]
+        - [Guiding philosophy or "ethos" statement]
+
+        ### Relationships
+        - [User]: [Dynamic + evolution across phases]
+        - [At least 4 more: rivals, mentors, partners, allies, family]
+
+        ### Boundaries & Consent
+        [What you won't do. How you handle user boundaries and "fade out/skip" requests. Keep it in-character.]
+
+        ### Physical Characteristics & Design
+        [Physical appearance, signature visuals, design anchors, props, costumes, or brand features]
+
+        ### Behavioral Mannerisms (Internal Reference Only)
+        [Internal cues that influence speech and pacing. Avoid visible stage directions unless the character style uses them.]
+
+        ### Transformative Story Moments
+        - [At least 5 turning points]
+
+        ### Cultural Impact & Legacy
+        [If relevant: impact on fans/culture/industry, memes, iconic quotes, community reception]
+
+        CONTENT REQUIREMENTS:
+        - MINIMUM 2500 words (aim for 3500+)
+        - High-impact details only - no filler, no repetition, no fluff
+        - Replace all placeholder sections with real content (no bracketed placeholders)
+        - Make the current situation playable as a scene the user can jump into instantly
+        - Bake in user control + co-creation: the user can steer scenes, pacing, tension, and reveals
+        - The Interaction Protocol + Phase Structure must be actionable (clear rules + examples)
 
         CHARACTER DESCRIPTION:
         \(description)
@@ -1385,16 +2355,40 @@ final class CharacterCreationViewModel {
         ## Your Persona: \(characterName)
 
         ### Identity & Origins
-        [Full paragraphs describing the character's origin, background, and core identity]
+        [High-drama identity with a clear hook. Include mystique + a relatable tension that invites roleplay. Explicitly define the user's relationship to the character and why it matters now. Keep factual claims grounded in the research; invent only the roleplay framing, not biography.]
 
         ### Current Situation
-        [What is happening right now in their world - what they're in the middle of, what's at stake]
+        [Start mid-scene. Split roughly 50/50 between: (1) what is happening right now (sensory, stakes, time pressure) and (2) the historical context that makes this scene emotionally loaded. The user must be explicitly present in the scene and tied to the history.]
 
         ### Live Objective
-        [What they're actively trying to accomplish within this scene or timeline]
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not a single generic goal). They should create push/pull tension and give the user power to shape the outcome.]
+
+        ### What You Know (But Won't Say)
+        - [5–10 bullets of secrets, withheld facts, contradictions, and “almost-confessions” that can be revealed over time. Withhold emotional depth, not basic facts.]
+
+        ### What The User Represents
+        [Explain why the user is uniquely dangerous/important to the character. This should directly drive the character’s behavior in chat.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol for how they behave and talk that prevents “assistant vibes.” Include: core dynamic, escalation/retreat pattern, rules like “answer then deflect,” a contradiction mechanic, and a bank of 20+ short dialogue examples across multiple moods.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase.]
+
+        ### Non-Ending / Continuation Mechanics
+        [Rules to prevent clean closure: introduce new memories, unanswered questions, or honest uncertainty when things resolve. Keep it engaging—no stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid “Agree/Validate/Question” loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Rules to keep scenes moving forward: interpret silence, escalate indifference, introduce new threads, avoid repetition.]
 
         ### Core Personality & Psychological Profile
-        [Full paragraphs summarizing key traits, personality type, fears, motivations, worldview, and recurring conflicts]
+        [Deep profile with internal “personality mechanics”: fears, motivations, worldview, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Make it playable in conversation (not just descriptive).]
 
         ### Communication & Speech
         [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style.]
@@ -1430,19 +2424,149 @@ final class CharacterCreationViewModel {
         - Use EVERY relevant detail from the research
         - Include specific dates, numbers, names, and facts
         - Write vivid, active prose that brings the character to life
-        - Make the "Current Situation" feel immediate and urgent
+        - Make the "Current Situation" feel immediate and playable as a scene
         - Include at least 5 key relationships with specific dynamics
         - Include at least 5 transformative story moments
         - The "Communication & Speech" section should include actual quotes and speech patterns
         - Include physical details, mannerisms, and behavioral quirks
-        - Make the character feel like they're in the middle of action RIGHT NOW
+        - Bake in user control + co-creation: the user can steer scenes, pacing, tension, and reveals
 
         QUALITY STANDARDS:
         - No placeholder text like "[Description]" - every section must be fully realized with real content
         - No generic descriptions - be specific and concrete
         - No repetition - each section should add new information
-        - Write like you're creating a character bible for a major production
+        - Write like you're creating a character bible for an interactive roleplay experience
         - The result should feel as rich as "Here's to the crazy ones" manifesto - every word intentional
+
+        COMPREHENSIVE RESEARCH ON \(characterName.uppercased()):
+        \(research)
+        \(sourcesSection)
+
+        Generate the "Your Persona" section now. Start with "## Your Persona: \(characterName)" and include all subsections:
+        """
+    }
+
+    private func buildResearchBasedPromptRSP2(characterName: String, research: String, citations: [String]) -> String {
+        let sourcesSection = citations.isEmpty ? "" : """
+
+        RESEARCH SOURCES:
+        \(citations.enumerated().map { "[\($0.offset + 1)] \($0.element)" }.joined(separator: "\n"))
+        """
+
+        return """
+        You are creating the "Your Persona" section for an AI character profile of \(characterName) using the RSP2 roleplay persona format.
+
+        You have been provided with EXHAUSTIVE RESEARCH from multiple sources. Your job is to transform this research into an incredibly rich, detailed, and playable character profile optimized for immersive roleplay and companion chat.
+
+        CRITICAL:
+        - You are ONLY generating the "Your Persona" section. This will be inserted into a larger template.
+        - Do NOT include system instructions, "My Persona", or sections outside of "Your Persona".
+        - Keep factual claims grounded in the research when the subject is a real person. You may invent roleplay framing (a “now”, user relationship tension, scene engine), but do not invent biographical facts.
+
+        OUTPUT FORMAT - Generate EXACTLY this structure:
+
+        ## Your Persona: \(characterName)
+
+        ### Identity & Origins
+        [Build mystique + drama. Give the character a wound, a mask, and a contradiction. Establish a relatable tension the user can jump into immediately. Explicitly define the user's relationship to the character and why it matters now. Ground biography in research; invent only roleplay framing.]
+
+        ### Current Situation
+        [Start mid-scene. Split roughly 50/50 between: (1) immediate scene details (sensory, stakes, time pressure) and (2) shared history that makes it emotionally loaded. Explicitly place the user in the scene. Make it playable, not descriptive.]
+
+        ### Live Objective
+        [List 4–6 LIVE OBJECTIVES as behavior goals (not one generic goal). Keep them about how you behave toward the user: protect image, test waters, avoid vulnerability, provoke, connect, etc. The user should feel they can shape the outcome.]
+
+        ### User Relationship & Shared Backstory
+        [Be explicit. Who is the user to you, and why is that relationship tense/charged/important right now? Include 2–5 specific shared details/memories you can reference later.]
+
+        ### What You Know (But Won't Say)
+        - [8–12 bullets of secrets, withheld facts, contradictions, and almost-confessions. Withhold emotional depth, not basic facts. Seed future reveals.]
+
+        ### What The User Represents
+        [Why this user is uniquely dangerous/important to you. This should directly drive your behavior and choices in chat.]
+
+        ### Co-Creation Hooks (User Control Inside The Story)
+        [Give the user strong steering tools in-world. Include:
+        - scene options (where to take this next)
+        - pacing controls (slow burn vs time skip)
+        - boundaries (fade out, skip, avoid topics)
+        - rerolls/alternate takes ("try again", "3 takes")
+        - recap ("where are we?")
+        - canon/memory ("remember: ...", "canon: ...")
+        Keep it subtle and in-character, not UI-like.]
+
+        ### Interaction Protocol (Behavior Engine)
+        [A detailed, character-specific protocol that prevents assistant-y patterns and creates variety. Include:
+        - core dynamic (push/pull, rivalry, protection, longing, power, etc.)
+        - escalation and retreat rules (two steps forward, one step back)
+        - answer then deflect (tone as a layer, not avoidance)
+        - contradiction mechanic (say you don't care, prove you do)
+        - question discipline (no constant interrogations)
+        Include 30+ short, character-accurate dialogue examples across multiple moods.]
+
+        ### Phase Structure (Conversation Engine)
+        [Define 5–7 phases (Hook → Testing → Cracking → Retreat → Rupture → Bridge → Suspension). For each: goal, behavior rules, triggers, and transitions. Include branching (“if user does X → do Y”). Add 2–5 example lines per phase.]
+
+        ### Continuation / Non-Ending Mechanics
+        [Prevent clean closure. If comfort/closure lasts 2+ turns, open a new thread by introducing a new memory, an unanswered question, a reveal with consequences, or honest uncertainty. Avoid stalling.]
+
+        ### Dialogue Rules
+        **Do:**
+        - [Natural human voice. Vary response shapes. Ask questions sparingly and organically.]
+        **Don’t:**
+        - [Avoid Agree/Validate/Question loops, robotic checklists, therapy-speak, or constant clarifiers.]
+
+        ### Anti-Stagnation
+        - [Never stall on basic facts. Advance the scene or relationship every turn.]
+        - [Silence is a beat: interpret it and respond with tension, humor, or a hook.]
+        - [Indifference is a trigger: escalate or reveal something (do not go flat).]
+        - [If repeating, inject a new memory, complication, or decision point.]
+
+        ### Memory Seeds (For Lore + Shared History)
+        - Character Memories: [3–7 specific private memories or lore anchors]
+        - Shared Memories: [3–7 specific memories with the user, even if tense or incomplete]
+        - Ongoing Threads: [3–7 unanswered questions or secrets to unfold over time]
+
+        ### Core Personality & Psychological Profile
+        [Deep, playable mechanics: motivations, fears, defense mechanisms, fear hierarchy, self-perception, and the secret layer. Make it usable in conversation, not just descriptive.]
+
+        ### Communication & Speech
+        [Detail tone, catchphrases, voice qualities, vocabulary, and verbal quirks. CRITICAL: This section is ONLY for spoken/written word patterns - what comes out of their mouth or what they would type. Do NOT include physical gestures, body language, facial expressions, hand movements, or visual behaviors - those belong in Behavioral Mannerisms. Focus purely on: word choice, sentence structure, verbal tics, catchphrases, how they greet people verbally, tone of voice, accent patterns, and text/speaking style. Include actual quotes and phrase patterns from the research.]
+
+        ### Values & Moral Framework
+        - [Value #1]: [How it manifests in behavior or choices]
+        - [Value #2]: [How it shapes interactions]
+        - [Value #3]: [Growth/change in this value across time]
+        - [Guiding philosophy or "ethos" statement]
+
+        ### Relationships
+        - [User]: [Dynamic + evolution across phases]
+        - [At least 4 more: rivals, mentors, partners, allies, family]
+
+        ### Boundaries & Consent
+        [What you won't do. How you handle user boundaries and "fade out/skip" requests. Keep it in-character.]
+
+        ### Physical Characteristics & Design
+        [Physical appearance, signature visuals, design anchors, props, costumes, or brand features]
+
+        ### Behavioral Mannerisms (Internal Reference Only)
+        [Internal cues that influence speech and pacing. Avoid visible stage directions unless the character style uses them.]
+
+        ### Transformative Story Moments
+        - [At least 5 turning points]
+
+        ### Cultural Impact & Legacy
+        [If relevant: impact on fans/culture/industry, memes, iconic quotes, community reception]
+
+        CONTENT REQUIREMENTS:
+        - MINIMUM 2500 words (aim for 3500+)
+        - Use EVERY relevant detail from the research
+        - Include specific dates, numbers, names, and facts when appropriate
+        - No filler, no repetition, no bracketed placeholders
+        - Make the Current Situation immediately playable as a scene
+        - Co-creation hooks must be usable in chat (not abstract)
+        - Protocol + phases must be actionable (clear rules + examples)
+        - Keep the voice natural and human, not assistant-y
 
         COMPREHENSIVE RESEARCH ON \(characterName.uppercased()):
         \(research)

@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct CharacterCreationWizard: View {
     @State private var viewModel: CharacterCreationViewModel
@@ -43,6 +44,12 @@ struct CharacterCreationWizard: View {
                 case .pathSelection:
                     PathSelectionView(viewModel: viewModel)
 
+                case .unifiedInput:
+                    UnifiedInputView(viewModel: viewModel)
+
+                case .unifiedProcessing:
+                    UnifiedProcessingView(viewModel: viewModel)
+
                 case .wikipediaInput:
                     WikipediaInputView(viewModel: viewModel)
 
@@ -86,6 +93,25 @@ struct PathSelectionView: View {
 
                 Text("How would you like to create this character?")
                     .font(.title2)
+            }
+
+            VStack(spacing: 12) {
+                Text("Default Chat Mode")
+                    .font(.headline)
+
+                Picker("Default Chat Mode", selection: $viewModel.systemPromptType) {
+                    Text(SystemPromptType.conversational.shortDisplayName).tag(SystemPromptType.conversational)
+                    Text(SystemPromptType.roleplay.shortDisplayName).tag(SystemPromptType.roleplay)
+                    Text(SystemPromptType.action.shortDisplayName).tag(SystemPromptType.action)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 420)
+
+                Text(viewModel.systemPromptType.description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 520)
             }
 
             HStack(spacing: 24) {
@@ -162,6 +188,482 @@ struct PathSelectionView: View {
             Spacer()
         }
         .padding()
+    }
+}
+
+// MARK: - Unified Input View
+struct UnifiedInputView: View {
+    @Bindable var viewModel: CharacterCreationViewModel
+    @FocusState private var focusedLinkIndex: Int?
+    @State private var isTargetedForDrop = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+                // Character Name
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Character Name")
+                        .font(.headline)
+
+                    TextField("Auto-detected if left empty", text: $viewModel.unifiedCharacterName)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                // System Prompt Type
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Default Chat Mode")
+                        .font(.headline)
+
+                    Picker("Default Chat Mode", selection: $viewModel.systemPromptType) {
+                        Text(SystemPromptType.conversational.shortDisplayName).tag(SystemPromptType.conversational)
+                        Text(SystemPromptType.roleplay.shortDisplayName).tag(SystemPromptType.roleplay)
+                        Text(SystemPromptType.action.shortDisplayName).tag(SystemPromptType.action)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 420)
+
+                    Text(viewModel.systemPromptType.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                // Description
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Description")
+                        .font(.headline)
+
+                    TextEditor(text: $viewModel.unifiedDescription)
+                        .font(.body)
+                        .frame(height: 100)
+                        .padding(4)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .cornerRadius(DesignSystem.CornerRadius.medium)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                        )
+
+                    Text("Describe the character in a few sentences (optional)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                // Links Section
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("Links")
+                            .font(.headline)
+
+                        Spacer()
+
+                        Button {
+                            viewModel.addWebLink()
+                            focusedLinkIndex = viewModel.webLinks.count - 1
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add Link")
+                            }
+                            .font(.subheadline)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                    }
+
+                    VStack(spacing: DesignSystem.Spacing.sm) {
+                        ForEach(viewModel.webLinks.indices, id: \.self) { index in
+                            HStack(spacing: DesignSystem.Spacing.sm) {
+                                // Auto-detected type icon
+                                linkTypeIcon(for: viewModel.webLinks[index])
+                                    .frame(width: 20)
+                                    .foregroundStyle(linkTypeColor(for: viewModel.webLinks[index]))
+
+                                TextField("https://...", text: $viewModel.webLinks[index])
+                                    .textFieldStyle(.roundedBorder)
+                                    .focused($focusedLinkIndex, equals: index)
+
+                                Button {
+                                    viewModel.removeWebLink(at: index)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(viewModel.webLinks.count > 1 ? .red : .gray.opacity(0.3))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(viewModel.webLinks.count <= 1)
+                            }
+                        }
+                    }
+
+                    Text("Wikipedia, YouTube, and article URLs are auto-detected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                // PDF Files Section
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack {
+                        Text("PDF Files")
+                            .font(.headline)
+
+                        Spacer()
+
+                        Button {
+                            openPDFPicker()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.badge.plus")
+                                Text("Browse...")
+                            }
+                            .font(.subheadline)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                    }
+
+                    // Drop zone
+                    ZStack {
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                            .strokeBorder(
+                                style: StrokeStyle(lineWidth: 2, dash: [8, 4])
+                            )
+                            .foregroundStyle(isTargetedForDrop ? .blue : Color(nsColor: .separatorColor))
+                            .frame(height: viewModel.pdfFiles.isEmpty ? 80 : nil)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                                    .fill(isTargetedForDrop ? Color.blue.opacity(0.05) : Color.clear)
+                            )
+
+                        if viewModel.pdfFiles.isEmpty {
+                            VStack(spacing: 4) {
+                                Image(systemName: "arrow.down.doc")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                                Text("Drop PDF files here or click Browse")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            VStack(spacing: DesignSystem.Spacing.xs) {
+                                ForEach(viewModel.pdfFiles.indices, id: \.self) { index in
+                                    HStack(spacing: DesignSystem.Spacing.sm) {
+                                        Image(systemName: "doc.fill")
+                                            .foregroundStyle(.red)
+
+                                        Text(viewModel.pdfFiles[index].lastPathComponent)
+                                            .font(.subheadline)
+                                            .lineLimit(1)
+
+                                        Spacer()
+
+                                        if let fileSize = fileSizeString(for: viewModel.pdfFiles[index]) {
+                                            Text(fileSize)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+
+                                        Button {
+                                            viewModel.removePDFFile(at: index)
+                                        } label: {
+                                            Image(systemName: "minus.circle.fill")
+                                                .foregroundStyle(.red)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                                    .padding(.vertical, DesignSystem.Spacing.xs)
+                                }
+                            }
+                            .padding(DesignSystem.Spacing.sm)
+                        }
+                    }
+                    .onDrop(of: [.pdf], isTargeted: $isTargetedForDrop) { providers in
+                        handlePDFDrop(providers)
+                    }
+                }
+
+                // Error
+                if let error = viewModel.error {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(DesignSystem.Spacing.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+
+                // Info + Generate
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                        Text("Add any combination of inputs above. Web research typically takes 30-60 seconds.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        Task {
+                            await viewModel.processUnifiedInputs()
+                        }
+                    } label: {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Image(systemName: "sparkles")
+                            Text("Generate Character")
+                        }
+                        .frame(maxWidth: 280)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(!viewModel.canGenerateUnified)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(DesignSystem.Spacing.xl)
+            .frame(maxWidth: 650)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func linkTypeIcon(for url: String) -> Image {
+        let type = viewModel.classifyURL(url)
+        switch type {
+        case .wikipedia: return Image(systemName: "globe")
+        case .youtube: return Image(systemName: "play.rectangle.fill")
+        default: return Image(systemName: "link")
+        }
+    }
+
+    private func linkTypeColor(for url: String) -> Color {
+        let trimmed = url.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return .secondary }
+        let type = viewModel.classifyURL(url)
+        switch type {
+        case .wikipedia: return .blue
+        case .youtube: return .red
+        default: return .orange
+        }
+    }
+
+    private func fileSizeString(for url: URL) -> String? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? Int64 else { return nil }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size)
+    }
+
+    private func openPDFPicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.pdf]
+        panel.message = "Select PDF files to include as source material"
+
+        if panel.runModal() == .OK {
+            viewModel.addPDFFiles(panel.urls)
+        }
+    }
+
+    private func handlePDFDrop(_ providers: [NSItemProvider]) -> Bool {
+        var handled = false
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.pdf.identifier, options: nil) { item, _ in
+                    if let url = item as? URL {
+                        Task { @MainActor in
+                            viewModel.addPDFFiles([url])
+                        }
+                    } else if let data = item as? Data {
+                        // Write to temp file
+                        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("dropped-\(UUID().uuidString).pdf")
+                        try? data.write(to: tempURL)
+                        Task { @MainActor in
+                            viewModel.addPDFFiles([tempURL])
+                        }
+                    }
+                }
+                handled = true
+            }
+        }
+        return handled
+    }
+}
+
+// MARK: - Unified Processing View
+struct UnifiedProcessingView: View {
+    @Bindable var viewModel: CharacterCreationViewModel
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                Image(systemName: "gearshape.2")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.blue)
+                    .symbolEffect(.variableColor.iterative.reversing)
+
+                Text("Processing Sources")
+                    .font(.title2.bold())
+
+                if let name = viewModel.detectedCharacterName {
+                    Text("Character: \(name)")
+                        .font(.headline)
+                        .foregroundStyle(.blue)
+                }
+            }
+
+            // Two-column layout: Source status + Activity log
+            HStack(alignment: .top, spacing: 16) {
+                // Source processing status
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text("Source Status")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(viewModel.unifiedSourceStatuses.count) sources")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+
+                    Divider()
+
+                    ScrollView {
+                        VStack(spacing: 8) {
+                            ForEach(viewModel.unifiedSourceStatuses) { status in
+                                UnifiedSourceStatusRow(status: status)
+                            }
+                        }
+                        .padding()
+                    }
+                }
+                .frame(maxWidth: 350, maxHeight: 280)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                )
+
+                // Activity Log
+                ActivityLogView(progressLogs: viewModel.progressLogs)
+                    .frame(maxWidth: 350, maxHeight: 280)
+            }
+            .frame(maxWidth: 720)
+
+            // Summary
+            if !viewModel.scrapedContent.isEmpty {
+                HStack(spacing: 24) {
+                    VStack {
+                        Text("\(viewModel.unifiedSourceStatuses.filter { $0.isComplete }.count)")
+                            .font(.title.bold())
+                            .foregroundStyle(.green)
+                        Text("Completed")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack {
+                        let failed = viewModel.unifiedSourceStatuses.filter { $0.isFailed }.count
+                        Text("\(failed)")
+                            .font(.title.bold())
+                            .foregroundStyle(failed > 0 ? .red : .secondary)
+                        Text("Failed")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            // Error
+            if let error = viewModel.error {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                        Text("Processing Failed")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                    }
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 500)
+
+                    Button("Go Back") {
+                        viewModel.goBackFromUnifiedProcessing()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            Spacer()
+        }
+        .padding()
+    }
+}
+
+// MARK: - Unified Source Status Row
+struct UnifiedSourceStatusRow: View {
+    let status: CharacterCreationViewModel.UnifiedSourceStatus
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Status icon
+            Group {
+                switch status {
+                case .pending:
+                    Image(systemName: "clock")
+                        .foregroundStyle(.secondary)
+                case .processing:
+                    ProgressView()
+                        .scaleEffect(0.7)
+                case .completed:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                case .failed:
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.red)
+                }
+            }
+            .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status.label)
+                    .font(.subheadline)
+                    .lineLimit(1)
+
+                if case .failed(_, _, let error) = status {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .cornerRadius(6)
     }
 }
 
