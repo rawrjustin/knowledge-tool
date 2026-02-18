@@ -202,11 +202,9 @@ enum BundledSystemPromptTemplates {
         case .action:
             return ASP1Template.content
         case .conversational:
-            // No bundled CSP template yet; fall back to ASP1.
-            return ASP1Template.content
+            return CSP1Template.content
         case .roleplay:
             return RSP2Template.content
         }
     }
 }
-

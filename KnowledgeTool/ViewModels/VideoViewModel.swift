@@ -13,9 +13,15 @@ final class VideoViewModel {
 
     private let apiKeyManager: APIKeyManager
     private var videoService = VideoService()
+    nonisolated(unsafe) weak var jobManager: BackgroundJobManager?
 
     init(apiKeyManager: APIKeyManager) {
         self.apiKeyManager = apiKeyManager
+    }
+
+    @MainActor
+    func setJobManager(_ manager: BackgroundJobManager) {
+        self.jobManager = manager
     }
 
     // MARK: - Process Video from URL
@@ -44,6 +50,8 @@ final class VideoViewModel {
         summary = nil
         videoInfo = nil
         errorMessage = nil
+
+        let jobId = jobManager?.startJob(type: .videoProcessing, characterName: intervieweeName ?? "Video")
 
         // Track audio URL for cleanup
         var audioURL: URL?
@@ -153,6 +161,10 @@ final class VideoViewModel {
 
             processingState = .completed
 
+            if let jobId = jobId {
+                jobManager?.completeJob(jobId: jobId)
+            }
+
         } catch let error as KnowledgeToolError {
             // Cleanup on error
             if let audioURL = audioURL {
@@ -160,6 +172,9 @@ final class VideoViewModel {
             }
             errorMessage = error.localizedDescription
             processingState = .failed(error.localizedDescription)
+            if let jobId = jobId {
+                jobManager?.failJob(jobId: jobId, error: error.localizedDescription)
+            }
         } catch {
             // Cleanup on error
             if let audioURL = audioURL {
@@ -167,6 +182,9 @@ final class VideoViewModel {
             }
             errorMessage = error.localizedDescription
             processingState = .failed(error.localizedDescription)
+            if let jobId = jobId {
+                jobManager?.failJob(jobId: jobId, error: error.localizedDescription)
+            }
         }
     }
 
@@ -191,6 +209,8 @@ final class VideoViewModel {
         summary = nil
         videoInfo = nil
         errorMessage = nil
+
+        let fileJobId = jobManager?.startJob(type: .videoProcessing, characterName: fileURL.lastPathComponent)
 
         // Track audio URL for cleanup
         var audioURL: URL?
@@ -299,6 +319,10 @@ final class VideoViewModel {
 
             processingState = .completed
 
+            if let fileJobId = fileJobId {
+                jobManager?.completeJob(jobId: fileJobId)
+            }
+
         } catch let error as KnowledgeToolError {
             // Cleanup on error
             if let audioURL = audioURL {
@@ -306,6 +330,9 @@ final class VideoViewModel {
             }
             errorMessage = error.localizedDescription
             processingState = .failed(error.localizedDescription)
+            if let fileJobId = fileJobId {
+                jobManager?.failJob(jobId: fileJobId, error: error.localizedDescription)
+            }
         } catch {
             // Cleanup on error
             if let audioURL = audioURL {
@@ -313,6 +340,9 @@ final class VideoViewModel {
             }
             errorMessage = error.localizedDescription
             processingState = .failed(error.localizedDescription)
+            if let fileJobId = fileJobId {
+                jobManager?.failJob(jobId: fileJobId, error: error.localizedDescription)
+            }
         }
     }
 

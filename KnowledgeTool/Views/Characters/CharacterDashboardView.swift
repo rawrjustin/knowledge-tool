@@ -22,7 +22,7 @@ enum DashboardTab: String, CaseIterable {
         case .persona: return "Identity, personality, and traits"
         case .knowledge: return "Sources and memories"
         case .dialogExamples: return "Sample conversations"
-        case .scenarios: return "Roleplay situations"
+        case .scenarios: return "Situations & objectives"
         }
     }
 }
@@ -37,9 +37,11 @@ struct CharacterDashboardView: View {
     let onCharacterUpdated: (Character) -> Void
 
     @Environment(SyncManager.self) private var syncManager
+    @Environment(BackgroundJobManager.self) private var backgroundJobManager
     @State private var selectedTab: DashboardTab = .persona
     @State private var showingAugmentSheet = false
     @State private var editorViewModel: CharacterEditorViewModel
+    var scenarioViewModel: ScenarioViewModel?
     @State private var showingSaveConfirmation = false
     @State private var showSaveSuccess = false
     @State private var showingDiscardAlert = false
@@ -48,11 +50,13 @@ struct CharacterDashboardView: View {
         character: Character,
         repository: CombinedCharacterRepository,
         apiKeyManager: APIKeyManager,
+        scenarioViewModel: ScenarioViewModel? = nil,
         onCharacterUpdated: @escaping (Character) -> Void
     ) {
         self.character = character
         self.repository = repository
         self.apiKeyManager = apiKeyManager
+        self.scenarioViewModel = scenarioViewModel
         self.onCharacterUpdated = onCharacterUpdated
         self._editorViewModel = State(initialValue: CharacterEditorViewModel(
             mode: .edit(character),
@@ -60,7 +64,19 @@ struct CharacterDashboardView: View {
         ))
     }
 
+    private var isCharacterGenerating: Bool {
+        character.isGenerating || backgroundJobManager.isGenerating(characterName: character.name, type: .characterCreation)
+    }
+
     var body: some View {
+        if isCharacterGenerating {
+            CharacterGeneratingView(character: character)
+        } else {
+            dashboardContent
+        }
+    }
+
+    private var dashboardContent: some View {
         VStack(spacing: 0) {
             // Header
             dashboardHeader
@@ -309,11 +325,14 @@ struct CharacterDashboardView: View {
             )
 
         case .scenarios:
-            ScenarioGeneratorView(
-                character: character,
-                repository: repository,
-                apiKeyManager: apiKeyManager
-            )
+            if let scenarioViewModel = scenarioViewModel {
+                ScenarioGeneratorView(
+                    character: character,
+                    viewModel: scenarioViewModel
+                )
+            } else {
+                ProgressView("Loading...")
+            }
         }
     }
 

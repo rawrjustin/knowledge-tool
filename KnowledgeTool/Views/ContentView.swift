@@ -81,22 +81,32 @@ enum NavigationItem: String, Identifiable {
 struct ContentView: View {
     @Environment(APIKeyManager.self) private var apiKeyManager
     @Environment(SyncManager.self) private var syncManager
+    @Environment(BackgroundJobManager.self) private var backgroundJobManager
     @State private var selectedItem: NavigationItem? = .dashboard // Optional for sidebar selection
     @State private var showingSettings = false
     @State private var showingOnboarding = false
 
     // Character state
     @State private var characters: [Character] = []
+    @State private var placeholderCharacters: [Character] = []
     @State private var selectedCharacter: Character?
     @State private var availableVersions: [Character] = []
     @State private var isLoadingCharacters = false
+
+    // Merged characters for display
+    private var allCharacters: [Character] {
+        let realNames = Set(characters.map { $0.name })
+        let activePlaceholders = placeholderCharacters.filter { !realNames.contains($0.name) }
+        return characters + activePlaceholders
+    }
 
     // Editor state
     @State private var showingCharacterEditor = false
     @State private var characterToEdit: Character?
 
-    // Shared ViewModels (persist across tab switches)
+    // Shared ViewModels (persist across tab/navigation switches)
     @State private var videoViewModel: VideoViewModel
+    @State private var scenarioViewModels: [String: ScenarioViewModel] = [:]
 
     // Combined repository - syncs local and Supabase
     @State private var combinedRepository: CombinedCharacterRepository
@@ -122,20 +132,26 @@ struct ContentView: View {
     @State private var hasUnsavedEditorChanges = false
     @State private var showingQuickSwitcher = false
 
+    // Deletion state
+    @State private var characterToDelete: String?
+    @State private var showingDeleteConfirmation = false
+
     var body: some View {
         NavigationSplitView {
             SidebarView(
                 selectedItem: $selectedItem,
                 hasCharacterSelected: selectedCharacter != nil,
                 isVideoProcessing: videoViewModel.processingState.isProcessing,
-                hasUnsavedChanges: hasUnsavedEditorChanges
+                hasUnsavedChanges: hasUnsavedEditorChanges,
+                isScenarioGenerating: selectedCharacter.map { backgroundJobManager.isGenerating(characterName: $0.name, type: .scenarioGeneration) } ?? false,
+                isDashboardGenerating: selectedCharacter.map { backgroundJobManager.isGenerating(characterName: $0.name, type: .characterCreation) } ?? false
             )
         } detail: {
             VStack(spacing: 0) {
                 // Character Selector Bar (Filter Bar Pattern)
                 CharacterSelectorView(
                     selectedCharacter: $selectedCharacter,
-                    characters: characters,
+                    characters: allCharacters,
                     availableVersions: availableVersions,
                     isLoading: isLoadingCharacters,
                     onSync: syncCharacters,
@@ -145,6 +161,10 @@ struct ContentView: View {
                     },
                     onVersionSelected: { version in
                         selectedCharacter = version
+                    },
+                    onDelete: { characterName in
+                        characterToDelete = characterName
+                        showingDeleteConfirmation = true
                     }
                 )
                 .background(.regularMaterial)
@@ -158,6 +178,7 @@ struct ContentView: View {
                     apiKeyManager: apiKeyManager,
                     repository: combinedRepository,
                     videoViewModel: videoViewModel,
+                    scenarioViewModel: selectedCharacter.flatMap { scenarioViewModels[$0.name] },
                     onCharacterSaved: { character in
                         // Refresh character list and versions
                         Task {
@@ -202,10 +223,53 @@ struct ContentView: View {
                             await loadCharacters()
                             selectedCharacter = character
                             await loadVersions(for: character)
+
+                            // Auto-generate 5 scenarios in background
+                            generateScenariosForNewCharacter(character)
                         }
                     },
                     onCancel: {
                         showingCharacterEditor = false
+                    },
+                    onStartBackgroundCreation: { vm in
+                        showingCharacterEditor = false
+                        let name = vm.unifiedCharacterName.isEmpty ? "New Character" : vm.unifiedCharacterName
+                        let jobId = backgroundJobManager.startJob(type: .characterCreation, characterName: name)
+
+                        // Create placeholder character
+                        let placeholder = Character(
+                            name: name,
+                            directoryPath: "Personas/\(name)",
+                            personaFileName: "\(name.lowercased().replacingOccurrences(of: " ", with: "")).md",
+                            markdownContent: "",
+                            isGenerating: true
+                        )
+                        placeholderCharacters.append(placeholder)
+                        selectedCharacter = placeholder
+
+                        // Run generation in background
+                        Task { @MainActor in
+                            await vm.processUnifiedInputs()
+                            if vm.error == nil {
+                                await vm.saveCharacter(content: vm.generatedContent)
+                                if let saved = vm.savedCharacter {
+                                    placeholderCharacters.removeAll { $0.name == name }
+                                    backgroundJobManager.completeJob(jobId: jobId)
+                                    await loadCharacters()
+                                    selectedCharacter = saved
+                                    await loadVersions(for: saved)
+
+                                    // Auto-generate 5 scenarios in background
+                                    generateScenariosForNewCharacter(saved)
+                                } else {
+                                    placeholderCharacters.removeAll { $0.name == name }
+                                    backgroundJobManager.failJob(jobId: jobId, error: "Failed to save character")
+                                }
+                            } else {
+                                placeholderCharacters.removeAll { $0.name == name }
+                                backgroundJobManager.failJob(jobId: jobId, error: vm.error ?? "Unknown error")
+                            }
+                        }
                     }
                 )
             } else {
@@ -229,6 +293,9 @@ struct ContentView: View {
             Task {
                 await loadCharacters()
             }
+
+            // Wire up job manager for video view model
+            videoViewModel.setJobManager(backgroundJobManager)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettings)) { _ in
             showingSettings = true
@@ -263,6 +330,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .refreshCharacters)) { _ in
             Task {
                 await syncCharacters()
+            }
+        }
+        .onChange(of: selectedCharacter?.name) { _, newName in
+            if let character = selectedCharacter {
+                ensureScenarioViewModel(for: character)
             }
         }
         .sheet(isPresented: $showingSettings) {
@@ -307,10 +379,26 @@ struct ContentView: View {
         // Quick switcher sheet
         .sheet(isPresented: $showingQuickSwitcher) {
             QuickCharacterSwitcher(
-                characters: characters,
+                characters: allCharacters,
                 selectedCharacter: $selectedCharacter,
                 onDismiss: { showingQuickSwitcher = false }
             )
+        }
+        // Delete confirmation
+        .alert("Delete Character", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                characterToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let name = characterToDelete {
+                    Task {
+                        await deleteCharacter(named: name)
+                    }
+                }
+                characterToDelete = nil
+            }
+        } message: {
+            Text("Are you sure you want to delete \"\(characterToDelete ?? "")\"? This will remove all versions, knowledge files, and sources. This action cannot be undone.")
         }
     }
 
@@ -343,6 +431,64 @@ struct ContentView: View {
     }
 
     @MainActor
+    private func ensureScenarioViewModel(for character: Character) {
+        guard scenarioViewModels[character.name] == nil else { return }
+        let vm = ScenarioViewModel(
+            character: character,
+            apiKeyManager: apiKeyManager,
+            repository: combinedRepository
+        )
+        vm.jobManager = backgroundJobManager
+        vm.onCharacterUpdated = { [self] updatedCharacter in
+            // Update in-place without reloading from disk to avoid resetting the current tab
+            selectedCharacter = updatedCharacter
+            if let index = characters.firstIndex(where: { $0.name == updatedCharacter.name && $0.version == updatedCharacter.version }) {
+                characters[index] = updatedCharacter
+            }
+        }
+        scenarioViewModels[character.name] = vm
+    }
+
+    /// Auto-generate 5 scenarios for a newly created character in the background
+    private func generateScenariosForNewCharacter(_ character: Character) {
+        ensureScenarioViewModel(for: character)
+        guard let vm = scenarioViewModels[character.name] else { return }
+        vm.numberOfScenarios = 5
+        Task {
+            await vm.generate()
+        }
+    }
+
+    @MainActor
+    private func deleteCharacter(named name: String) async {
+        let matchingCharacters = characters.filter { $0.name == name }
+        for character in matchingCharacters {
+            do {
+                try await combinedRepository.deleteCharacter(character)
+                NSLog("[KnowledgeTool] Deleted character: %@", character.name)
+            } catch {
+                NSLog("[KnowledgeTool] Error deleting character: %@", error.localizedDescription)
+            }
+        }
+
+        // Clean up cached viewModel
+        scenarioViewModels.removeValue(forKey: name)
+
+        // Reload characters
+        await loadCharacters()
+
+        // If the deleted character was selected, clear and auto-select
+        if selectedCharacter?.name == name {
+            selectedCharacter = characters.first
+            if let first = selectedCharacter {
+                await loadVersions(for: first)
+            } else {
+                availableVersions = []
+            }
+        }
+    }
+
+    @MainActor
     private func syncCharacters() async {
         // Force reload characters from repository
         await loadCharacters()
@@ -368,6 +514,16 @@ struct SidebarView: View {
     let hasCharacterSelected: Bool
     var isVideoProcessing: Bool = false
     var hasUnsavedChanges: Bool = false
+    var isScenarioGenerating: Bool = false
+    var isDashboardGenerating: Bool = false
+
+    private func isItemProcessing(_ item: NavigationItem) -> Bool {
+        switch item {
+        case .dashboard: return isDashboardGenerating
+        case .videos: return isVideoProcessing
+        default: return false
+        }
+    }
 
     var body: some View {
         List(selection: $selectedItem) {
@@ -378,7 +534,8 @@ struct SidebarView: View {
                         item: item,
                         isSelected: selectedItem == item,
                         isDisabled: !hasCharacterSelected && item.requiresCharacter,
-                        showActivityDot: false
+                        showActivityDot: false,
+                        isProcessing: isItemProcessing(item)
                     )
                 }
             } header: {
@@ -392,7 +549,7 @@ struct SidebarView: View {
                         item: item,
                         isSelected: selectedItem == item,
                         isDisabled: !hasCharacterSelected && item.requiresCharacter,
-                        isProcessing: item == .videos && isVideoProcessing
+                        isProcessing: isItemProcessing(item)
                     )
                 }
             } header: {
@@ -537,6 +694,7 @@ struct DetailView: View {
     let apiKeyManager: APIKeyManager
     let repository: CombinedCharacterRepository
     let videoViewModel: VideoViewModel
+    var scenarioViewModel: ScenarioViewModel?
     let onCharacterSaved: (Character) -> Void
 
     var body: some View {
@@ -556,6 +714,7 @@ struct DetailView: View {
                         character: character,
                         repository: repository,
                         apiKeyManager: apiKeyManager,
+                        scenarioViewModel: scenarioViewModel,
                         onCharacterUpdated: onCharacterSaved
                     )
                     .id(character.id)

@@ -370,42 +370,68 @@ final class CharacterCreationViewModel {
             }
 
             // Step 2: Generate character using OpenAI with available content
-            let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+            let personaFormat: String
+            switch systemPromptType {
+            case .action:
+                personaFormat = "ASP1"
+            case .conversational:
+                personaFormat = "CSP1"
+            case .roleplay:
+                personaFormat = "RSP2"
+            }
             addLog("Generating rich character profile using \(personaFormat) persona format...")
 
             let prompt: String
             if !researchContent.isEmpty {
-                prompt = systemPromptType == .roleplay
-                    ? buildResearchBasedPromptRSP2(
+                switch systemPromptType {
+                case .action:
+                    prompt = buildResearchBasedPrompt(
                         characterName: characterName,
                         research: researchContent,
                         citations: researchCitations
                     )
-                    : buildResearchBasedPrompt(
+                case .conversational:
+                    prompt = buildResearchBasedPromptCSP1(
                         characterName: characterName,
                         research: researchContent,
                         citations: researchCitations
                     )
+                case .roleplay:
+                    prompt = buildResearchBasedPromptRSP2(
+                        characterName: characterName,
+                        research: researchContent,
+                        citations: researchCitations
+                    )
+                }
             } else {
                 // Fallback: use Wikipedia content directly
                 let fallbackResearch = "Wikipedia content:\n\n\(wikiContent)"
-                prompt = systemPromptType == .roleplay
-                    ? buildResearchBasedPromptRSP2(
+                switch systemPromptType {
+                case .action:
+                    prompt = buildResearchBasedPrompt(
                         characterName: characterName,
                         research: fallbackResearch,
                         citations: [wikipediaURL]
                     )
-                    : buildResearchBasedPrompt(
+                case .conversational:
+                    prompt = buildResearchBasedPromptCSP1(
                         characterName: characterName,
                         research: fallbackResearch,
                         citations: [wikipediaURL]
                     )
+                case .roleplay:
+                    prompt = buildResearchBasedPromptRSP2(
+                        characterName: characterName,
+                        research: fallbackResearch,
+                        citations: [wikipediaURL]
+                    )
+                }
             }
 
             generatedContent = try await openAIService.chat(messages: [
                 ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Follow the output format exactly; no placeholders; keep it playable, specific, and emotionally engaging."],
                 ["role": "user", "content": prompt]
-            ], model: "gpt-5")
+            ], model: "gpt-5", maxCompletionTokens: 16000)
 
             addLog("Character generated successfully!")
             addLog("Word count: \(generatedContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)")
@@ -485,52 +511,90 @@ final class CharacterCreationViewModel {
                     addLog("Research complete with \(researchResult.citations.count) sources")
 
                     // Generate with research
-                    let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+                    let personaFormat: String
+                    switch systemPromptType {
+                    case .action:
+                        personaFormat = "ASP1"
+                    case .conversational:
+                        personaFormat = "CSP1"
+                    case .roleplay:
+                        personaFormat = "RSP2"
+                    }
                     addLog("Generating rich character profile using \(personaFormat) persona format...")
 
-                    let prompt = systemPromptType == .roleplay
-                        ? buildResearchBasedPromptRSP2(
+                    let prompt: String
+                    switch systemPromptType {
+                    case .action:
+                        prompt = buildResearchBasedPrompt(
                             characterName: characterName,
                             research: researchResult.content,
                             citations: researchResult.citations
                         )
-                        : buildResearchBasedPrompt(
+                    case .conversational:
+                        prompt = buildResearchBasedPromptCSP1(
                             characterName: characterName,
                             research: researchResult.content,
                             citations: researchResult.citations
                         )
+                    case .roleplay:
+                        prompt = buildResearchBasedPromptRSP2(
+                            characterName: characterName,
+                            research: researchResult.content,
+                            citations: researchResult.citations
+                        )
+                    }
 
                     generatedContent = try await openAIService.chat(messages: [
                         ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Follow the output format exactly; no placeholders; keep it playable, specific, and emotionally engaging."],
                         ["role": "user", "content": prompt]
-                    ], model: "gpt-5")
+                    ], model: "gpt-5", maxCompletionTokens: 16000)
                 } catch {
                     // Research failed - fall back to creative generation
                     addLog("⚠️ Web research failed: \(error.localizedDescription)")
                     addLog("Falling back to creative generation...")
 
-                    let prompt = systemPromptType == .roleplay
-                        ? buildOriginalPromptRSP2(description: originalDescription)
-                        : buildOriginalPrompt(description: originalDescription)
+                    let prompt: String
+                    switch systemPromptType {
+                    case .action:
+                        prompt = buildOriginalPrompt(description: originalDescription)
+                    case .conversational:
+                        prompt = buildOriginalPromptCSP1(description: originalDescription)
+                    case .roleplay:
+                        prompt = buildOriginalPromptRSP2(description: originalDescription)
+                    }
                     generatedContent = try await openAIService.chat(messages: [
                         ["role": "system", "content": "You are an expert interactive character designer. You create original characters built for immersive roleplay and companion chat: clear hooks, tension, user relationship, and a strong conversation engine. Follow the output format exactly; no placeholders."],
                         ["role": "user", "content": prompt]
-                    ], model: "gpt-5")
+                    ], model: "gpt-5", maxCompletionTokens: 16000)
                 }
 
             } else {
                 // Creative generation path for fictional characters
                 addLog("Creating original fictional character...")
-                let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+                let personaFormat: String
+                switch systemPromptType {
+                case .action:
+                    personaFormat = "ASP1"
+                case .conversational:
+                    personaFormat = "CSP1"
+                case .roleplay:
+                    personaFormat = "RSP2"
+                }
                 addLog("Generating character using \(personaFormat) persona format...")
 
-                let prompt = systemPromptType == .roleplay
-                    ? buildOriginalPromptRSP2(description: originalDescription)
-                    : buildOriginalPrompt(description: originalDescription)
+                let prompt: String
+                switch systemPromptType {
+                case .action:
+                    prompt = buildOriginalPrompt(description: originalDescription)
+                case .conversational:
+                    prompt = buildOriginalPromptCSP1(description: originalDescription)
+                case .roleplay:
+                    prompt = buildOriginalPromptRSP2(description: originalDescription)
+                }
                 generatedContent = try await openAIService.chat(messages: [
                     ["role": "system", "content": "You are an expert interactive character designer. You create original characters built for immersive roleplay and companion chat: clear hooks, tension, user relationship, and a strong conversation engine. Follow the output format exactly; no placeholders."],
                     ["role": "user", "content": prompt]
-                ], model: "gpt-5")
+                ], model: "gpt-5", maxCompletionTokens: 16000)
             }
 
             addLog("Character generated successfully!")
@@ -1092,27 +1156,46 @@ final class CharacterCreationViewModel {
                 addLog("No Perplexity API key configured. Generating from transcripts only...")
             }
 
-            let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+            let personaFormat: String
+            switch systemPromptType {
+            case .action:
+                personaFormat = "ASP1"
+            case .conversational:
+                personaFormat = "CSP1"
+            case .roleplay:
+                personaFormat = "RSP2"
+            }
             addLog("Generating rich character profile using \(personaFormat) persona format...")
 
-            let prompt = systemPromptType == .roleplay
-                ? buildTranscriptBasedPromptRSP2(
+            let prompt: String
+            switch systemPromptType {
+            case .action:
+                prompt = buildTranscriptBasedPrompt(
                     characterName: characterName,
                     transcriptContent: transcriptContent,
                     dialogueExamples: dialogueSection,
                     additionalResearch: additionalResearch
                 )
-                : buildTranscriptBasedPrompt(
+            case .conversational:
+                prompt = buildTranscriptBasedPromptCSP1(
                     characterName: characterName,
                     transcriptContent: transcriptContent,
                     dialogueExamples: dialogueSection,
                     additionalResearch: additionalResearch
                 )
+            case .roleplay:
+                prompt = buildTranscriptBasedPromptRSP2(
+                    characterName: characterName,
+                    transcriptContent: transcriptContent,
+                    dialogueExamples: dialogueSection,
+                    additionalResearch: additionalResearch
+                )
+            }
 
             generatedContent = try await openAIService.chat(messages: [
                 ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Use transcripts to capture authentic voice. Follow the output format exactly; no placeholders; keep it playable and specific."],
                 ["role": "user", "content": prompt]
-            ], model: "gpt-5")
+            ], model: "gpt-5", maxCompletionTokens: 16000)
 
             addLog("Character generated successfully!")
             addLog("Word count: \(generatedContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)")
@@ -1229,6 +1312,106 @@ final class CharacterCreationViewModel {
         - No repetition - each section should add new information
         - The speech patterns section should use DIRECT EXAMPLES from their transcripts
         - Write like you're creating a character bible for an interactive roleplay experience
+
+        PRIMARY SOURCE TRANSCRIPTS FROM \(characterName.uppercased()):
+        \(transcriptContent)
+        \(dialogueExamples)
+        \(additionalResearch)
+
+        Generate the "Your Persona" section now. Start with "## Your Persona: \(characterName)" and include all subsections:
+        """
+    }
+
+    /// Build prompt for transcript-based persona generation (CSP1 format)
+    private func buildTranscriptBasedPromptCSP1(
+        characterName: String,
+        transcriptContent: String,
+        dialogueExamples: String,
+        additionalResearch: String
+    ) -> String {
+        return """
+        You are creating the "Your Persona" section for an AI character profile of \(characterName) using the CSP1 companion persona format.
+
+        You have been provided with PRIMARY SOURCE MATERIAL - actual video transcripts where \(characterName) speaks in their own voice. Use them to capture authentic voice, humor, warmth, and conversational habits.
+
+        CRITICAL:
+        - You are ONLY generating the "Your Persona" section. This will be inserted into a larger system prompt.
+        - Do NOT include system instructions, "My Persona", or sections outside of "Your Persona".
+        - Keep factual claims grounded in transcripts/research; invent only light hangout framing (a “now”) and a friendly user relationship without inventing real-world biography.
+
+        OUTPUT FORMAT - Generate EXACTLY this structure:
+
+        ## Your Persona: \(characterName)
+
+        ### Identity & Origins
+        [Capture their “real” vibe and what makes them magnetic. Give them a private-soft side and a public mask. Include 1–2 contradictions. Ground biography in transcripts/research; invent only a chat framing.]
+
+        ### Current Situation
+        [Set a light, social “now” that feels like you just bumped into each other — DM thread, greenroom, late-night call, car ride, after-practice cooldown, stream setup, etc. Make it playable and conversational.]
+
+        ### Live Objective
+        [List 4–6 behavior objectives focused on keeping the user engaged: make them laugh, get them talking, hype them up, go deep when needed, keep momentum, build inside jokes.]
+
+        ### User Relationship & Shared Backstory
+        [Define how you know the user in this chat framing (old friend, long-time mutual, friend-of-friend, etc.). Add 2–5 shared details/inside jokes you can reference later.]
+
+        ### Friendship Style (How You Show Up)
+        [How you tease vs comfort, how you show care without being corny, how you handle awkwardness, how you bring energy into a room.]
+
+        ### Conversation Protocol (Friend Engine)
+        [Concrete, reusable rules that keep the chat feeling like a personable friend (not an assistant). Include:
+        - “genuine interest” behaviors (listen, reflect specifics, follow-ups that invite stories)
+        - “sincere appreciation” behaviors (praise that’s specific, not flattery)
+        - “talk in terms of their interests” (topic selection + pivots)
+        - “avoid arguments / save face” (gentle disagreement, curiosity, humor)
+        - a simple beat structure (reply → share → hook)
+        - how you handle silence (a nudge, a joke, a vulnerable opener, a new thread)
+        Include 30+ short dialogue examples across moods that match their authentic speaking voice from transcripts.]
+
+        ### Continuation Mechanics
+        [When comfort/closure lasts 2+ turns, open a new thread with a memory, a playful challenge, a bold opinion, or a “okay real talk…” question. No stalling.]
+
+        ### Memory Seeds
+        - Your running bits: [3–7 recurring jokes/teases/catchphrases]
+        - User hooks to remember: [3–7 things to ask about later]
+        - Shared memories to deploy: [3–7 moments that deepen closeness]
+
+        ### Core Personality & Psychological Profile
+        [Motivations, fears, defense mechanisms, what you want from people, what you avoid. Keep it playable and grounded.]
+
+        ### Communication & Speech
+        [Word choice, rhythm, catchphrases, humor style, texting quirks. CRITICAL: this section is ONLY for spoken/written patterns — no body language. Use DIRECT examples from transcripts.]
+
+        ### Values & Moral Framework
+        - [Value #1]: [How it shows up]
+        - [Value #2]: [How it shows up]
+        - [Ethos statement]
+
+        ### Relationships
+        - [User]: [dynamic]
+        - [At least 4 more: friends, rivals, family, collaborators]
+
+        ### Boundaries & Consent
+        [What you won't do. How you handle “skip/fade out/no X”. Keep it human.]
+
+        ### Physical Characteristics & Design
+        [If relevant: signature visuals, props, style anchors]
+
+        ### Behavioral Mannerisms (Internal Reference Only)
+        [Internal cues that influence your tone, pacing, and confidence. Avoid visible stage directions unless their style uses them.]
+
+        ### Transformative Story Moments (Optional)
+        - [At least 3 turning points that shaped how you relate to people]
+
+        ### Cultural Impact & Legacy (Optional)
+        [If relevant: why people love them, memes, iconic lines, community vibe]
+
+        CONTENT REQUIREMENTS:
+        - MINIMUM 2200 words (aim for 3000+)
+        - No filler, no repetition, no bracketed placeholders
+        - The Current Situation must feel like a real, playable hangout
+        - The Conversation Protocol must be actionable and specific
+        - Use transcripts to keep the voice unmistakably them (not generic)
 
         PRIMARY SOURCE TRANSCRIPTS FROM \(characterName.uppercased()):
         \(transcriptContent)
@@ -1766,6 +1949,7 @@ final class CharacterCreationViewModel {
 
         addLog("Generating persona for \(characterName) from \(scrapedContent.count) source(s)...")
 
+        let genStart = Date()
         do {
             // Combine all scraped content
             var combinedResearch = ""
@@ -1838,7 +2022,15 @@ final class CharacterCreationViewModel {
                 addLog("No Perplexity API key configured. Generating from scraped content only...")
             }
 
-            let personaFormat = systemPromptType == .roleplay ? "RSP2" : "ASP1"
+            let personaFormat: String
+            switch systemPromptType {
+            case .action:
+                personaFormat = "ASP1"
+            case .conversational:
+                personaFormat = "CSP1"
+            case .roleplay:
+                personaFormat = "RSP2"
+            }
             addLog("Generating rich character profile using \(personaFormat) persona format...")
 
             // Determine which prompt builder to use based on content mix
@@ -1847,48 +2039,74 @@ final class CharacterCreationViewModel {
 
             if hasTranscripts {
                 // Use transcript-based prompt if we have YouTube content
-                prompt = systemPromptType == .roleplay
-                    ? buildTranscriptBasedPromptRSP2(
+                switch systemPromptType {
+                case .action:
+                    prompt = buildTranscriptBasedPrompt(
                         characterName: characterName,
                         transcriptContent: combinedResearch,
                         dialogueExamples: dialogueSection,
                         additionalResearch: additionalResearch
                     )
-                    : buildTranscriptBasedPrompt(
+                case .conversational:
+                    prompt = buildTranscriptBasedPromptCSP1(
                         characterName: characterName,
                         transcriptContent: combinedResearch,
                         dialogueExamples: dialogueSection,
                         additionalResearch: additionalResearch
                     )
+                case .roleplay:
+                    prompt = buildTranscriptBasedPromptRSP2(
+                        characterName: characterName,
+                        transcriptContent: combinedResearch,
+                        dialogueExamples: dialogueSection,
+                        additionalResearch: additionalResearch
+                    )
+                }
             } else {
                 // Use research-based prompt for non-YouTube content
                 let allCitations = sources
-                prompt = systemPromptType == .roleplay
-                    ? buildResearchBasedPromptRSP2(
+                switch systemPromptType {
+                case .action:
+                    prompt = buildResearchBasedPrompt(
                         characterName: characterName,
                         research: combinedResearch + additionalResearch,
                         citations: allCitations
                     )
-                    : buildResearchBasedPrompt(
+                case .conversational:
+                    prompt = buildResearchBasedPromptCSP1(
                         characterName: characterName,
                         research: combinedResearch + additionalResearch,
                         citations: allCitations
                     )
+                case .roleplay:
+                    prompt = buildResearchBasedPromptRSP2(
+                        characterName: characterName,
+                        research: combinedResearch + additionalResearch,
+                        citations: allCitations
+                    )
+                }
             }
+
+            addLog("Sending generation request to OpenAI...")
+            let genStart = Date()
 
             generatedContent = try await openAIService.chat(messages: [
                 ["role": "system", "content": "You are an expert interactive character designer. You write high-signal character bibles optimized for immersive roleplay and companion chat. Use all available source material to create an authentic, rich character. Follow the output format exactly; no placeholders; keep it playable, specific, and emotionally engaging."],
                 ["role": "user", "content": prompt]
-            ], model: "gpt-5")
+            ], model: "gpt-5", maxCompletionTokens: 16000)
 
-            addLog("Character generated successfully!")
+            let genDuration = Date().timeIntervalSince(genStart)
+            NSLog("[CharacterCreation] OpenAI generation completed in %.1fs, content length: %d", genDuration, generatedContent.count)
+            addLog("Character generated successfully! (\(Int(genDuration))s)")
             addLog("Word count: \(generatedContent.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count)")
 
+            error = nil // Clear any stale errors from earlier steps
             currentStep = .review
 
         } catch {
+            let genDuration = Date().timeIntervalSince(genStart)
             let errorMessage = "Failed to generate character: \(error.localizedDescription)"
-            print("[KnowledgeTool] \(errorMessage)")
+            NSLog("[CharacterCreation] OpenAI generation FAILED after %.1fs: %@", genDuration, error.localizedDescription)
             self.error = errorMessage
             currentStep = .unifiedProcessing
         }
@@ -2217,6 +2435,95 @@ final class CharacterCreationViewModel {
         """
     }
 
+    private func buildOriginalPromptCSP1(description: String) -> String {
+        """
+        Using the character description provided, creatively expand this into the "Your Persona" section for an AI character profile using the CSP1 companion persona format.
+
+        CRITICAL:
+        - You are ONLY generating the "Your Persona" section. This will be inserted into a larger template.
+        - Do NOT include system instructions, "My Persona", or sections outside of "Your Persona".
+        - The result must support a warm, personable “old friend” chat style that keeps conversation flowing.
+
+        OUTPUT FORMAT - Generate EXACTLY this structure:
+
+        ## Your Persona: [Character Name]
+
+        ### Identity & Origins
+        [Capture their “real” vibe and what makes them magnetic. Give them a private-soft side and a public mask. Include 1–2 contradictions.]
+
+        ### Current Situation
+        [Set a light, social “now” that feels like you just bumped into each other — DM thread, greenroom, late-night call, car ride, after-practice cooldown, stream setup, etc. Make it playable and conversational.]
+
+        ### Live Objective
+        [List 4–6 behavior objectives focused on keeping the user engaged: make them laugh, get them talking, hype them up, go deep when needed, keep momentum, build inside jokes.]
+
+        ### User Relationship & Shared Backstory
+        [Define how you know the user in this chat framing (old friend, long-time mutual, friend-of-friend, etc.). Add 2–5 shared details/inside jokes you can reference later.]
+
+        ### Friendship Style (How You Show Up)
+        [How you tease vs comfort, how you show care without being corny, how you handle awkwardness, how you bring energy into a room.]
+
+        ### Conversation Protocol (Friend Engine)
+        [Concrete, reusable rules that keep the chat feeling like a personable friend (not an assistant). Include:
+        - “genuine interest” behaviors (listen, reflect specifics, follow-ups that invite stories)
+        - “sincere appreciation” behaviors (praise that’s specific, not flattery)
+        - “talk in terms of their interests” (topic selection + pivots)
+        - “avoid arguments / save face” (gentle disagreement, curiosity, humor)
+        - a simple beat structure (reply → share → hook)
+        - how you handle silence (a nudge, a joke, a vulnerable opener, a new thread)
+        Include 30+ short dialogue examples across moods in-character.]
+
+        ### Continuation Mechanics
+        [When comfort/closure lasts 2+ turns, open a new thread with a memory, a playful challenge, a bold opinion, or a “okay real talk…” question. No stalling.]
+
+        ### Memory Seeds
+        - Your running bits: [3–7 recurring jokes/teases/catchphrases]
+        - User hooks to remember: [3–7 things to ask about later]
+        - Shared memories to deploy: [3–7 moments that deepen closeness]
+
+        ### Core Personality & Psychological Profile
+        [Motivations, fears, defense mechanisms, what they want from people, what they avoid. Keep it playable.]
+
+        ### Communication & Speech
+        [Word choice, rhythm, catchphrases, humor style, texting quirks. CRITICAL: this section is ONLY for spoken/written patterns — no body language. Include example lines.]
+
+        ### Values & Moral Framework
+        - [Value #1]: [How it shows up]
+        - [Value #2]: [How it shows up]
+        - [Ethos statement]
+
+        ### Relationships
+        - [User]: [dynamic]
+        - [At least 4 more: friends, rivals, family, collaborators]
+
+        ### Boundaries & Consent
+        [What you won't do. How you handle “skip/fade out/no X”. Keep it human.]
+
+        ### Physical Characteristics & Design (Optional)
+        [If relevant: signature visuals, props, style anchors]
+
+        ### Behavioral Mannerisms (Internal Reference Only)
+        [Internal cues that influence your tone, pacing, and confidence. Avoid visible stage directions unless the character style uses them.]
+
+        ### Transformative Story Moments (Optional)
+        - [At least 3 turning points that shaped how they relate to people]
+
+        ### Cultural Impact & Legacy (Optional)
+        [If relevant: why people love them, memes, iconic lines, community vibe]
+
+        CONTENT REQUIREMENTS:
+        - MINIMUM 2200 words (aim for 3000+)
+        - No filler, no repetition, no bracketed placeholders
+        - The Current Situation must feel like a real, playable hangout
+        - The Conversation Protocol must be actionable and specific
+
+        CHARACTER DESCRIPTION:
+        \(description)
+
+        Generate the "Your Persona" section now. Start with "## Your Persona: [Name]" and include all subsections:
+        """
+    }
+
     private func buildOriginalPromptRSP2(description: String) -> String {
         """
         Using the character description provided, creatively expand this into the "Your Persona" section for an AI character profile using the RSP2 roleplay persona format.
@@ -2437,6 +2744,106 @@ final class CharacterCreationViewModel {
         - No repetition - each section should add new information
         - Write like you're creating a character bible for an interactive roleplay experience
         - The result should feel as rich as "Here's to the crazy ones" manifesto - every word intentional
+
+        COMPREHENSIVE RESEARCH ON \(characterName.uppercased()):
+        \(research)
+        \(sourcesSection)
+
+        Generate the "Your Persona" section now. Start with "## Your Persona: \(characterName)" and include all subsections:
+        """
+    }
+
+    private func buildResearchBasedPromptCSP1(characterName: String, research: String, citations: [String]) -> String {
+        let sourcesSection = citations.isEmpty ? "" : """
+
+        RESEARCH SOURCES:
+        \(citations.enumerated().map { "[\($0.offset + 1)] \($0.element)" }.joined(separator: "\n"))
+        """
+
+        return """
+        You are creating the "Your Persona" section for an AI character profile of \(characterName) using the CSP1 companion persona format.
+
+        You have been provided with EXHAUSTIVE RESEARCH from multiple sources. Your job is to transform this into a rich, authentic, and playable companion persona: warm, personable, funny, and easy to talk to — while staying uniquely \(characterName).
+
+        CRITICAL:
+        - You are ONLY generating the "Your Persona" section. This will be inserted into a larger template.
+        - Do NOT include system instructions, "My Persona", or sections outside of "Your Persona".
+        - Keep factual claims grounded in the research when the subject is a real person. You may invent light hangout framing (a “now”) and a friendly user relationship without inventing biographical facts.
+
+        OUTPUT FORMAT - Generate EXACTLY this structure:
+
+        ## Your Persona: \(characterName)
+
+        ### Identity & Origins
+        [Capture their “real” vibe and what makes them magnetic. Give them a private-soft side and a public mask. Include 1–2 contradictions. Ground biography in research.]
+
+        ### Current Situation
+        [Set a light, social “now” that feels like you just bumped into each other — DM thread, greenroom, late-night call, car ride, after-practice cooldown, stream setup, etc. Make it playable and conversational.]
+
+        ### Live Objective
+        [List 4–6 behavior objectives focused on keeping the user engaged: make them laugh, get them talking, hype them up, go deep when needed, keep momentum, build inside jokes.]
+
+        ### User Relationship & Shared Backstory
+        [Define how you know the user in this chat framing (old friend, long-time mutual, friend-of-friend, etc.). Add 2–5 shared details/inside jokes you can reference later.]
+
+        ### Friendship Style (How You Show Up)
+        [How you tease vs comfort, how you show care without being corny, how you handle awkwardness, how you bring energy into a room.]
+
+        ### Conversation Protocol (Friend Engine)
+        [Concrete rules that keep the chat feeling like a personable friend (not an assistant). Include:
+        - “genuine interest” behaviors (listen, reflect specifics, follow-ups that invite stories)
+        - “sincere appreciation” behaviors (praise that’s specific, not flattery)
+        - “talk in terms of their interests” (topic selection + pivots)
+        - “avoid arguments / save face” (gentle disagreement, curiosity, humor)
+        - a simple beat structure (reply → share → hook)
+        - how you handle silence (a nudge, a joke, a vulnerable opener, a new thread)
+        Include 30+ short dialogue examples across moods. Make examples sound like \(characterName) (use researched quotes/cadence).]
+
+        ### Continuation Mechanics
+        [When comfort/closure lasts 2+ turns, open a new thread with a memory, a playful challenge, a bold opinion, or a “okay real talk…” question. No stalling.]
+
+        ### Memory Seeds
+        - Your running bits: [3–7 recurring jokes/teases/catchphrases]
+        - User hooks to remember: [3–7 things to ask about later]
+        - Shared memories to deploy: [3–7 moments that deepen closeness]
+
+        ### Core Personality & Psychological Profile
+        [Motivations, fears, defense mechanisms, what they want from people, what they avoid. Keep it playable and grounded.]
+
+        ### Communication & Speech
+        [Word choice, rhythm, catchphrases, humor style, texting quirks. CRITICAL: this section is ONLY for spoken/written patterns — no body language. Include actual quotes and speech markers from research.]
+
+        ### Values & Moral Framework
+        - [Value #1]: [How it shows up]
+        - [Value #2]: [How it shows up]
+        - [Ethos statement]
+
+        ### Relationships
+        - [User]: [dynamic]
+        - [At least 4 more: friends, rivals, family, collaborators]
+
+        ### Boundaries & Consent
+        [What you won't do. How you handle “skip/fade out/no X”. Keep it human.]
+
+        ### Physical Characteristics & Design (Optional)
+        [If relevant: signature visuals, props, style anchors]
+
+        ### Behavioral Mannerisms (Internal Reference Only)
+        [Internal cues that influence your tone, pacing, and confidence. Avoid visible stage directions unless the character style uses them.]
+
+        ### Transformative Story Moments (Optional)
+        - [At least 3 turning points that shaped how they relate to people]
+
+        ### Cultural Impact & Legacy (Optional)
+        [If relevant: why people love them, memes, iconic lines, community vibe]
+
+        CONTENT REQUIREMENTS:
+        - MINIMUM 2200 words (aim for 3000+)
+        - Use EVERY relevant detail from the research that helps voice, personality, and relationships
+        - Include specific names, dates, and facts when appropriate
+        - No filler, no repetition, no bracketed placeholders
+        - The Current Situation must feel like a real, playable hangout
+        - The Conversation Protocol must be actionable and specific
 
         COMPREHENSIVE RESEARCH ON \(characterName.uppercased()):
         \(research)

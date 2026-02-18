@@ -568,7 +568,6 @@ actor DialogExampleService {
                 ["role": "user", "content": prompt]
             ],
             "max_completion_tokens": 2000,
-            "temperature": 0.8,
             "response_format": ["type": "json_object"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -631,7 +630,6 @@ actor DialogExampleService {
                 ["role": "user", "content": prompt]
             ],
             "max_completion_tokens": 500,
-            "temperature": 0.9,
             "response_format": ["type": "json_object"]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

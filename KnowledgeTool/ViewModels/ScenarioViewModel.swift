@@ -8,7 +8,7 @@ final class ScenarioViewModel {
     // Configuration state
     var theme: String = ""
     var numberOfScenarios: Int = 5
-    var includeDramaticStakes: Bool = true
+    var includeDramaticStakes: Bool = false
 
     // Progress state
     private(set) var isGenerating: Bool = false
@@ -29,6 +29,8 @@ final class ScenarioViewModel {
     private let repository: CombinedCharacterRepository
     private var scenarioService: ScenarioGenerationService?
     private var character: Character?
+    var onCharacterUpdated: ((Character) -> Void)?
+    var jobManager: BackgroundJobManager?
 
     // Computed properties
     var allScenarios: [Scenario] {
@@ -57,7 +59,7 @@ final class ScenarioViewModel {
         self.character = character
         self.repository = repository
 
-        // Initialize service if we have an API key
+        // Initialize services if we have an API key
         if let openAIKey = apiKeyManager.getAPIKey(for: .openAI) {
             self.scenarioService = ScenarioGenerationService(openAIApiKey: openAIKey)
         }
@@ -102,6 +104,8 @@ final class ScenarioViewModel {
         error = nil
         progressMessage = "Starting generation..."
 
+        let jobId = jobManager?.startJob(type: .scenarioGeneration, characterName: character.name)
+
         let config = ScenarioGenerationConfig(
             theme: theme,
             numberOfScenarios: numberOfScenarios,
@@ -113,22 +117,33 @@ final class ScenarioViewModel {
                 characterId: character.id,
                 characterName: character.name,
                 personaContent: character.markdownContent,
+                systemPromptType: character.systemPromptType,
                 config: config,
                 onProgress: { [weak self] message in
                     Task { @MainActor in
                         self?.progressMessage = message
+                        if let jobId = jobId {
+                            self?.jobManager?.updateProgress(jobId: jobId, message: message)
+                        }
                     }
                 }
             )
 
-            generatedScenarios = scenarios
-            progressMessage = "Generated \(scenarios.count) scenarios"
+            generatedScenarios.append(contentsOf: scenarios)
+            progressMessage = "Generated \(scenarios.count) scenarios (\(allScenarios.count) total)"
 
             // Auto-save
             try await save()
 
+            if let jobId = jobId {
+                jobManager?.completeJob(jobId: jobId)
+            }
+
         } catch {
             self.error = error.localizedDescription
+            if let jobId = jobId {
+                jobManager?.failJob(jobId: jobId, error: error.localizedDescription)
+            }
         }
 
         isGenerating = false
@@ -308,10 +323,50 @@ final class ScenarioViewModel {
         editedObjective = ""
     }
 
+    // MARK: - Apply Scenario to Persona
+
+    func applyScenario(_ scenario: Scenario) async {
+        guard var character = character else { return }
+
+        // Replace both Current Situation and Live Objective in markdownContent
+        replaceSection(in: &character.markdownContent, sectionName: "Current Situation", newContent: scenario.currentSituation)
+        replaceSection(in: &character.markdownContent, sectionName: "Live Objective", newContent: scenario.liveObjective)
+
+        self.character = character
+
+        do {
+            try await repository.saveCharacter(character)
+            onCharacterUpdated?(character)
+            progressMessage = "Applied \"\(scenario.title)\" to persona"
+        } catch {
+            self.error = "Failed to save: \(error.localizedDescription)"
+        }
+    }
+
+    private func replaceSection(in content: inout String, sectionName: String, newContent: String) {
+        let pattern = "###\\s*\(NSRegularExpression.escapedPattern(for: sectionName))\\s*\\n[\\s\\S]*?(?=\\n###|\\n##|$)"
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            content += "\n\n### \(sectionName)\n\(newContent)"
+            return
+        }
+
+        let nsString = content as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: content, range: range)
+
+        if let match = matches.first {
+            let replacement = "### \(sectionName)\n\(newContent)"
+            content = nsString.replacingCharacters(in: match.range, with: replacement)
+        } else {
+            content += "\n\n### \(sectionName)\n\(newContent)"
+        }
+    }
+
     // MARK: - Save
 
     func save() async throws {
-        guard let character = character,
+        guard var character = character,
               let service = scenarioService else { return }
 
         let allToSave = allScenarios
@@ -319,11 +374,20 @@ final class ScenarioViewModel {
 
         let fileName = "scenarios.jsonl"
 
-        _ = try await repository.createKnowledgeFile(
+        let updatedFile = try await repository.createKnowledgeFile(
             for: character,
             fileName: fileName,
             content: jsonl
         )
+
+        // Update local character with new knowledge file
+        if let index = character.knowledgeFiles.firstIndex(where: { $0.fileName == fileName }) {
+            character.knowledgeFiles[index] = updatedFile
+        } else {
+            character.knowledgeFiles.append(updatedFile)
+        }
+        self.character = character
+        onCharacterUpdated?(character)
 
         // Move generated to existing after save
         existingScenarios = allToSave

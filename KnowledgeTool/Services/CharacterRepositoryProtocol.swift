@@ -32,6 +32,9 @@ protocol CharacterRepositoryProtocol: Actor {
 
     /// Delete a knowledge file
     func deleteKnowledgeFile(_ knowledgeFile: KnowledgeFile) async throws
+
+    /// Delete a character
+    func deleteCharacter(_ character: Character) async throws
 }
 
 /// Configuration for Supabase sync
@@ -202,8 +205,10 @@ actor CombinedCharacterRepository {
         if syncEnabled, let supabase = supabase {
             Task {
                 do {
+                    // Look up the remote character by name to get the correct Supabase ID
+                    let remoteChar = try await self.resolveRemoteCharacter(character, supabase: supabase)
                     _ = try await supabase.createKnowledgeFile(
-                        for: character,
+                        for: remoteChar,
                         fileName: fileName,
                         content: content
                     )
@@ -226,8 +231,10 @@ actor CombinedCharacterRepository {
         if syncEnabled, let supabase = supabase {
             Task {
                 do {
+                    // Look up the remote character by name to get the correct Supabase ID
+                    let remoteChar = try await self.resolveRemoteCharacter(character, supabase: supabase)
                     _ = try await supabase.createKnowledgeFile(
-                        for: character,
+                        for: remoteChar,
                         fileName: knowledgeFile.fileName,
                         content: knowledgeFile.content
                     )
@@ -336,6 +343,41 @@ actor CombinedCharacterRepository {
         }
     }
 
+    // MARK: - Character Deletion
+
+    /// Delete a character from local and/or Supabase
+    func deleteCharacter(_ character: Character) async throws {
+        // Try local deletion (may not exist if remote-only)
+        do {
+            try await local.deleteCharacter(character)
+            NSLog("[CombinedRepository] Deleted character locally: %@", character.name)
+        } catch {
+            NSLog("[CombinedRepository] Local deletion skipped (may be remote-only): %@", error.localizedDescription)
+        }
+
+        // Try Supabase deletion
+        if let supabase = supabase {
+            do {
+                try await supabase.deleteCharacter(character)
+                NSLog("[CombinedRepository] Deleted character from Supabase: %@", character.name)
+            } catch {
+                NSLog("[CombinedRepository] Supabase deletion skipped: %@", error.localizedDescription)
+            }
+        }
+    }
+
+    // MARK: - Remote Character Resolution
+
+    /// Look up the remote character by name to get the correct Supabase-assigned ID.
+    /// Falls back to the local character if no remote match is found.
+    private func resolveRemoteCharacter(_ character: Character, supabase: SupabaseCharacterRepository) async throws -> Character {
+        let remoteCharacters = try await supabase.loadAllCharacters()
+        if let remote = remoteCharacters.first(where: { $0.name.lowercased() == character.name.lowercased() }) {
+            return remote
+        }
+        return character
+    }
+
     // MARK: - Bulk Sync Operations
 
     /// Sync all local characters to Supabase (for initial sync or manual sync)
@@ -372,16 +414,17 @@ actor CombinedCharacterRepository {
                     try await supabase.updateCharacter(synced)
                     NSLog("[CombinedRepository] Updated existing character: %@", character.name)
                 } else {
-                    // Create new remote character
-                    _ = try await supabase.createCharacter(
+                    // Create new remote character and track the returned character with Supabase ID
+                    let created = try await supabase.createCharacter(
                         name: character.name,
                         markdownContent: character.markdownContent,
                         systemPromptType: character.systemPromptType
                     )
+                    remoteByName[character.name.lowercased()] = created
                     NSLog("[CombinedRepository] Created new character: %@", character.name)
                 }
 
-                // Sync knowledge files using the remote ID if it exists
+                // Sync knowledge files using the remote ID
                 let remoteChar = remoteByName[character.name.lowercased()] ?? character
                 for knowledgeFile in character.knowledgeFiles {
                     _ = try await supabase.createKnowledgeFile(

@@ -10,29 +10,62 @@ actor OpenAIService {
         self.apiKey = apiKey
         self.model = model
 
-        // Create a custom URLSession with longer timeouts for large transcript processing
+        // Create a custom URLSession with longer timeouts for large generation tasks
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 300  // 5 minutes for request
-        config.timeoutIntervalForResource = 600 // 10 minutes for entire resource
+        config.timeoutIntervalForRequest = 600  // 10 minutes — gpt-5 can take long to start responding
+        config.timeoutIntervalForResource = 900 // 15 minutes for entire resource
         self.session = URLSession(configuration: config)
     }
 
     // MARK: - Chat Completion
-    func chat(messages: [[String: String]], model: String? = nil) async throws -> String {
+    func chat(
+        messages: [[String: String]],
+        model: String? = nil,
+        maxCompletionTokens: Int? = nil,
+        temperature: Double? = nil,
+        timeoutInterval: TimeInterval = 600
+    ) async throws -> String {
         let targetModel = model ?? self.model
 
-        let requestBody: [String: Any] = [
-            "model": targetModel,
-            "messages": messages
-        ]
+        struct ChatRequest: Codable {
+            let model: String
+            let messages: [Message]
+            let maxCompletionTokens: Int?
+            let temperature: Double?
 
-        let requestData = try JSONSerialization.data(withJSONObject: requestBody)
+            struct Message: Codable {
+                let role: String
+                let content: String
+            }
+
+            enum CodingKeys: String, CodingKey {
+                case model
+                case messages
+                case maxCompletionTokens = "max_completion_tokens"
+                case temperature
+            }
+        }
+
+        let mappedMessages: [ChatRequest.Message] = messages.compactMap { dict in
+            guard let role = dict["role"], let content = dict["content"] else { return nil }
+            return ChatRequest.Message(role: role, content: content)
+        }
+
+        let requestBody = ChatRequest(
+            model: targetModel,
+            messages: mappedMessages,
+            maxCompletionTokens: maxCompletionTokens,
+            temperature: temperature
+        )
+
+        let requestData = try JSONEncoder().encode(requestBody)
 
         var request = URLRequest(url: URL(string: "\(baseURL)/chat/completions")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = requestData
+        request.timeoutInterval = timeoutInterval
 
         let (data, response) = try await session.data(for: request)
 

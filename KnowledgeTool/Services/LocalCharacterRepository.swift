@@ -448,6 +448,20 @@ actor LocalCharacterRepository {
         return character
     }
 
+    // MARK: - Character Deletion
+
+    /// Delete a character by removing its entire directory
+    func deleteCharacter(_ character: Character) async throws {
+        let characterURL = baseURL.appendingPathComponent(character.directoryPath)
+
+        guard FileManager.default.fileExists(atPath: characterURL.path) else {
+            throw LocalRepositoryError.directoryNotFound(characterURL.path)
+        }
+
+        try FileManager.default.removeItem(at: characterURL)
+        NSLog("[LocalCharacterRepository] Deleted character directory: %@", characterURL.path)
+    }
+
     // MARK: - Metadata
 
     private func loadCharacterMetadata(from directoryURL: URL) -> CharacterMetadata? {

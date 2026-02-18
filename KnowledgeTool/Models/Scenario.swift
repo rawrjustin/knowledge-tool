@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Scenario
 
-/// A roleplay scenario with a current situation and live objective
+/// A scenario with a current situation and live objective
 struct Scenario: Identifiable, Codable, Hashable {
     let id: UUID
     let characterId: UUID
@@ -70,7 +70,7 @@ struct ScenarioGenerationConfig: Codable {
     init(
         theme: String = "",
         numberOfScenarios: Int = 5,
-        includeDramaticStakes: Bool = true
+        includeDramaticStakes: Bool = false
     ) {
         self.theme = theme
         self.numberOfScenarios = numberOfScenarios

@@ -101,10 +101,14 @@
 		B137A /* PineconeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B137 /* PineconeService.swift */; };
 		B138A /* MemoryGenerationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B138 /* MemoryGenerationService.swift */; };
 		B139A /* ASP1Template.swift in Sources */ = {isa = PBXBuildFile; fileRef = B139 /* ASP1Template.swift */; };
+		B261A /* CSP1Template.swift in Sources */ = {isa = PBXBuildFile; fileRef = B261 /* CSP1Template.swift */; };
 		B260A /* RSP2Template.swift in Sources */ = {isa = PBXBuildFile; fileRef = B260 /* RSP2Template.swift */; };
 		A270 /* ChatLogMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B270 /* ChatLogMessage.swift */; };
 		A271 /* ChatLogViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B271 /* ChatLogViewModel.swift */; };
 		A272 /* ChatLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B272 /* ChatLogView.swift */; };
+		A273 /* BackgroundJobManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B273 /* BackgroundJobManager.swift */; };
+		A274 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B274 /* NotificationService.swift */; };
+		A275 /* CharacterGeneratingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B275 /* CharacterGeneratingView.swift */; };
 		BIN1 /* yt-dlp in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF1 /* yt-dlp */; };
 		BIN2 /* ffmpeg in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF2 /* ffmpeg */; };
 		BIN3 /* ffprobe in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF3 /* ffprobe */; };
@@ -173,10 +177,14 @@
 		B137 /* PineconeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PineconeService.swift; sourceTree = "<group>"; };
 		B138 /* MemoryGenerationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryGenerationService.swift; sourceTree = "<group>"; };
 		B139 /* ASP1Template.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASP1Template.swift; sourceTree = "<group>"; };
+		B261 /* CSP1Template.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSP1Template.swift; sourceTree = "<group>"; };
 		B260 /* RSP2Template.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RSP2Template.swift; sourceTree = "<group>"; };
 		B270 /* ChatLogMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLogMessage.swift; sourceTree = "<group>"; };
 		B271 /* ChatLogViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLogViewModel.swift; sourceTree = "<group>"; };
 		B272 /* ChatLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLogView.swift; sourceTree = "<group>"; };
+		B273 /* BackgroundJobManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundJobManager.swift; sourceTree = "<group>"; };
+		B274 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		B275 /* CharacterGeneratingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterGeneratingView.swift; sourceTree = "<group>"; };
 		B140 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		B141 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
 		B142 /* VersionComparisonChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonChatView.swift; sourceTree = "<group>"; };
@@ -390,6 +398,8 @@
 				B252 /* SportsDataIOProvider.swift */,
 				B253 /* SportsDataKnowledgeMapper.swift */,
 				B254 /* SportsDataSyncManager.swift */,
+				B273 /* BackgroundJobManager.swift */,
+				B274 /* NotificationService.swift */,
 			);
 			name = Services;
 			path = KnowledgeTool/Services;
@@ -411,6 +421,7 @@
 				C100 /* Assets.xcassets */,
 				C101 /* KnowledgeTool.entitlements */,
 				B139 /* ASP1Template.swift */,
+				B261 /* CSP1Template.swift */,
 				B260 /* RSP2Template.swift */,
 				BINGRP /* bin */,
 			);
@@ -469,6 +480,7 @@
 				B224 /* SummarySection.swift */,
 				B225 /* SourceDeletionSheet.swift */,
 				B256 /* SportsDataView.swift */,
+				B275 /* CharacterGeneratingView.swift */,
 			);
 			path = Characters;
 			sourceTree = "<group>";
@@ -634,6 +646,7 @@
 				A181 /* SystemPromptCache.swift in Sources */,
 				A182 /* SystemPromptService.swift in Sources */,
 				B139A /* ASP1Template.swift in Sources */,
+				B261A /* CSP1Template.swift in Sources */,
 				B260A /* RSP2Template.swift in Sources */,
 				A150 /* SparkleUpdater.swift in Sources */,
 				A200 /* AugmentationService.swift in Sources */,
@@ -663,6 +676,9 @@
 				A270 /* ChatLogMessage.swift in Sources */,
 				A271 /* ChatLogViewModel.swift in Sources */,
 				A272 /* ChatLogView.swift in Sources */,
+				A273 /* BackgroundJobManager.swift in Sources */,
+				A274 /* NotificationService.swift in Sources */,
+				A275 /* CharacterGeneratingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -4,6 +4,7 @@ import SwiftUI
 struct KnowledgeToolApp: App {
     @State private var apiKeyManager = APIKeyManager()
     @State private var syncManager: SyncManager
+    @State private var backgroundJobManager = BackgroundJobManager()
     @State private var showSupabaseSetup = false
 
     init() {
@@ -26,7 +27,11 @@ struct KnowledgeToolApp: App {
             ContentView()
                 .environment(apiKeyManager)
                 .environment(syncManager)
+                .environment(backgroundJobManager)
                 .frame(minWidth: 900, minHeight: 600)
+                .task {
+                    NotificationService.shared.requestAuthorization()
+                }
                 .task {
                     // For users who completed old onboarding without Supabase, prompt them to set it up
                     let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")

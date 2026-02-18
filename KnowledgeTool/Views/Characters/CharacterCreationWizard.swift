@@ -5,12 +5,14 @@ struct CharacterCreationWizard: View {
     @State private var viewModel: CharacterCreationViewModel
     let onComplete: (Character) -> Void
     let onCancel: () -> Void
+    var onStartBackgroundCreation: ((CharacterCreationViewModel) -> Void)?
 
     init(
         repository: CombinedCharacterRepository,
         apiKeyManager: APIKeyManager,
         onComplete: @escaping (Character) -> Void,
-        onCancel: @escaping () -> Void
+        onCancel: @escaping () -> Void,
+        onStartBackgroundCreation: ((CharacterCreationViewModel) -> Void)? = nil
     ) {
         self._viewModel = State(initialValue: CharacterCreationViewModel(
             repository: repository,
@@ -18,6 +20,7 @@ struct CharacterCreationWizard: View {
         ))
         self.onComplete = onComplete
         self.onCancel = onCancel
+        self.onStartBackgroundCreation = onStartBackgroundCreation
     }
 
     var body: some View {
@@ -45,7 +48,7 @@ struct CharacterCreationWizard: View {
                     PathSelectionView(viewModel: viewModel)
 
                 case .unifiedInput:
-                    UnifiedInputView(viewModel: viewModel)
+                    UnifiedInputView(viewModel: viewModel, onStartBackgroundCreation: onStartBackgroundCreation)
 
                 case .unifiedProcessing:
                     UnifiedProcessingView(viewModel: viewModel)
@@ -194,6 +197,7 @@ struct PathSelectionView: View {
 // MARK: - Unified Input View
 struct UnifiedInputView: View {
     @Bindable var viewModel: CharacterCreationViewModel
+    var onStartBackgroundCreation: ((CharacterCreationViewModel) -> Void)?
     @FocusState private var focusedLinkIndex: Int?
     @State private var isTargetedForDrop = false
 
@@ -410,8 +414,12 @@ struct UnifiedInputView: View {
                     }
 
                     Button {
-                        Task {
-                            await viewModel.processUnifiedInputs()
+                        if let onStartBackgroundCreation = onStartBackgroundCreation {
+                            onStartBackgroundCreation(viewModel)
+                        } else {
+                            Task {
+                                await viewModel.processUnifiedInputs()
+                            }
                         }
                     } label: {
                         HStack(spacing: DesignSystem.Spacing.sm) {

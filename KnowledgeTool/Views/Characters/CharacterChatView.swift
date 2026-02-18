@@ -63,6 +63,9 @@ struct CharacterChatView: View {
         .onChange(of: character.id) { _, _ in
             viewModel.updateCharacter(character)
         }
+        .onChange(of: character.sha) { _, _ in
+            viewModel.updateCharacter(character)
+        }
         .confirmationDialog("Clear Chat", isPresented: $showingClearConfirmation) {
             Button("Clear All Messages", role: .destructive) {
                 withAnimation(DesignSystem.Animation.smooth) {
@@ -107,7 +110,7 @@ struct CharacterChatView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 200)
+                .frame(width: 240)
                 .onChange(of: viewModel.selectedPromptType) { _, _ in
                     Task {
                         await viewModel.loadSystemPrompt()

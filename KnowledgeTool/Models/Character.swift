@@ -24,7 +24,7 @@ enum SystemPromptType: String, CaseIterable, Codable {
         case .action:
             return "Action (ASP1)"
         case .conversational:
-            return "Conversational (CSP1)"
+            return "Companion (CSP1)"
         case .roleplay:
             return "Roleplay (RSP2)"
         }
@@ -35,14 +35,14 @@ enum SystemPromptType: String, CaseIterable, Codable {
         case .action:
             return "High-energy, mission-driven, mid-scene action orientation"
         case .conversational:
-            return "Friendly, witty companion mode with dry humor"
+            return "Companion friend mode: warm, witty, curiosity-driven conversation"
         case .roleplay:
             return "Interactive roleplay with co-creation tools (RSP2 fallback)"
         }
     }
 
-    /// Types available for selection in UI (excludes CSP1 which has no template yet)
-    static let availableTypes: [SystemPromptType] = [.action, .roleplay]
+    /// Types available for selection in UI
+    static let availableTypes: [SystemPromptType] = [.conversational, .roleplay, .action]
 }
 
 // MARK: - Knowledge File
@@ -130,6 +130,7 @@ struct Character: Identifiable, Codable, Hashable {
     var createdAt: Date                 // When this version was created
     var lastModified: Date              // When this version was last modified
     var isLocalOnly: Bool               // Not yet in git repo
+    var isGenerating: Bool               // In-memory placeholder while generating
 
     init(
         id: UUID = UUID(),
@@ -144,7 +145,8 @@ struct Character: Identifiable, Codable, Hashable {
         versionName: String? = nil,
         createdAt: Date = Date(),
         lastModified: Date = Date(),
-        isLocalOnly: Bool = false
+        isLocalOnly: Bool = false,
+        isGenerating: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -159,6 +161,32 @@ struct Character: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
         self.lastModified = lastModified
         self.isLocalOnly = isLocalOnly
+        self.isGenerating = isGenerating
+    }
+
+    // MARK: - Codable
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, directoryPath, personaFileName, markdownContent, knowledgeFiles
+        case sha, systemPromptType, version, versionName, createdAt, lastModified, isLocalOnly, isGenerating
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        directoryPath = try container.decode(String.self, forKey: .directoryPath)
+        personaFileName = try container.decode(String.self, forKey: .personaFileName)
+        markdownContent = try container.decode(String.self, forKey: .markdownContent)
+        knowledgeFiles = try container.decode([KnowledgeFile].self, forKey: .knowledgeFiles)
+        sha = try container.decode(String.self, forKey: .sha)
+        systemPromptType = try container.decode(SystemPromptType.self, forKey: .systemPromptType)
+        version = try container.decode(Int.self, forKey: .version)
+        versionName = try container.decodeIfPresent(String.self, forKey: .versionName)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        lastModified = try container.decode(Date.self, forKey: .lastModified)
+        isLocalOnly = try container.decode(Bool.self, forKey: .isLocalOnly)
+        isGenerating = try container.decodeIfPresent(Bool.self, forKey: .isGenerating) ?? false
     }
 
     // Full file path to persona markdown

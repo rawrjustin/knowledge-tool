@@ -1,12 +1,9 @@
 import SwiftUI
 
-/// View for generating and managing roleplay scenarios for a character
+/// View for generating and managing scenarios for a character
 struct ScenarioGeneratorView: View {
     let character: Character
-    let repository: CombinedCharacterRepository
-    let apiKeyManager: APIKeyManager
-
-    @State private var viewModel: ScenarioViewModel
+    @Bindable var viewModel: ScenarioViewModel
 
     @State private var showingAddSheet = false
     @State private var showingExportSheet = false
@@ -14,17 +11,6 @@ struct ScenarioGeneratorView: View {
     @State private var newTitle: String = ""
     @State private var newSituation: String = ""
     @State private var newObjective: String = ""
-
-    init(character: Character, repository: CombinedCharacterRepository, apiKeyManager: APIKeyManager) {
-        self.character = character
-        self.repository = repository
-        self.apiKeyManager = apiKeyManager
-        self._viewModel = State(initialValue: ScenarioViewModel(
-            character: character,
-            apiKeyManager: apiKeyManager,
-            repository: repository
-        ))
-    }
 
     var body: some View {
         HSplitView {
@@ -84,9 +70,18 @@ struct ScenarioGeneratorView: View {
                     Text("Scenarios")
                         .font(.title2.bold())
 
-                    Text("Generate roleplay scenarios with situations and objectives for \(character.name)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Text("Generate scenarios for \(character.name)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Text(character.systemPromptType.shortDisplayName)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.15))
+                            .cornerRadius(DesignSystem.CornerRadius.small)
+                    }
                 }
 
                 Divider()
@@ -207,6 +202,7 @@ struct ScenarioGeneratorView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isGenerating)
+
             }
             .padding(DesignSystem.Spacing.lg)
         }
@@ -285,7 +281,7 @@ struct ScenarioGeneratorView: View {
 
             if viewModel.allScenarios.isEmpty {
                 emptyState
-            } else {
+            } else if !viewModel.allScenarios.isEmpty {
                 scenariosList
             }
         }
@@ -301,7 +297,7 @@ struct ScenarioGeneratorView: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            Text("Enter a theme and click Generate to create roleplay scenarios for \(character.name)")
+            Text("Enter a theme and click Generate to create scenarios for \(character.name)")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -346,6 +342,11 @@ struct ScenarioGeneratorView: View {
                         },
                         onDelete: {
                             viewModel.deleteScenario(scenario)
+                        },
+                        onApply: {
+                            Task {
+                                await viewModel.applyScenario(scenario)
+                            }
                         }
                     )
                 }
@@ -455,160 +456,27 @@ struct ScenarioCard: View {
     let onCancelEdit: () -> Void
     let onRegenerate: () -> Void
     let onDelete: () -> Void
+    let onApply: () -> Void
 
     @State private var isHovered = false
-    @State private var isExpanded = false
+    @State private var isExpanded = true
+    @State private var copyConfirmed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                // Source indicator
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(sourceColor)
-                    .frame(width: 4, height: 40)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    if isEditing {
-                        TextField("Title", text: $editedTitle)
-                            .font(.headline)
-                            .textFieldStyle(.roundedBorder)
-                    } else {
-                        Text(scenario.title)
-                            .font(.headline)
-                    }
-
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Text(scenario.theme)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if scenario.isActive {
-                            Text("ACTIVE")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.green)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(Color.green.opacity(0.15))
-                                .cornerRadius(3)
-                        }
-                    }
-                }
-
-                Spacer()
-
-                // Action buttons
-                if isEditing {
-                    Button("Cancel", action: onCancelEdit)
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-
-                    Button("Save", action: onSaveEdit)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                } else if isHovered {
-                    HStack(spacing: DesignSystem.Spacing.xs) {
-                        // Activate/Deactivate toggle
-                        Button {
-                            if scenario.isActive {
-                                onDeactivate()
-                            } else {
-                                onActivate()
-                            }
-                        } label: {
-                            Image(systemName: scenario.isActive ? "stop.circle.fill" : "play.circle")
-                                .font(.body)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(scenario.isActive ? .green : .secondary)
-                        .help(scenario.isActive ? "Deactivate" : "Activate")
-
-                        Button(action: onEdit) {
-                            Image(systemName: "pencil")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .help("Edit")
-
-                        Button(action: onRegenerate) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
-                        .help("Regenerate")
-
-                        Button(action: onDelete) {
-                            Image(systemName: "xmark")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.red.opacity(0.8))
-                        .help("Delete")
-                    }
-                }
-
-                // Expand/collapse
-                Button {
-                    withAnimation(DesignSystem.Animation.quick) {
-                        isExpanded.toggle()
-                    }
-                } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(DesignSystem.Spacing.md)
-
-            // Expandable content
-            if isExpanded || isEditing {
-                Divider()
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                    // Current Situation
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("CURRENT SITUATION")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        if isEditing {
-                            TextEditor(text: $editedSituation)
-                                .font(.body)
-                                .frame(minHeight: 80)
-                                .scrollContentBackground(.hidden)
-                                .background(Color(nsColor: .textBackgroundColor))
-                                .cornerRadius(DesignSystem.CornerRadius.small)
-                        } else {
-                            Text(scenario.currentSituation)
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                        }
-                    }
-
-                    // Live Objective
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("LIVE OBJECTIVE")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        if isEditing {
-                            TextEditor(text: $editedObjective)
-                                .font(.body)
-                                .frame(minHeight: 60)
-                                .scrollContentBackground(.hidden)
-                                .background(Color(nsColor: .textBackgroundColor))
-                                .cornerRadius(DesignSystem.CornerRadius.small)
-                        } else {
-                            Text(scenario.liveObjective)
-                                .font(.body)
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                }
+            headerRow
                 .padding(DesignSystem.Spacing.md)
+
+            // Content — always visible as preview, expandable for full text
+            if isEditing {
+                Divider()
+                editingContent
+                    .padding(DesignSystem.Spacing.md)
+            } else {
+                Divider()
+                previewContent
+                    .padding(DesignSystem.Spacing.md)
             }
         }
         .background(scenario.isActive ? Color.green.opacity(0.05) : Color(nsColor: .controlBackgroundColor))
@@ -619,6 +487,205 @@ struct ScenarioCard: View {
         .cornerRadius(DesignSystem.CornerRadius.medium)
         .onHover { hovering in
             isHovered = hovering
+        }
+    }
+
+    // MARK: - Header
+
+    private var headerRow: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            // Source indicator
+            RoundedRectangle(cornerRadius: 2)
+                .fill(sourceColor)
+                .frame(width: 4, height: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                if isEditing {
+                    TextField("Title", text: $editedTitle)
+                        .font(.headline)
+                        .textFieldStyle(.roundedBorder)
+                } else {
+                    Text(scenario.title)
+                        .font(.headline)
+                }
+
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text(scenario.theme)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if scenario.isActive {
+                        Text("ACTIVE")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.green.opacity(0.15))
+                            .cornerRadius(3)
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Action buttons
+            if isEditing {
+                Button("Cancel", action: onCancelEdit)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                Button("Save", action: onSaveEdit)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            } else if isHovered {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Button {
+                        if scenario.isActive {
+                            onDeactivate()
+                        } else {
+                            onActivate()
+                        }
+                    } label: {
+                        Image(systemName: scenario.isActive ? "stop.circle.fill" : "play.circle")
+                            .font(.body)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(scenario.isActive ? .green : .secondary)
+                    .help(scenario.isActive ? "Deactivate" : "Activate")
+
+                    Button(action: onApply) {
+                        Image(systemName: "arrow.down.doc")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.purple)
+                    .help("Apply to Persona")
+
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Edit")
+
+                    Button(action: onRegenerate) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Regenerate")
+
+                    Button(action: onDelete) {
+                        Image(systemName: "xmark")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.red.opacity(0.8))
+                    .help("Delete")
+                }
+            }
+
+            // Expand/collapse
+            Button {
+                withAnimation(DesignSystem.Animation.quick) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Preview Content
+
+    private var previewContent: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            // Current Situation
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("CURRENT SITUATION")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Text(scenario.currentSituation)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(isExpanded ? nil : 2)
+                    .textSelection(.enabled)
+            }
+
+            // Live Objective
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("LIVE OBJECTIVE")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+
+                Text(scenario.liveObjective)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(isExpanded ? nil : 3)
+                    .textSelection(.enabled)
+            }
+
+            // Copy button
+            if isExpanded {
+                HStack {
+                    Spacer()
+                    Button {
+                        let text = "### Current Situation\n\(scenario.currentSituation)\n\n### Live Objective\n\(scenario.liveObjective)"
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                        copyConfirmed = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            copyConfirmed = false
+                        }
+                    } label: {
+                        Label(
+                            copyConfirmed ? "Copied!" : "Copy Scenario",
+                            systemImage: copyConfirmed ? "checkmark" : "doc.on.doc"
+                        )
+                        .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+        }
+    }
+
+    // MARK: - Editing Content
+
+    private var editingContent: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("CURRENT SITUATION")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                TextEditor(text: $editedSituation)
+                    .font(.body)
+                    .frame(minHeight: 80)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("LIVE OBJECTIVE")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+
+                TextEditor(text: $editedObjective)
+                    .font(.body)
+                    .frame(minHeight: 100)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+            }
         }
     }
 
@@ -755,3 +822,4 @@ struct ExportScenarioSheet: View {
         .frame(width: 600, height: 500)
     }
 }
+

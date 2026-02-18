@@ -8,7 +8,9 @@ struct CharacterSelectorView: View {
     let onSync: () async -> Void
     let onNewCharacter: () -> Void
     let onVersionSelected: (Character) -> Void
+    var onDelete: ((String) -> Void)? = nil
 
+    @Environment(BackgroundJobManager.self) private var backgroundJobManager
     @State private var isSyncing = false
     @State private var showingCharacterPicker = false
     @State private var searchText = ""
@@ -75,6 +77,11 @@ struct CharacterSelectorView: View {
                                     .font(.headline)
                                     .foregroundStyle(selectedCharacter == nil ? .white : .primary)
 
+                                if let name = selectedCharacter?.name, backgroundJobManager.isGenerating(characterName: name) {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                }
+
                                 Image(systemName: "chevron.down")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(selectedCharacter == nil ? .white.opacity(0.8) : .secondary)
@@ -112,6 +119,13 @@ struct CharacterSelectorView: View {
                             }
                             showingCharacterPicker = false
                             searchText = ""
+                        },
+                        onDelete: onDelete.map { callback in
+                            { characterName in
+                                showingCharacterPicker = false
+                                searchText = ""
+                                callback(characterName)
+                            }
                         }
                     )
                 }
@@ -225,6 +239,7 @@ struct CharacterPickerPopover: View {
     let selectedCharacterName: String?
     let characters: [Character]
     let onSelect: (String) -> Void
+    var onDelete: ((String) -> Void)? = nil
 
     @FocusState private var isSearchFocused: Bool
 
@@ -286,7 +301,10 @@ struct CharacterPickerPopover: View {
                                 characterName: characterName,
                                 isSelected: characterName == selectedCharacterName,
                                 character: characters.first(where: { $0.name == characterName }),
-                                onSelect: { onSelect(characterName) }
+                                onSelect: { onSelect(characterName) },
+                                onDelete: onDelete.map { callback in
+                                    { callback(characterName) }
+                                }
                             )
 
                             if characterName != filteredCharacterNames.last {
@@ -313,55 +331,92 @@ struct CharacterPickerRow: View {
     let isSelected: Bool
     let character: Character?
     let onSelect: () -> Void
+    var onDelete: (() -> Void)? = nil
 
     @State private var isHovered = false
 
     var body: some View {
-        Button {
-            onSelect()
-        } label: {
-            HStack(spacing: DesignSystem.Spacing.md) {
-                // Avatar
-                CharacterAvatar(name: characterName, size: 28)
+        HStack(spacing: 0) {
+            Button {
+                onSelect()
+            } label: {
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    // Avatar
+                    CharacterAvatar(name: characterName, size: 28)
 
-                // Info
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(characterName)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
+                    // Info
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(characterName)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
 
-                    if let character = character {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            if character.hasKnowledgeBase {
-                                Image(systemName: "books.vertical.fill")
+                        if let character = character, character.isGenerating {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .controlSize(.mini)
+                                Text("Generating...")
                                     .font(.caption2)
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(.orange)
                             }
+                        } else if let character = character {
+                            HStack(spacing: DesignSystem.Spacing.xs) {
+                                if character.hasKnowledgeBase {
+                                    Image(systemName: "books.vertical.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.blue)
+                                }
 
-                            Text("\(character.totalKnowledgeWords) words")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                                Text("\(character.totalKnowledgeWords) words")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
-                }
 
-                Spacer()
+                    Spacer()
 
-                // Selection indicator
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(.blue)
+                    // Selection indicator
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.blue)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            // Delete button (visible on hover)
+            if let onDelete = onDelete, isHovered {
+                Button {
+                    onDelete()
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundStyle(.red.opacity(0.8))
+                        .padding(DesignSystem.Spacing.xs)
+                }
+                .buttonStyle(.plain)
+                .help("Delete character")
+                .transition(.opacity)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
         .background(isSelected ? Color.accentColor.opacity(0.08) : (isHovered ? Color.primary.opacity(0.04) : Color.clear))
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(DesignSystem.Animation.quick) {
+                isHovered = hovering
+            }
+        }
+        .contextMenu {
+            if let onDelete = onDelete {
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
         }
     }
 }
@@ -374,7 +429,8 @@ struct CharacterPickerRow: View {
         isLoading: false,
         onSync: {},
         onNewCharacter: {},
-        onVersionSelected: { _ in }
+        onVersionSelected: { _ in },
+        onDelete: { _ in }
     )
     .frame(width: 800)
     .padding()
