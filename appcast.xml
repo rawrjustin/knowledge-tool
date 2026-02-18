@@ -6,18 +6,18 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Version 1.5.0</title>
+            <title>Version 1.6.0</title>
             <description><![CDATA[
-                <h2>What's New in 1.5.0</h2>
-                <p>Inline section editing on Dashboard with save/revert flow. Editor converted to read-only Raw Markdown view with copy-all.</p>
+                <h2>What's New in 1.6.0</h2>
+                <p>Background operations, macOS notifications, CSP1 support, scenario improvements</p>
             ]]></description>
-            <pubDate>Fri, 13 Feb 2026 15:47:43 -0800</pubDate>
+            <pubDate>Wed, 18 Feb 2026 10:07:34 -0800</pubDate>
             <enclosure
-                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.5.0/KnowledgeTool-1.5.0.zip"
-                sparkle:version="202602131545"
-                sparkle:shortVersionString="1.5.0"
-                sparkle:edSignature="RahPiRWlxKiJ3GGXSNWEQGTFzggfnscfGlFbc+aNpXiIBmd5QuQc9FurV3cVQXqeVc7bvnlRmSEtBVhQrdpBBQ=="
-                length="89050632"
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.6.0/KnowledgeTool-1.6.0.zip"
+                sparkle:version="202602181004"
+                sparkle:shortVersionString="1.6.0"
+                sparkle:edSignature="sHjoHQXpo7FyOsfLTxSQ+em5CwvmC9/so43WxTIUatd78sp0UowGkM2cYgdpBgDbJncrfhjJ8EAExKsTKbhAAQ=="
+                length="89301928"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
