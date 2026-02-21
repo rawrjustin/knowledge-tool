@@ -190,11 +190,16 @@ actor SupabaseCharacterRepository {
 
     /// Update character persona content
     func updateCharacter(_ character: Character) async throws {
+        let slug = character.name.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "[^a-z0-9-]", with: "", options: .regularExpression)
+
         // Update persona content in database directly
         try await supabase.updateCharacter(
             id: character.id,
             updates: [
                 "name": .string(character.name),
+                "slug": .string(slug),
                 "persona_content": .string(character.markdownContent),
                 "system_prompt_type": .string(character.systemPromptType.rawValue),
                 "version": .integer(character.version)

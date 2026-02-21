@@ -448,6 +448,78 @@ actor LocalCharacterRepository {
         return character
     }
 
+    /// Rename a character by moving its folder and renaming persona markdown files.
+    /// This updates the "## Your Persona: ..." header in each persona file if present.
+    func renameCharacter(_ character: Character, to newName: String) async throws -> Character {
+        let trimmedNewName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNewName.isEmpty else {
+            throw LocalRepositoryError.invalidCharacterName("Name cannot be empty")
+        }
+
+        let oldCharacterURL = baseURL.appendingPathComponent(character.directoryPath)
+        guard FileManager.default.fileExists(atPath: oldCharacterURL.path) else {
+            throw LocalRepositoryError.directoryNotFound(oldCharacterURL.path)
+        }
+
+        let newDirectoryPath = "Personas/\(trimmedNewName)"
+        let newCharacterURL = baseURL.appendingPathComponent(newDirectoryPath)
+        if FileManager.default.fileExists(atPath: newCharacterURL.path) {
+            throw LocalRepositoryError.destinationAlreadyExists(newCharacterURL.path)
+        }
+
+        // 1) Move the entire directory (includes Knowledge/ and metadata)
+        try FileManager.default.moveItem(at: oldCharacterURL, to: newCharacterURL)
+
+        // 2) Rename persona markdown files to match new sanitized base name
+        let sanitizedBase = trimmedNewName
+            .replacingOccurrences(of: " ", with: "")
+            .lowercased()
+
+        let files = try FileManager.default.contentsOfDirectory(
+            at: newCharacterURL,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        )
+
+        let personaFiles = files.filter { url in
+            url.pathExtension == "md" && !url.lastPathComponent.hasPrefix(".")
+        }
+
+        for fileURL in personaFiles {
+            let version = Character.extractVersion(from: fileURL.lastPathComponent)
+            let newFileName = version == 1 ? "\(sanitizedBase).md" : "\(sanitizedBase)v\(version).md"
+            let newFileURL = newCharacterURL.appendingPathComponent(newFileName)
+
+            // Update "## Your Persona:" header if present
+            do {
+                var content = try String(contentsOf: fileURL, encoding: .utf8)
+                if content.range(of: #"(?m)^##\s*Your Persona:\s*.*$"#, options: .regularExpression) != nil {
+                    content = content.replacingOccurrences(
+                        of: #"(?m)^##\s*Your Persona:\s*.*$"#,
+                        with: "## Your Persona: \(trimmedNewName)",
+                        options: .regularExpression
+                    )
+                    try content.write(to: fileURL, atomically: true, encoding: .utf8)
+                }
+            } catch {
+                // Non-fatal: still allow rename to proceed
+                NSLog("[LocalCharacterRepository] Failed to update persona header for %@: %@", fileURL.lastPathComponent, error.localizedDescription)
+            }
+
+            // Rename file if needed
+            if fileURL.lastPathComponent != newFileName {
+                // Avoid collision if a file with the target name somehow exists
+                if FileManager.default.fileExists(atPath: newFileURL.path) {
+                    throw LocalRepositoryError.destinationAlreadyExists(newFileURL.path)
+                }
+                try FileManager.default.moveItem(at: fileURL, to: newFileURL)
+            }
+        }
+
+        // 3) Reload and return latest version from the new directory
+        return try await loadCharacter(from: newCharacterURL)
+    }
+
     // MARK: - Character Deletion
 
     /// Delete a character by removing its entire directory
@@ -619,6 +691,8 @@ enum LocalRepositoryError: LocalizedError {
     case directoryNotFound(String)
     case personaFileNotFound(String)
     case invalidFileFormat(String)
+    case destinationAlreadyExists(String)
+    case invalidCharacterName(String)
 
     var errorDescription: String? {
         switch self {
@@ -628,6 +702,10 @@ enum LocalRepositoryError: LocalizedError {
             return "Persona file not found for: \(name)"
         case .invalidFileFormat(let message):
             return "Invalid file format: \(message)"
+        case .destinationAlreadyExists(let path):
+            return "A character already exists at: \(path)"
+        case .invalidCharacterName(let message):
+            return message
         }
     }
 }

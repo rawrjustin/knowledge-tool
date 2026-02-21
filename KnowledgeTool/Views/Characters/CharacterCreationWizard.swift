@@ -53,6 +53,12 @@ struct CharacterCreationWizard: View {
                 case .unifiedProcessing:
                     UnifiedProcessingView(viewModel: viewModel)
 
+                case .manualPersonaInput:
+                    ManualPersonaInputView(viewModel: viewModel)
+
+                case .manualPersonaResolve:
+                    ManualPersonaResolveView(viewModel: viewModel)
+
                 case .wikipediaInput:
                     WikipediaInputView(viewModel: viewModel)
 
@@ -204,6 +210,28 @@ struct UnifiedInputView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+                // Manual paste shortcut
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Have a persona already?")
+                            .font(.headline)
+                        Spacer()
+                        Button {
+                            viewModel.startManualPersonaFlow()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "doc.on.clipboard")
+                                Text("Paste Your Persona")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    Text("Skip research and create a character by pasting an existing “## Your Persona …” block.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 // Character Name
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                     Text("Character Name")
@@ -504,6 +532,189 @@ struct UnifiedInputView: View {
             }
         }
         return handled
+    }
+}
+
+// MARK: - Manual Persona Input
+struct ManualPersonaInputView: View {
+    @Bindable var viewModel: CharacterCreationViewModel
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Character Name")
+                        .font(.headline)
+
+                    TextField("Required", text: $viewModel.manualCharacterName)
+                        .textFieldStyle(.roundedBorder)
+
+                    Text("This will be used as the character’s folder + display name.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Default Chat Mode")
+                        .font(.headline)
+
+                    Picker("Default Chat Mode", selection: $viewModel.systemPromptType) {
+                        ForEach(SystemPromptType.availableTypes, id: \.self) { type in
+                            Text(type.shortDisplayName).tag(type)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 420)
+
+                    Text(viewModel.systemPromptType.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Your Persona (paste)")
+                        .font(.headline)
+
+                    TextEditor(text: $viewModel.manualPersonaText)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 320)
+                        .padding(4)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .cornerRadius(DesignSystem.CornerRadius.medium)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                        )
+
+                    Text("Tip: include section headers like “### Current Situation” and “### Live Objective” for best results.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let error = viewModel.error {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(DesignSystem.Spacing.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+
+                HStack(spacing: 12) {
+                    Button("Back") {
+                        viewModel.goBackFromManualPersonaInput()
+                    }
+
+                    Spacer()
+
+                    Button("Continue") {
+                        viewModel.processManualPersonaInput()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.manualPersonaText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(DesignSystem.Spacing.xl)
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+// MARK: - Manual Persona Resolve
+struct ManualPersonaResolveView: View {
+    @Bindable var viewModel: CharacterCreationViewModel
+
+    private let keepAsNewSentinel = "__KEEP_AS_NEW_SECTION__"
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xl) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("Where should these blocks go?")
+                        .font(.title3.bold())
+
+                    Text("We couldn’t confidently map some pasted content to a known section. Assign each block to a destination.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(spacing: DesignSystem.Spacing.lg) {
+                    ForEach(viewModel.manualUnresolvedBlocks) { block in
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
+                                Text(block.displayTitle)
+                                    .font(.headline)
+                                    .lineLimit(1)
+
+                                Spacer()
+
+                                Picker(
+                                    "Destination",
+                                    selection: Binding(
+                                        get: {
+                                            viewModel.manualUnresolvedAssignments[block.id] ?? keepAsNewSentinel
+                                        },
+                                        set: { newValue in
+                                            viewModel.manualUnresolvedAssignments[block.id] = newValue
+                                        }
+                                    )
+                                ) {
+                                    ForEach(viewModel.manualCanonicalSections, id: \.self) { section in
+                                        Text(section).tag(section)
+                                    }
+                                    Text("Add as new section (keep heading)").tag(keepAsNewSentinel)
+                                }
+                                .pickerStyle(.menu)
+                            }
+
+                            Text(block.content.trimmingCharacters(in: .whitespacesAndNewlines))
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(DesignSystem.Spacing.sm)
+                                .background(Color(nsColor: .controlBackgroundColor))
+                                .cornerRadius(DesignSystem.CornerRadius.small)
+                        }
+                        .padding(DesignSystem.Spacing.md)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .cornerRadius(DesignSystem.CornerRadius.large)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                        )
+                    }
+                }
+
+                if let error = viewModel.error {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(DesignSystem.Spacing.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+
+                HStack(spacing: 12) {
+                    Button("Back") {
+                        viewModel.goBackFromManualPersonaResolve()
+                    }
+
+                    Spacer()
+
+                    Button("Continue to Review") {
+                        viewModel.finalizeManualPersona()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(DesignSystem.Spacing.xl)
+            .frame(maxWidth: 820)
+            .frame(maxWidth: .infinity)
+        }
     }
 }
 

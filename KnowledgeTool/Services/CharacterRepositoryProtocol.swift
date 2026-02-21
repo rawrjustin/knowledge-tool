@@ -179,6 +179,93 @@ actor CombinedCharacterRepository {
         return newVersion
     }
 
+    /// Rename a character locally (folder + persona files) and sync name to Supabase if enabled.
+    /// Note: identity is name-based across local<->remote merge, so this keeps Supabase aligned by updating the existing remote record.
+    func renameCharacter(_ character: Character, to newName: String) async throws -> Character {
+        let oldName = character.name
+        let trimmedNewName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNewName.isEmpty else {
+            throw LocalRepositoryError.invalidCharacterName("Name cannot be empty")
+        }
+
+        if oldName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == trimmedNewName.lowercased() {
+            return character
+        }
+
+        // Resolve remote record before local rename changes the lookup key
+        var remoteMatch: Character?
+        if syncEnabled, let supabase = supabase {
+            do {
+                let remotes = try await supabase.loadAllCharacters()
+                remoteMatch = remotes.first(where: { $0.name.lowercased() == oldName.lowercased() })
+            } catch {
+                NSLog("[CombinedRepository] Failed to resolve remote character before rename: %@", error.localizedDescription)
+            }
+        }
+
+        // Rename locally (move directory + rename persona files + update header)
+        let renamedLocal: Character
+        do {
+            renamedLocal = try await local.renameCharacter(character, to: trimmedNewName)
+        } catch {
+            // If local character doesn't exist (remote-only), allow remote rename only
+            if case LocalRepositoryError.directoryNotFound = error {
+                renamedLocal = Character(
+                    name: trimmedNewName,
+                    directoryPath: "Personas/\(trimmedNewName)",
+                    personaFileName: "\(trimmedNewName.replacingOccurrences(of: " ", with: "").lowercased()).md",
+                    markdownContent: character.markdownContent,
+                    knowledgeFiles: character.knowledgeFiles,
+                    sha: character.sha,
+                    systemPromptType: character.systemPromptType,
+                    version: character.version,
+                    versionName: character.versionName,
+                    createdAt: character.createdAt,
+                    lastModified: Date(),
+                    isLocalOnly: character.isLocalOnly,
+                    isGenerating: character.isGenerating
+                )
+            } else {
+                throw error
+            }
+        }
+
+        // Sync rename to Supabase (await so it's truly saved remotely)
+        if syncEnabled, let supabase = supabase {
+            do {
+                if let remote = remoteMatch {
+                    let remoteUpdated = Character(
+                        id: remote.id,
+                        name: renamedLocal.name,
+                        directoryPath: renamedLocal.directoryPath,
+                        personaFileName: renamedLocal.personaFileName,
+                        markdownContent: renamedLocal.markdownContent,
+                        knowledgeFiles: renamedLocal.knowledgeFiles,
+                        sha: renamedLocal.sha,
+                        systemPromptType: renamedLocal.systemPromptType,
+                        version: renamedLocal.version,
+                        versionName: renamedLocal.versionName,
+                        createdAt: remote.createdAt,
+                        lastModified: Date(),
+                        isLocalOnly: remote.isLocalOnly,
+                        isGenerating: remote.isGenerating
+                    )
+                    try await supabase.updateCharacter(remoteUpdated)
+                    NSLog("[CombinedRepository] Renamed character in Supabase: %@ -> %@", oldName, trimmedNewName)
+                } else {
+                    // Fallback: attempt to update by using the local character as-is (may work if IDs already match)
+                    try await supabase.updateCharacter(renamedLocal)
+                    NSLog("[CombinedRepository] Renamed character in Supabase (fallback): %@ -> %@", oldName, trimmedNewName)
+                }
+            } catch {
+                NSLog("[CombinedRepository] Failed to sync rename to Supabase: %@", error.localizedDescription)
+                // We still return the local rename result; sync can be retried later.
+            }
+        }
+
+        return renamedLocal
+    }
+
     /// Load all versions of a character
     func loadAllVersions(for characterName: String) async throws -> [Character] {
         return try await local.loadAllVersions(for: characterName)

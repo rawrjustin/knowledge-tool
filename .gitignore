@@ -70,3 +70,6 @@ DerivedData/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# Supabase CLI temp
+supabase/.temp/

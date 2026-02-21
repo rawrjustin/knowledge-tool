@@ -9,6 +9,8 @@ final class CharacterCreationViewModel {
         case pathSelection
         case unifiedInput
         case unifiedProcessing
+        case manualPersonaInput
+        case manualPersonaResolve
         case wikipediaInput
         case wikipediaPreview
         case originalInput
@@ -23,6 +25,7 @@ final class CharacterCreationViewModel {
         case original
         case youtube
         case unified
+        case manualPersona
     }
 
     // MARK: - Scraped Source Types
@@ -92,6 +95,14 @@ final class CharacterCreationViewModel {
     private(set) var scrapedContent: [ScrapedSource] = []
     private(set) var unifiedSourceStatuses: [UnifiedSourceStatus] = []
 
+    // Manual persona input state (paste "Your Persona" directly)
+    var manualCharacterName: String = ""
+    var manualPersonaText: String = ""
+    private(set) var manualCanonicalSections: [String] = []
+    private(set) var manualResolvedSections: [String: String] = [:]
+    private(set) var manualUnresolvedBlocks: [ManualPersonaUnresolvedBlock] = []
+    var manualUnresolvedAssignments: [UUID: String] = [:] // block.id -> canonical section name OR keepAsNewSentinel
+
     // YouTube input state
     var youtubeURLs: [String] = [""]  // Start with one empty field
     var youtubeCharacterName: String = ""  // Optional override for character name
@@ -133,6 +144,9 @@ final class CharacterCreationViewModel {
     private let repository: CombinedCharacterRepository
     private let apiKeyManager: APIKeyManager
     private let asp1Template: String
+
+    // Manual persona routing
+    private static let keepAsNewSectionSentinel = "__KEEP_AS_NEW_SECTION__"
 
     // Computed property to get OpenAI service with current API key
     private var openAIService: OpenAIService? {
@@ -229,6 +243,9 @@ final class CharacterCreationViewModel {
             currentStep = .youtubeInput
         case .unified:
             currentStep = .unifiedInput
+        case .manualPersona:
+            manualCanonicalSections = canonicalPersonaSections(for: systemPromptType)
+            currentStep = .manualPersonaInput
         }
     }
 
@@ -253,6 +270,13 @@ final class CharacterCreationViewModel {
         pdfFiles = []
         scrapedContent = []
         unifiedSourceStatuses = []
+        // Reset manual persona state
+        manualCharacterName = ""
+        manualPersonaText = ""
+        manualCanonicalSections = []
+        manualResolvedSections = [:]
+        manualUnresolvedBlocks = []
+        manualUnresolvedAssignments = [:]
         // Reset YouTube state
         youtubeURLs = [""]
         youtubeCharacterName = ""
@@ -2205,6 +2229,342 @@ final class CharacterCreationViewModel {
 
     private func addLog(_ message: String) {
         progressLogs.append(message)
+    }
+
+    // MARK: - Manual Persona (Paste) Flow
+
+    struct ManualPersonaUnresolvedBlock: Identifiable, Hashable {
+        let id: UUID
+        let title: String?
+        let content: String
+
+        init(id: UUID = UUID(), title: String?, content: String) {
+            self.id = id
+            self.title = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+            self.content = content
+        }
+
+        var displayTitle: String {
+            if let title, !title.isEmpty { return title }
+            return "Unsectioned content"
+        }
+    }
+
+    func startManualPersonaFlow() {
+        error = nil
+        selectedPath = .manualPersona
+        manualCanonicalSections = canonicalPersonaSections(for: systemPromptType)
+        if manualCharacterName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            manualCharacterName = unifiedCharacterName
+        }
+        currentStep = .manualPersonaInput
+    }
+
+    func goBackFromManualPersonaInput() {
+        error = nil
+        currentStep = .unifiedInput
+        selectedPath = .unified
+    }
+
+    func goBackFromManualPersonaResolve() {
+        error = nil
+        currentStep = .manualPersonaInput
+    }
+
+    func processManualPersonaInput() {
+        error = nil
+
+        let rawName = manualCharacterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawPersona = manualPersonaText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !rawPersona.isEmpty else {
+            error = "Please paste the “Your Persona” text block."
+            return
+        }
+
+        // If user didn't type a name, try to extract it from the pasted header.
+        if rawName.isEmpty, let extracted = extractCharacterName(from: rawPersona), !extracted.isEmpty {
+            manualCharacterName = extracted
+        }
+
+        let finalName = manualCharacterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalName.isEmpty else {
+            error = "Character name is required (either type it, or include “## Your Persona: Name” in the pasted text)."
+            return
+        }
+
+        manualCanonicalSections = canonicalPersonaSections(for: systemPromptType)
+        let parsed = parseManualPersona(
+            pastedText: rawPersona,
+            canonicalSections: manualCanonicalSections
+        )
+
+        manualResolvedSections = parsed.sections
+        manualUnresolvedBlocks = parsed.unresolvedBlocks
+        manualUnresolvedAssignments = [:]
+
+        // Default assignment guesses for unresolved blocks
+        for block in manualUnresolvedBlocks {
+            let guess = bestGuessCanonicalSection(for: block, canonicalSections: manualCanonicalSections)
+            manualUnresolvedAssignments[block.id] = guess ?? Self.keepAsNewSectionSentinel
+        }
+
+        if manualUnresolvedBlocks.isEmpty {
+            finalizeManualPersona()
+        } else {
+            currentStep = .manualPersonaResolve
+        }
+    }
+
+    func finalizeManualPersona() {
+        error = nil
+        let finalName = manualCharacterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalName.isEmpty else {
+            error = "Character name is required."
+            currentStep = .manualPersonaInput
+            return
+        }
+
+        var mergedSections = manualResolvedSections
+        var extraBlocksAsNewSections: [ManualPersonaUnresolvedBlock] = []
+
+        for block in manualUnresolvedBlocks {
+            let assignment = manualUnresolvedAssignments[block.id] ?? Self.keepAsNewSectionSentinel
+            if assignment == Self.keepAsNewSectionSentinel {
+                extraBlocksAsNewSections.append(block)
+                continue
+            }
+
+            let trimmed = block.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+
+            if let existing = mergedSections[assignment], !existing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                mergedSections[assignment] = existing.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n" + trimmed
+            } else {
+                mergedSections[assignment] = trimmed
+            }
+        }
+
+        // Build normalized persona markdown in template section order
+        var output = "## Your Persona: \(finalName)"
+
+        for section in manualCanonicalSections {
+            guard let content = mergedSections[section]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !content.isEmpty else { continue }
+            output += "\n\n### \(section)\n" + content
+        }
+
+        if !extraBlocksAsNewSections.isEmpty {
+            output += "\n\n"
+            for block in extraBlocksAsNewSections {
+                let heading = (block.title?.isEmpty == false) ? block.title! : "Additional Notes"
+                let trimmed = block.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { continue }
+                output += "### \(heading)\n" + trimmed + "\n\n"
+            }
+            output = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        generatedContent = output
+        currentStep = .review
+    }
+
+    private func canonicalPersonaSections(for type: SystemPromptType) -> [String] {
+        let template = BundledSystemPromptTemplates.content(for: type)
+        let lines = template.components(separatedBy: .newlines)
+
+        var inPersona = false
+        var sections: [String] = []
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.lowercased().hasPrefix("## your persona") {
+                inPersona = true
+                continue
+            }
+
+            if inPersona, trimmed.hasPrefix("## "), !trimmed.lowercased().hasPrefix("## your persona") {
+                break
+            }
+
+            if inPersona, trimmed.hasPrefix("### ") {
+                let title = trimmed.replacingOccurrences(of: "### ", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !title.isEmpty {
+                    sections.append(title)
+                }
+            }
+        }
+
+        return sections
+    }
+
+    private struct ManualPersonaParseResult {
+        let sections: [String: String] // canonical section -> content
+        let unresolvedBlocks: [ManualPersonaUnresolvedBlock]
+    }
+
+    private func parseManualPersona(pastedText: String, canonicalSections: [String]) -> ManualPersonaParseResult {
+        let personaRegion = extractYourPersonaRegion(from: pastedText)
+        let canonicalMap = buildCanonicalSectionMap(canonicalSections)
+
+        let lines = personaRegion.components(separatedBy: .newlines)
+        var unresolved: [ManualPersonaUnresolvedBlock] = []
+        var sections: [String: String] = [:]
+
+        var currentHeading: String?
+        var currentContentLines: [String] = []
+        var preambleLines: [String] = []
+
+        func flushCurrentBlock() {
+            let content = currentContentLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            defer { currentContentLines = [] }
+
+            guard let heading = currentHeading else { return }
+            currentHeading = nil
+
+            guard !content.isEmpty else { return }
+
+            if let canonical = matchCanonicalSection(for: heading, canonicalMap: canonicalMap) {
+                if let existing = sections[canonical], !existing.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    sections[canonical] = existing.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n" + content
+                } else {
+                    sections[canonical] = content
+                }
+            } else {
+                unresolved.append(ManualPersonaUnresolvedBlock(title: heading, content: content))
+            }
+        }
+
+        for line in lines {
+            // Skip the top "## Your Persona" line if present
+            if line.trimmingCharacters(in: .whitespaces).lowercased().hasPrefix("## your persona") {
+                continue
+            }
+
+            if let heading = parseH3Heading(from: line) {
+                // If no current heading yet, whatever we've accumulated is preamble
+                if currentHeading == nil {
+                    let preamble = preambleLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !preamble.isEmpty {
+                        unresolved.append(ManualPersonaUnresolvedBlock(title: nil, content: preamble))
+                    }
+                    preambleLines = []
+                } else {
+                    flushCurrentBlock()
+                }
+
+                currentHeading = heading
+                currentContentLines = []
+                continue
+            }
+
+            if currentHeading == nil {
+                preambleLines.append(line)
+            } else {
+                currentContentLines.append(line)
+            }
+        }
+
+        // Flush last block
+        if currentHeading != nil {
+            flushCurrentBlock()
+        } else {
+            let preamble = preambleLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !preamble.isEmpty {
+                unresolved.append(ManualPersonaUnresolvedBlock(title: nil, content: preamble))
+            }
+        }
+
+        return ManualPersonaParseResult(sections: sections, unresolvedBlocks: unresolved)
+    }
+
+    private func extractYourPersonaRegion(from text: String) -> String {
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+
+        // If the pasted content contains the full template, isolate "## Your Persona ... (until next ## ...)"
+        if let startRange = normalized.range(of: #"(?m)^##\s*Your Persona.*$"#, options: .regularExpression) {
+            let afterStart = normalized[startRange.lowerBound...]
+            if let nextTopLevel = afterStart.range(of: #"(?m)^\#\#\s+(?!Your Persona).*"#, options: .regularExpression) {
+                return String(afterStart[..<nextTopLevel.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            return String(afterStart).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func parseH3Heading(from line: String) -> String? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("###") else { return nil }
+        let title = trimmed
+            .replacingOccurrences(of: #"^###\s*"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? nil : title
+    }
+
+    private func buildCanonicalSectionMap(_ canonicalSections: [String]) -> [String: String] {
+        var map: [String: String] = [:]
+        for section in canonicalSections {
+            map[normalizeSectionTitle(section)] = section
+        }
+        return map
+    }
+
+    private func matchCanonicalSection(for heading: String, canonicalMap: [String: String]) -> String? {
+        let normalized = normalizeSectionTitle(heading)
+        if let exact = canonicalMap[normalized] { return exact }
+
+        // Soft matching: token overlap / containment
+        let tokens = Set(normalized.split(separator: " ").map(String.init))
+        var best: (score: Int, section: String)? = nil
+
+        for (canonNorm, canon) in canonicalMap {
+            let canonTokens = Set(canonNorm.split(separator: " ").map(String.init))
+            let overlap = tokens.intersection(canonTokens).count
+
+            // containment bonus
+            let bonus = (canonNorm.contains(normalized) || normalized.contains(canonNorm)) ? 2 : 0
+            let score = overlap + bonus
+            if score == 0 { continue }
+
+            if best == nil || score > best!.score {
+                best = (score, canon)
+            }
+        }
+
+        // Require at least a small signal to avoid wild matches
+        if let best, best.score >= 2 {
+            return best.section
+        }
+        return nil
+    }
+
+    private func normalizeSectionTitle(_ title: String) -> String {
+        // Remove parenthetical qualifiers like "(Optional)" or "(Internal Reference Only)"
+        let withoutParens = title.replacingOccurrences(of: #"\s*\([^)]*\)"#, with: "", options: .regularExpression)
+        let lower = withoutParens.lowercased()
+        let alnumSpace = lower.replacingOccurrences(of: #"[^a-z0-9]+"#, with: " ", options: .regularExpression)
+        return alnumSpace
+            .split(separator: " ")
+            .map(String.init)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func bestGuessCanonicalSection(for block: ManualPersonaUnresolvedBlock, canonicalSections: [String]) -> String? {
+        // Prefer matching by title if present; otherwise guess based on content keywords
+        if let title = block.title, let match = matchCanonicalSection(for: title, canonicalMap: buildCanonicalSectionMap(canonicalSections)) {
+            return match
+        }
+
+        let content = block.content.lowercased()
+        if content.contains("current situation") { return canonicalSections.first(where: { normalizeSectionTitle($0).contains("current situation") }) }
+        if content.contains("live objective") { return canonicalSections.first(where: { normalizeSectionTitle($0).contains("live objective") }) }
+        if content.contains("relationship") { return canonicalSections.first(where: { normalizeSectionTitle($0).contains("relationship") }) }
+
+        // Default to keeping as its own section to avoid misrouting
+        return nil
     }
 
     private func fetchWikipediaContent(url: String) async throws -> String {

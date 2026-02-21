@@ -45,6 +45,10 @@ struct CharacterDashboardView: View {
     @State private var showingSaveConfirmation = false
     @State private var showSaveSuccess = false
     @State private var showingDiscardAlert = false
+    @State private var showingRenameSheet = false
+    @State private var isRenaming = false
+    @State private var renameDraft: String = ""
+    @State private var renameError: String?
 
     init(
         character: Character,
@@ -131,6 +135,23 @@ struct CharacterDashboardView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingRenameSheet) {
+            RenameCharacterSheet(
+                currentName: character.name,
+                draftName: $renameDraft,
+                isSaving: isRenaming,
+                error: renameError,
+                onCancel: {
+                    showingRenameSheet = false
+                    renameError = nil
+                },
+                onConfirm: {
+                    Task { @MainActor in
+                        await renameCharacter()
+                    }
+                }
+            )
+        }
     }
 
     // MARK: - Header
@@ -214,6 +235,17 @@ struct CharacterDashboardView: View {
                 }
                 .buttonStyle(.bordered)
                 .help("Add source content to enhance this persona")
+
+                Button {
+                    renameDraft = character.name
+                    renameError = nil
+                    showingRenameSheet = true
+                } label: {
+                    Label("Rename", systemImage: "pencil")
+                }
+                .buttonStyle(.bordered)
+                .disabled(editorViewModel.hasUnsavedChanges || isRenaming)
+                .help(editorViewModel.hasUnsavedChanges ? "Save or revert changes before renaming" : "Rename this character")
 
                 if editorViewModel.hasUnsavedChanges {
                     Button {
@@ -338,6 +370,93 @@ struct CharacterDashboardView: View {
 
     private func wordCount(_ text: String) -> Int {
         text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+    }
+
+    @MainActor
+    private func renameCharacter() async {
+        guard !isRenaming else { return }
+        renameError = nil
+
+        let newName = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty else {
+            renameError = "Name cannot be empty."
+            return
+        }
+
+        if newName.lowercased() == character.name.lowercased() {
+            showingRenameSheet = false
+            return
+        }
+
+        isRenaming = true
+        defer { isRenaming = false }
+
+        do {
+            let updated = try await repository.renameCharacter(character, to: newName)
+            editorViewModel = CharacterEditorViewModel(mode: .edit(updated), repository: repository)
+            showingRenameSheet = false
+            renameError = nil
+            onCharacterUpdated(updated)
+        } catch {
+            renameError = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Rename Sheet
+
+private struct RenameCharacterSheet: View {
+    let currentName: String
+    @Binding var draftName: String
+    let isSaving: Bool
+    let error: String?
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("Rename Character")
+                    .font(.title2.bold())
+                Text("This renames the local folder and updates Supabase (if sync is enabled).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("New Name")
+                    .font(.headline)
+                TextField("Name", text: $draftName)
+                    .textFieldStyle(.roundedBorder)
+                Text("Current: \(currentName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let error, !error.isEmpty {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+            }
+
+            HStack {
+                Button("Cancel") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button(isSaving ? "Renaming..." : "Rename") { onConfirm() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isSaving || draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(DesignSystem.Spacing.xl)
+        .frame(width: 520)
     }
 }
 
