@@ -96,11 +96,30 @@ actor CombinedCharacterRepository {
         if syncEnabled, let supabase = supabase {
             do {
                 let remoteCharacters = try await supabase.loadAllCharacters()
-                // Merge: prefer local versions, add remote-only characters
-                let localNames = Set(characters.map { $0.name.lowercased() })
-                let remoteOnly = remoteCharacters.filter { !localNames.contains($0.name.lowercased()) }
-                characters.append(contentsOf: remoteOnly)
-                NSLog("[CombinedRepository] Merged %d remote-only characters", remoteOnly.count)
+
+                // Build lookup of local characters by name
+                var localByName: [String: Int] = [:]
+                for (index, char) in characters.enumerated() {
+                    localByName[char.name.lowercased()] = index
+                }
+
+                var remoteOnlyCount = 0
+                for remoteChar in remoteCharacters {
+                    if let localIndex = localByName[remoteChar.name.lowercased()] {
+                        // Character exists locally — merge any remote knowledge files the local version is missing
+                        let localFileNames = Set(characters[localIndex].knowledgeFiles.map { $0.fileName })
+                        let missingFiles = remoteChar.knowledgeFiles.filter { !localFileNames.contains($0.fileName) }
+                        if !missingFiles.isEmpty {
+                            characters[localIndex].knowledgeFiles.append(contentsOf: missingFiles)
+                            NSLog("[CombinedRepository] Merged %d remote knowledge files into local character: %@", missingFiles.count, remoteChar.name)
+                        }
+                    } else {
+                        // Remote-only character
+                        characters.append(remoteChar)
+                        remoteOnlyCount += 1
+                    }
+                }
+                NSLog("[CombinedRepository] Merged %d remote-only characters", remoteOnlyCount)
             } catch {
                 NSLog("[CombinedRepository] Failed to fetch from Supabase: %@", error.localizedDescription)
             }
@@ -539,22 +558,52 @@ actor CombinedCharacterRepository {
         let remoteCharacters = try await supabase.loadAllCharacters()
         NSLog("[CombinedRepository] Pulling %d characters from Supabase", remoteCharacters.count)
 
+        // Load local characters once (not inside the loop)
+        let localCharacters = try await local.loadAllCharacters()
+        let localByName: [String: Character] = Dictionary(
+            localCharacters.map { ($0.name.lowercased(), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         for character in remoteCharacters {
             do {
-                // Check if character exists locally
-                let localCharacters = try await local.loadAllCharacters()
-                let existsLocally = localCharacters.contains { $0.name.lowercased() == character.name.lowercased() }
+                if let localChar = localByName[character.name.lowercased()] {
+                    // Character exists locally — sync any missing knowledge files from remote
+                    let localFileNames = Set(localChar.knowledgeFiles.map { $0.fileName })
+                    let missingFiles = character.knowledgeFiles.filter { !localFileNames.contains($0.fileName) }
 
-                if !existsLocally {
-                    // Create locally
-                    _ = try await local.createCharacter(
+                    if !missingFiles.isEmpty {
+                        NSLog("[CombinedRepository] Pulling %d missing knowledge files for %@", missingFiles.count, character.name)
+                        for file in missingFiles {
+                            _ = try await local.createKnowledgeFile(
+                                for: localChar,
+                                fileName: file.fileName,
+                                content: file.content
+                            )
+                        }
+                        NSLog("[CombinedRepository] Synced %d knowledge files for existing character: %@", missingFiles.count, character.name)
+                    }
+                } else {
+                    // New character — create locally with all knowledge files
+                    let created = try await local.createCharacter(
                         name: character.name,
                         markdownContent: character.markdownContent,
                         systemPromptType: character.systemPromptType
                     )
 
-                    // TODO: Also pull knowledge files
-                    NSLog("[CombinedRepository] Pulled new character from Supabase: %@", character.name)
+                    // Pull knowledge files
+                    if !character.knowledgeFiles.isEmpty {
+                        NSLog("[CombinedRepository] Pulling %d knowledge files for new character %@", character.knowledgeFiles.count, character.name)
+                        for file in character.knowledgeFiles {
+                            _ = try await local.createKnowledgeFile(
+                                for: created,
+                                fileName: file.fileName,
+                                content: file.content
+                            )
+                        }
+                    }
+
+                    NSLog("[CombinedRepository] Pulled new character from Supabase: %@ (with %d knowledge files)", character.name, character.knowledgeFiles.count)
                 }
             } catch {
                 NSLog("[CombinedRepository] Failed to pull character '%@': %@", character.name, error.localizedDescription)

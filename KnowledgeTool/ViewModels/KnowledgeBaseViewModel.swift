@@ -18,9 +18,12 @@ final class KnowledgeBaseViewModel {
     // Repository
     private let repository: CombinedCharacterRepository
 
+    /// File names that are not knowledge content and should be hidden from the Knowledge Base UI
+    private static let hiddenFileNames: Set<String> = ["scenarios.jsonl"]
+
     init(character: Character, repository: CombinedCharacterRepository) {
         self.character = character
-        self.knowledgeFiles = character.knowledgeFiles
+        self.knowledgeFiles = character.knowledgeFiles.filter { !Self.hiddenFileNames.contains($0.fileName) }
         self.repository = repository
     }
 
@@ -58,7 +61,7 @@ final class KnowledgeBaseViewModel {
 
             if let updatedCharacter = updatedCharacters.first(where: { $0.id == character.id }) {
                 character = updatedCharacter
-                knowledgeFiles = updatedCharacter.knowledgeFiles
+                knowledgeFiles = updatedCharacter.knowledgeFiles.filter { !Self.hiddenFileNames.contains($0.fileName) }
             }
 
             error = nil
