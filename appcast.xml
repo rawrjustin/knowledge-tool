@@ -6,18 +6,18 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Version 1.6.0</title>
+            <title>Version 1.6.1</title>
             <description><![CDATA[
-                <h2>What's New in 1.6.0</h2>
-                <p>Background operations, macOS notifications, CSP1 support, scenario improvements</p>
+                <h2>What's New in 1.6.1</h2>
+                <p>Add manual persona creation and character renaming</p>
             ]]></description>
-            <pubDate>Wed, 18 Feb 2026 10:07:34 -0800</pubDate>
+            <pubDate>Mon, 23 Feb 2026 19:45:55 -0700</pubDate>
             <enclosure
-                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.6.0/KnowledgeTool-1.6.0.zip"
-                sparkle:version="202602181004"
-                sparkle:shortVersionString="1.6.0"
-                sparkle:edSignature="sHjoHQXpo7FyOsfLTxSQ+em5CwvmC9/so43WxTIUatd78sp0UowGkM2cYgdpBgDbJncrfhjJ8EAExKsTKbhAAQ=="
-                length="89301928"
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.6.1/KnowledgeTool-1.6.1.zip"
+                sparkle:version="202602231944"
+                sparkle:shortVersionString="1.6.1"
+                sparkle:edSignature="dZfKoFNdd0w5RSerjKj+fjFgZ/xiaiqmhLNWmf5bv0pc0k1qMJUPRe/JYY7lU8gqMDE7rTPnxGQnUMYCldX1Cw=="
+                length="89433382"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
