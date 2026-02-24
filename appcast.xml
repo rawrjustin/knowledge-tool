@@ -6,18 +6,18 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Version 1.6.2</title>
+            <title>Version 1.6.3</title>
             <description><![CDATA[
-                <h2>What's New in 1.6.2</h2>
-                <p>Add detailed progress indicators for background character creation, YouTube transcript extraction improvements</p>
+                <h2>What's New in 1.6.3</h2>
+                <p>Fix video processing deadlocks, real-time progress updates, knowledge file sync, and comprehensive logging</p>
             ]]></description>
-            <pubDate>Mon, 23 Feb 2026 20:28:48 -0700</pubDate>
+            <pubDate>Mon, 23 Feb 2026 20:52:49 -0700</pubDate>
             <enclosure
-                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.6.2/KnowledgeTool-1.6.2.zip"
-                sparkle:version="202602232027"
-                sparkle:shortVersionString="1.6.2"
-                sparkle:edSignature="yGAlZwonyN4G7Y/q0gj9vw9IsDaMSYCldPn+rwjAHO4T+p67DkZFlTw8qrvZXfgpPrJaqyJkP6AL2uaBJlNrBA=="
-                length="89508462"
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.6.3/KnowledgeTool-1.6.3.zip"
+                sparkle:version="202602232050"
+                sparkle:shortVersionString="1.6.3"
+                sparkle:edSignature="f4iFjzWT48/a5tcJ5oBIN42VzV0NfJWzTr1DHn6ftpaQwdKz02Rmx2nYaAyKquudZD/rFmEEqIv6XafoSiJXCA=="
+                length="89525609"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
