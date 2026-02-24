@@ -12,23 +12,73 @@ actor VideoService {
 
     // MARK: - Download and Extract Audio from URL
     func downloadAndExtractAudio(from urlString: String) async throws -> (audioURL: URL, videoInfo: VideoInfo) {
+        print("[KnowledgeTool] VideoService: downloadAndExtractAudio starting for \(urlString)")
         // Validate URL
         guard let url = URL(string: urlString), url.scheme != nil else {
+            print("[KnowledgeTool] VideoService: Invalid URL: \(urlString)")
             throw KnowledgeToolError.invalidURL
         }
 
         // Check if yt-dlp is available (should be bundled with app)
         guard await isCommandAvailable("yt-dlp") else {
+            print("[KnowledgeTool] VideoService: yt-dlp not found")
             throw KnowledgeToolError.fileError("yt-dlp executable not found. The app may be corrupted. Please re-download the app.")
         }
+        print("[KnowledgeTool] VideoService: yt-dlp found, fetching video info...")
 
         // Get video information first
         let videoInfo = try await getVideoInfo(from: urlString)
+        print("[KnowledgeTool] VideoService: Got video info: \(videoInfo.title) (id: \(videoInfo.id))")
 
         // Download audio
+        print("[KnowledgeTool] VideoService: Starting audio download...")
         let audioURL = try await downloadAudio(from: urlString, videoID: videoInfo.id)
+        print("[KnowledgeTool] VideoService: Audio downloaded to \(audioURL.lastPathComponent)")
 
         return (audioURL, videoInfo)
+    }
+
+    // MARK: - Run Process Without Blocking
+    /// Runs a process on a background thread to avoid blocking the Swift concurrency thread pool.
+    /// Also reads pipe data concurrently to prevent pipe buffer deadlocks.
+    private func runProcess(_ process: Process, stdoutPipe: Pipe, stderrPipe: Pipe) async throws -> (stdout: Data, stderr: Data, status: Int32) {
+        try await withCheckedThrowingContinuation { continuation in
+            // Read pipe data on separate queues to prevent buffer deadlocks
+            var stdoutData = Data()
+            var stderrData = Data()
+            let dataLock = NSLock()
+
+            let stdoutHandle = stdoutPipe.fileHandleForReading
+            let stderrHandle = stderrPipe.fileHandleForReading
+
+            // Read stdout asynchronously
+            DispatchQueue.global(qos: .userInitiated).async {
+                let data = stdoutHandle.readDataToEndOfFile()
+                dataLock.lock()
+                stdoutData = data
+                dataLock.unlock()
+            }
+
+            // Read stderr asynchronously
+            DispatchQueue.global(qos: .userInitiated).async {
+                let data = stderrHandle.readDataToEndOfFile()
+                dataLock.lock()
+                stderrData = data
+                dataLock.unlock()
+            }
+
+            // Wait for process on a background thread (not the cooperative pool)
+            process.terminationHandler = { _ in
+                // Give pipe readers a moment to finish
+                DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.1) {
+                    dataLock.lock()
+                    let finalStdout = stdoutData
+                    let finalStderr = stderrData
+                    dataLock.unlock()
+                    continuation.resume(returning: (finalStdout, finalStderr, process.terminationStatus))
+                }
+            }
+        }
     }
 
     // MARK: - Get Video Info
@@ -37,8 +87,10 @@ actor VideoService {
             throw KnowledgeToolError.fileError("yt-dlp executable not found. The app may be corrupted. Please re-download the app.")
         }
 
+        print("[KnowledgeTool] VideoService: getVideoInfo using yt-dlp at \(ytDlpPath)")
         let process = Process()
-        let pipe = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
 
         process.executableURL = URL(fileURLWithPath: ytDlpPath)
         process.arguments = [
@@ -49,27 +101,28 @@ actor VideoService {
         // Set up environment with comprehensive PATH for yt-dlp dependencies
         process.environment = buildEnvironment()
 
-        process.standardOutput = pipe
-        let errorPipe = Pipe()
-        process.standardError = errorPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
 
         do {
             try process.run()
         } catch {
+            print("[KnowledgeTool] VideoService: yt-dlp failed to launch: \(error.localizedDescription)")
             // This usually means the binary was blocked by macOS security
             throw KnowledgeToolError.fileError("Cannot run yt-dlp. macOS may be blocking it. Try running in Terminal: xattr -cr \(Bundle.main.bundlePath)")
         }
-        process.waitUntilExit()
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+        print("[KnowledgeTool] VideoService: yt-dlp getVideoInfo process launched, waiting for completion...")
+        let result = try await runProcess(process, stdoutPipe: stdoutPipe, stderrPipe: stderrPipe)
+        print("[KnowledgeTool] VideoService: yt-dlp getVideoInfo exited with status \(result.status)")
 
-        guard process.terminationStatus == 0 else {
-            let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+        guard result.status == 0 else {
+            let errorMessage = String(data: result.stderr, encoding: .utf8) ?? "Unknown error"
+            print("[KnowledgeTool] VideoService: yt-dlp getVideoInfo failed: \(errorMessage)")
             throw KnowledgeToolError.apiError("yt-dlp failed: \(errorMessage)")
         }
 
-        guard let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard let output = String(data: result.stdout, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !output.isEmpty else {
             throw KnowledgeToolError.apiError("Failed to get video information - no output from yt-dlp")
         }
@@ -106,6 +159,7 @@ actor VideoService {
         // Remove existing file if it exists
         try? fileManager.removeItem(at: outputPath)
 
+        print("[KnowledgeTool] VideoService: downloadAudio for \(videoID), output: \(outputPath.path)")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: ytDlpPath)
         process.arguments = [
@@ -120,21 +174,26 @@ actor VideoService {
         // Set up environment with comprehensive PATH for yt-dlp dependencies
         process.environment = buildEnvironment()
 
-        let errorPipe = Pipe()
-        process.standardError = errorPipe
-        process.standardOutput = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
 
         do {
             try process.run()
         } catch {
+            print("[KnowledgeTool] VideoService: yt-dlp download failed to launch: \(error.localizedDescription)")
             // This usually means the binary was blocked by macOS security
             throw KnowledgeToolError.fileError("Cannot run yt-dlp. macOS may be blocking it. Try running in Terminal: xattr -cr \(Bundle.main.bundlePath)")
         }
-        process.waitUntilExit()
 
-        guard process.terminationStatus == 0 else {
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+        print("[KnowledgeTool] VideoService: yt-dlp download process launched, waiting for completion...")
+        let result = try await runProcess(process, stdoutPipe: stdoutPipe, stderrPipe: stderrPipe)
+        print("[KnowledgeTool] VideoService: yt-dlp download exited with status \(result.status)")
+
+        guard result.status == 0 else {
+            let errorMessage = String(data: result.stderr, encoding: .utf8) ?? "Unknown error"
+            print("[KnowledgeTool] VideoService: yt-dlp download failed: \(errorMessage.prefix(500))")
 
             // Check for common error patterns
             if errorMessage.contains("not permitted") || errorMessage.contains("Operation not permitted") {
@@ -144,8 +203,10 @@ actor VideoService {
         }
 
         guard fileManager.fileExists(atPath: outputPath.path) else {
+            print("[KnowledgeTool] VideoService: Audio file not found at expected path after successful yt-dlp exit")
             throw KnowledgeToolError.fileError("Audio file was not created")
         }
+        print("[KnowledgeTool] VideoService: Audio file created successfully")
 
         return outputPath
     }
@@ -172,16 +233,17 @@ actor VideoService {
             outputURL.path
         ]
 
-        let errorPipe = Pipe()
-        process.standardError = errorPipe
-        process.standardOutput = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
 
         try process.run()
-        process.waitUntilExit()
 
-        guard process.terminationStatus == 0 else {
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+        let result = try await runProcess(process, stdoutPipe: stdoutPipe, stderrPipe: stderrPipe)
+
+        guard result.status == 0 else {
+            let errorMessage = String(data: result.stderr, encoding: .utf8) ?? "Unknown error"
             throw KnowledgeToolError.fileError("Failed to extract audio: \(errorMessage)")
         }
 
@@ -265,20 +327,20 @@ actor VideoService {
 
         // Fall back to using 'which' command
         let process = Process()
-        let pipe = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
 
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         process.arguments = [command]
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
 
         do {
             try process.run()
-            process.waitUntilExit()
+            let result = try await runProcess(process, stdoutPipe: stdoutPipe, stderrPipe: stderrPipe)
 
-            if process.terminationStatus == 0 {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                if let path = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+            if result.status == 0 {
+                if let path = String(data: result.stdout, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
                    !path.isEmpty {
                     return path
                 }

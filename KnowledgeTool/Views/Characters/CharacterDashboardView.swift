@@ -42,6 +42,7 @@ struct CharacterDashboardView: View {
     @State private var showingAugmentSheet = false
     @State private var editorViewModel: CharacterEditorViewModel
     var scenarioViewModel: ScenarioViewModel?
+    var creationViewModel: CharacterCreationViewModel?
     @State private var showingSaveConfirmation = false
     @State private var showSaveSuccess = false
     @State private var showingDiscardAlert = false
@@ -55,12 +56,14 @@ struct CharacterDashboardView: View {
         repository: CombinedCharacterRepository,
         apiKeyManager: APIKeyManager,
         scenarioViewModel: ScenarioViewModel? = nil,
+        creationViewModel: CharacterCreationViewModel? = nil,
         onCharacterUpdated: @escaping (Character) -> Void
     ) {
         self.character = character
         self.repository = repository
         self.apiKeyManager = apiKeyManager
         self.scenarioViewModel = scenarioViewModel
+        self.creationViewModel = creationViewModel
         self.onCharacterUpdated = onCharacterUpdated
         self._editorViewModel = State(initialValue: CharacterEditorViewModel(
             mode: .edit(character),
@@ -74,7 +77,7 @@ struct CharacterDashboardView: View {
 
     var body: some View {
         if isCharacterGenerating {
-            CharacterGeneratingView(character: character)
+            CharacterGeneratingView(character: character, creationViewModel: creationViewModel)
         } else {
             dashboardContent
         }

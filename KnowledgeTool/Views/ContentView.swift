@@ -89,6 +89,7 @@ struct ContentView: View {
     // Character state
     @State private var characters: [Character] = []
     @State private var placeholderCharacters: [Character] = []
+    @State private var activeCreationViewModels: [String: CharacterCreationViewModel] = [:]
     @State private var selectedCharacter: Character?
     @State private var availableVersions: [Character] = []
     @State private var isLoadingCharacters = false
@@ -179,6 +180,7 @@ struct ContentView: View {
                     repository: combinedRepository,
                     videoViewModel: videoViewModel,
                     scenarioViewModel: selectedCharacter.flatMap { scenarioViewModels[$0.name] },
+                    activeCreationViewModels: activeCreationViewModels,
                     onCharacterSaved: { character in
                         // Refresh character list and versions
                         Task {
@@ -236,6 +238,10 @@ struct ContentView: View {
                         let name = vm.unifiedCharacterName.isEmpty ? "New Character" : vm.unifiedCharacterName
                         let jobId = backgroundJobManager.startJob(type: .characterCreation, characterName: name)
 
+                        // Wire up progress forwarding from VM to job manager
+                        vm.backgroundJobManager = backgroundJobManager
+                        vm.backgroundJobId = jobId
+
                         // Create placeholder character
                         let placeholder = Character(
                             name: name,
@@ -245,6 +251,7 @@ struct ContentView: View {
                             isGenerating: true
                         )
                         placeholderCharacters.append(placeholder)
+                        activeCreationViewModels[name] = vm
                         selectedCharacter = placeholder
 
                         // Run generation in background
@@ -254,6 +261,7 @@ struct ContentView: View {
                                 await vm.saveCharacter(content: vm.generatedContent)
                                 if let saved = vm.savedCharacter {
                                     placeholderCharacters.removeAll { $0.name == name }
+                                    activeCreationViewModels.removeValue(forKey: name)
                                     backgroundJobManager.completeJob(jobId: jobId)
                                     await loadCharacters()
                                     selectedCharacter = saved
@@ -263,10 +271,12 @@ struct ContentView: View {
                                     generateScenariosForNewCharacter(saved)
                                 } else {
                                     placeholderCharacters.removeAll { $0.name == name }
+                                    activeCreationViewModels.removeValue(forKey: name)
                                     backgroundJobManager.failJob(jobId: jobId, error: "Failed to save character")
                                 }
                             } else {
                                 placeholderCharacters.removeAll { $0.name == name }
+                                activeCreationViewModels.removeValue(forKey: name)
                                 backgroundJobManager.failJob(jobId: jobId, error: vm.error ?? "Unknown error")
                             }
                         }
@@ -695,6 +705,7 @@ struct DetailView: View {
     let repository: CombinedCharacterRepository
     let videoViewModel: VideoViewModel
     var scenarioViewModel: ScenarioViewModel?
+    var activeCreationViewModels: [String: CharacterCreationViewModel] = [:]
     let onCharacterSaved: (Character) -> Void
 
     var body: some View {
@@ -715,6 +726,7 @@ struct DetailView: View {
                         repository: repository,
                         apiKeyManager: apiKeyManager,
                         scenarioViewModel: scenarioViewModel,
+                        creationViewModel: activeCreationViewModels[character.name],
                         onCharacterUpdated: onCharacterSaved
                     )
                     .id(character.id)

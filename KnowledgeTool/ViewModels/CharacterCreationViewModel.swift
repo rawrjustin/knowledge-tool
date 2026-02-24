@@ -123,6 +123,10 @@ final class CharacterCreationViewModel {
     private(set) var generatedContent: String = ""
     private(set) var sources: [String] = []
 
+    // Background job tracking (set when running in background mode)
+    var backgroundJobManager: BackgroundJobManager?
+    var backgroundJobId: UUID?
+
     // Artifacts to save with character
     private(set) var knowledgeArtifacts: [KnowledgeArtifact] = []
 
@@ -822,15 +826,19 @@ final class CharacterCreationViewModel {
             let videoInfo = result.videoInfo
 
             updateYouTubeStatus(index: index, state: .downloading, videoTitle: videoInfo.title)
+            print("[KnowledgeTool] Video \(index + 1): Download complete — \(videoInfo.title)")
             await MainActor.run { addLog("Downloaded: \(videoInfo.title)") }
 
             // Step 2: Transcribe
+            print("[KnowledgeTool] Video \(index + 1): Starting transcription...")
             updateYouTubeStatus(index: index, state: .transcribing)
             await MainActor.run { addLog("Transcribing audio for video \(index + 1)...") }
             var transcript = try await assemblyAI.transcribeAudio(fileURL: audioURL!)
+            print("[KnowledgeTool] Video \(index + 1): Transcription complete (\(transcript.text.count) chars, \(transcript.speakerLabels?.count ?? 0) utterances)")
             await MainActor.run { addLog("Transcription complete for video \(index + 1)") }
 
             // Step 3: Identify interviewee
+            print("[KnowledgeTool] Video \(index + 1): Identifying speaker...")
             updateYouTubeStatus(index: index, state: .identifying)
             await MainActor.run { addLog("Identifying speaker in video \(index + 1)...") }
             var intervieweeName: String? = nil
@@ -861,10 +869,14 @@ final class CharacterCreationViewModel {
 
             updateYouTubeStatus(index: index, state: .identifying, intervieweeName: intervieweeName)
             if let name = intervieweeName {
+                print("[KnowledgeTool] Video \(index + 1): Identified speaker: \(name)")
                 await MainActor.run { addLog("Identified speaker: \(name)") }
+            } else {
+                print("[KnowledgeTool] Video \(index + 1): No speaker identified (no speaker labels or identification failed)")
             }
 
             // Step 4: Extract dialogue examples
+            print("[KnowledgeTool] Video \(index + 1): Extracting dialogue examples...")
             updateYouTubeStatus(index: index, state: .extractingDialogue)
             await MainActor.run { addLog("Extracting dialogue examples from video \(index + 1)...") }
             var dialogueExamples: [SpeakerDialogueExamples]? = nil
@@ -872,11 +884,18 @@ final class CharacterCreationViewModel {
             if let speakerLabels = transcript.speakerLabels, !speakerLabels.isEmpty, let name = intervieweeName {
                 let intervieweeUtterances = speakerLabels.filter { $0.speaker == name }
                 if !intervieweeUtterances.isEmpty {
+                    print("[KnowledgeTool] Video \(index + 1): Found \(intervieweeUtterances.count) utterances for \(name)")
                     dialogueExamples = try await openAI.extractDialogueExamples(from: intervieweeUtterances)
+                    print("[KnowledgeTool] Video \(index + 1): Dialogue extraction complete")
+                } else {
+                    print("[KnowledgeTool] Video \(index + 1): No utterances found for identified speaker")
                 }
+            } else {
+                print("[KnowledgeTool] Video \(index + 1): Skipping dialogue extraction (no speaker labels)")
             }
 
             // Step 5: Generate structured knowledge base
+            print("[KnowledgeTool] Video \(index + 1): Generating structured knowledge base...")
             updateYouTubeStatus(index: index, state: .generatingKnowledge)
             await MainActor.run { addLog("Generating knowledge base for video \(index + 1)...") }
             let characterName = intervieweeName ?? "the subject"
@@ -887,6 +906,8 @@ final class CharacterCreationViewModel {
                 videoURL: url,
                 videoTitle: videoInfo.title
             )
+
+            print("[KnowledgeTool] Video \(index + 1): Knowledge base generated (\(knowledgeBase.count) chars)")
 
             // Store processed transcript
             let processed = ProcessedTranscript(
@@ -899,6 +920,7 @@ final class CharacterCreationViewModel {
             )
 
             updateYouTubeStatus(index: index, state: .completed)
+            print("[KnowledgeTool] Video \(index + 1): All steps complete!")
             await MainActor.run { addLog("Video \(index + 1) processing complete!") }
 
             // Cleanup
@@ -915,8 +937,8 @@ final class CharacterCreationViewModel {
             }
             let errorMessage = error.localizedDescription
             updateYouTubeStatus(index: index, state: .failed(errorMessage))
-            // Also log to console for debugging
             print("[KnowledgeTool] Video \(index + 1) failed: \(errorMessage)")
+            await MainActor.run { addLog("Video \(index + 1) failed: \(errorMessage)") }
             return nil
         }
     }
@@ -1778,37 +1800,69 @@ final class CharacterCreationViewModel {
                 )
             }
 
-            // Process videos in parallel
-            let results = await withTaskGroup(of: ProcessedTranscript?.self) { group -> [ProcessedTranscript] in
-                for (index, url) in youtubeLinks.enumerated() {
-                    group.addTask {
-                        return await self.processYouTubeVideo(url: url, index: index)
-                    }
-                }
+            // Process videos in parallel with concurrency limit to avoid thread pool exhaustion
+            let maxConcurrent = 3
+            let linksSnapshot = youtubeLinks
+            let wikiCount = wikipediaLinks.count
+            let results = await withTaskGroup(of: (Int, ProcessedTranscript?).self) { group -> [ProcessedTranscript] in
+                var submitted = 0
                 var collected: [ProcessedTranscript] = []
-                for await result in group {
+                var failedCount = 0
+
+                // Submit initial batch
+                for index in 0..<min(maxConcurrent, linksSnapshot.count) {
+                    let url = linksSnapshot[index]
+                    let idx = index
+                    group.addTask {
+                        let result = await self.processYouTubeVideo(url: url, index: idx)
+                        return (idx, result)
+                    }
+                    submitted += 1
+                }
+
+                // As tasks complete, update status immediately and submit more
+                for await (videoIndex, result) in group {
+                    // Update unified status immediately as each video completes
+                    let statusId = "yt-\(wikiCount + videoIndex)"
                     if let transcript = result {
                         collected.append(transcript)
+                        self.updateUnifiedStatus(id: statusId, to: .completed(id: statusId, label: "YouTube: \(transcript.title)"))
+                    } else {
+                        failedCount += 1
+                        let errMsg = self.youtubeProcessingStatus[videoIndex].flatMap { status -> String? in
+                            if case .failed(let err) = status.state { return err }
+                            return nil
+                        } ?? "Processing failed"
+                        self.updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "YouTube: \(linksSnapshot[videoIndex])", error: errMsg))
+                    }
+
+                    // Submit next task if there are more
+                    if submitted < linksSnapshot.count {
+                        let nextIndex = submitted
+                        let url = linksSnapshot[nextIndex]
+                        group.addTask {
+                            let result = await self.processYouTubeVideo(url: url, index: nextIndex)
+                            return (nextIndex, result)
+                        }
+                        submitted += 1
                     }
                 }
+
+                if failedCount > 0 {
+                    await MainActor.run {
+                        self.addLog("⚠ \(failedCount) of \(linksSnapshot.count) video(s) failed to process")
+                    }
+                }
+                if collected.isEmpty && !linksSnapshot.isEmpty {
+                    await MainActor.run {
+                        self.addLog("⚠ All \(linksSnapshot.count) YouTube videos failed — check logs for details")
+                    }
+                }
+
                 return collected
             }
 
             processedTranscripts = results
-
-            // Update unified statuses for YouTube results
-            for (i, _) in youtubeLinks.enumerated() {
-                let statusId = "yt-\(wikipediaLinks.count + i)"
-                if let status = youtubeProcessingStatus[i] {
-                    if status.state.isComplete {
-                        updateUnifiedStatus(id: statusId, to: .completed(id: statusId, label: "YouTube: \(status.videoTitle ?? youtubeLinks[i])"))
-                    } else if status.state.isFailed {
-                        if case .failed(let err) = status.state {
-                            updateUnifiedStatus(id: statusId, to: .failed(id: statusId, label: "YouTube: \(youtubeLinks[i])", error: err))
-                        }
-                    }
-                }
-            }
 
             // Auto-detect character name from transcripts
             if unifiedCharacterName.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -1943,13 +1997,16 @@ final class CharacterCreationViewModel {
         articleLinks: [String]
     ) async {
         // Check if we have any content
+        print("[KnowledgeTool] continueUnifiedGeneration: scrapedContent count = \(scrapedContent.count)")
         guard !scrapedContent.isEmpty else {
+            print("[KnowledgeTool] continueUnifiedGeneration: No content extracted from any source — aborting")
             error = "No content could be extracted from any source"
             currentStep = .unifiedInput
             return
         }
 
         guard let openAIService = openAIService else {
+            print("[KnowledgeTool] continueUnifiedGeneration: OpenAI API key not configured — aborting")
             error = "OpenAI API key not configured"
             currentStep = .unifiedInput
             return
@@ -2130,7 +2187,9 @@ final class CharacterCreationViewModel {
         } catch {
             let genDuration = Date().timeIntervalSince(genStart)
             let errorMessage = "Failed to generate character: \(error.localizedDescription)"
+            print("[KnowledgeTool] Generation FAILED after \(Int(genDuration))s: \(error.localizedDescription)")
             NSLog("[CharacterCreation] OpenAI generation FAILED after %.1fs: %@", genDuration, error.localizedDescription)
+            addLog("Generation failed: \(error.localizedDescription)")
             self.error = errorMessage
             currentStep = .unifiedProcessing
         }
@@ -2229,6 +2288,10 @@ final class CharacterCreationViewModel {
 
     private func addLog(_ message: String) {
         progressLogs.append(message)
+        // Forward to background job manager for real-time progress display
+        if let jobId = backgroundJobId, let manager = backgroundJobManager {
+            manager.updateProgress(jobId: jobId, message: message)
+        }
     }
 
     // MARK: - Manual Persona (Paste) Flow
