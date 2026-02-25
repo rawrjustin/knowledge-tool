@@ -43,26 +43,26 @@ actor ScenarioGenerationService {
         \(typeGuidance)
 
         Each scenario needs:
-        1. **Title** - A short, evocative title (3-6 words) that hints at the character's world
-        2. **Current Situation** - Set a light, social "now" that feels like you just bumped into each other or are hanging out together. This MUST feel like THIS specific character's life — draw from their real world, interests, habits, vocabulary, and surroundings as described in the persona. If they're a musician, they might be in a studio lounge or backstage. If they're an athlete, they might be post-practice. Ground the scene in details that only make sense for THIS person. Include sensory details (sounds, sights, atmosphere). The vibe is a casual hangout — NOT a work session, NOT a deadline, NOT a high-pressure moment. No urgency, no countdowns, no "we have X minutes." Just two friends with time to talk — but the SETTING and FLAVOR should be unmistakably theirs. Do NOT frame the situation as texting or messaging — write it as if the character and user are present together in the scene.
-        3. **Live Objective** - List 4-6 behavior objectives that blend being a great conversationalist WITH this character's authentic personality. The objectives should reflect HOW this specific person would keep a friend engaged — their humor style, their way of showing care, their quirks, their interests bleeding into conversation naturally. A musician might freestyle a bar about something the user said. A competitive person might turn anything into a playful challenge. The objectives should feel like "this is how THIS character is a good friend" — not generic friendship behaviors.
+        1. **Title** - A short, natural title (3-6 words) — think of how you'd describe this hangout to a friend
+        2. **Current Situation** - Write a simple, natural moment where the character and user are hanging out. Think EVERYDAY life — grabbing food, chilling at home, walking somewhere, waiting for something, riding in a car, at a party, etc. The character's personality and vibe should come through in HOW they act in the moment, not through exotic or hyper-specific locations. Keep it grounded and easy to picture. The user should immediately think "oh yeah, I've been in a moment like this." Do NOT frame the situation as texting or messaging — write it as if they're together in person. No urgency, no time pressure, no deadlines.
+        3. **Live Objective** - List 4-6 behavior objectives that describe how this character naturally keeps a conversation going. Focus on their personality and energy — how they joke, what they get excited about, how they react to things, what makes them light up. The objectives should feel natural and conversational, not like a performance or a script. Avoid overly elaborate or theatrical behaviors — think "how would this person actually talk to a close friend?"
 
-        The Live Objective should also include 1-2 MECHANICS — small recurring dynamics unique to this character that build continuity across chats. Mechanics MUST come from specific details in the persona — real habits, catchphrases, interests, life experiences, or personality traits. They should be instantly recognizable as belonging to this character and no one else.
+        The Live Objective should also include 1-2 MECHANICS — small conversational habits or dynamics that feel natural to this character. These should come from the persona but be the kind of thing that would come up organically in any conversation — not forced or contrived.
 
         CRITICAL FRAMING:
-        - The user is a FAN of this character. The scenario must feel like this character is their BEST FRIEND — warm, personable, and genuinely interested in the user.
-        - READ THE PERSONA CAREFULLY. Extract specific details — their slang, their interests, their lifestyle, places they frequent, things they care about, how they talk — and weave these into EVERY scenario. A scenario should fail the test "could this belong to a different character?" If it could, it's too generic.
-        - The Current Situation should put the character in a setting drawn from THEIR actual life and world. Use details from the persona to make the scene unmistakably theirs.
-        - The Live Objective should reflect this character's SPECIFIC way of connecting with people — their humor, energy, communication style, and interests. Generic directives like "ask a follow-up question" or "match their energy" are not enough. Instead, describe how THIS character specifically does those things.
-        - NO urgency or time pressure in any scenario. No deadlines, no "we have 90 seconds," no "doors open in 40 minutes." The whole point is that these two friends have space to just talk.
-        - Vary scenarios across emotional registers — fun, supportive, vulnerable, playful, serious — so the friendship feels multi-dimensional.
-        - Scenarios should be accessible to any fan, regardless of how much they know about the character's background — but they should still FEEL like this person.
+        - The user is a FAN of this character. The scenario should feel warm and natural — like catching up with a friend, not like entering a themed experience.
+        - Read the persona and let the character's personality flavor the conversation naturally. Their vibe, humor, interests, and way of talking should come through — but through natural behavior, not forced references.
+        - PRIORITIZE RELATABILITY. The best scenarios are ones where the SITUATION is universal and easy to engage with (everyone has grabbed food with a friend, everyone has had a late-night conversation) but the CHARACTER makes it feel unique through their personality.
+        - Don't try to make every scenario feel like a "special moment." Most good conversations happen during ordinary moments. Let some scenarios be mundane situations where the character's personality is what makes it interesting.
+        - NO urgency or time pressure. No deadlines, no countdowns. Just two friends with time to talk.
+        - Vary scenarios across different vibes — fun, chill, deep, playful, random — so it doesn't feel one-note.
+        - Scenarios should be accessible to ANYONE. A user shouldn't need to know the character's lore to enjoy the conversation.
 
         Guidelines:
-        - Vary the scenarios across different casual settings from this character's world — don't cluster around one topic or location
+        - Use COMMON, relatable settings — restaurants, cars, couches, walks, parties, kitchens, etc. The character's personality makes it unique, not the location.
         - Each scenario should work as a standalone conversation starter
         - The situation and objective must complement each other
-        - Avoid generic settings (hotel lobbies, kitchen tables, park benches) unless specifically relevant to this character. Prefer settings that reflect THEIR lifestyle.
+        - Don't overthink the settings. A couch is fine. A car ride is fine. What matters is the character's energy in that moment.
         - Do NOT describe the character as "texting you" or "messaging you." Write the situation as if the character and user are together in the moment.
 
         Output as JSON:
@@ -86,7 +86,7 @@ actor ScenarioGenerationService {
         let body: [String: Any] = [
             "model": model,
             "messages": [
-                ["role": "system", "content": "You are an expert at creating engaging scenarios (situation + objective pairs) for AI characters. Generate creative scenarios that feel immediate and grounded, tailored to the character's prompt type."],
+                ["role": "system", "content": "You create natural, relatable conversation starters for AI characters. Your scenarios should feel like everyday moments between friends — simple situations where the character's personality makes it interesting. Prioritize accessibility and ease of engagement over uniqueness or creativity."],
                 ["role": "user", "content": prompt]
             ],
             "max_completion_tokens": 16000,
@@ -295,20 +295,20 @@ actor ScenarioGenerationService {
             return """
             CSP1 (Companion) guidelines:
             CURRENT SITUATION:
-            - Set a light, social "now" rooted in THIS character's actual world — their lifestyle, places they go, things they do
-            - The situation should invite conversation, not just describe a scene. Give both people something to react to or talk about.
-            - Keep it casual and playable — the user should feel like they're picking up a conversation with someone who already knows them
-            - Avoid dramatic or high-stakes framing — this is friend mode
-            - Include sensory details drawn from the character's real environment — not generic hotel lobbies or kitchen tables
-            - The character's attention is on the user, but the SETTING should feel like the character's life, not a blank room
+            - Set a simple, everyday moment — two friends hanging out, nothing fancy
+            - Use common relatable situations: grabbing food, chilling somewhere, walking, waiting, riding in a car, at someone's place, etc.
+            - The situation should naturally invite conversation — give them something to react to or talk about
+            - Keep it casual and easy to jump into — the user should feel like they already know this person
+            - Avoid dramatic, high-stakes, or overly specific/niche framing — this is just friend mode
+            - The character's personality comes through in how they ACT in the moment, not through exotic settings
 
             LIVE OBJECTIVE (write as deliberate behavioral instructions):
-            - Write 4-6 specific directives that describe how THIS character specifically acts as a good companion — filtered through their personality, humor style, interests, and way of talking
-            - Don't write generic friendship instructions. Instead of "ask a follow-up question," write how THIS person would do it — with their slang, their references, their energy
-            - Let the character's interests and world bleed into the conversation naturally — a musician might hum a melody reference, a foodie might rate things on a flavor scale
-            - Include instructions for reading and adapting to the user's tone, described in this character's voice
-            - Specify how the character keeps the conversation moving in THEIR way — their style of humor, their go-to moves, their personality quirks
-            - MECHANICS: Include 1-2 interactive dynamics drawn from SPECIFIC persona details — real habits, catchphrases, interests, or personality traits that are unique to this character. These should be instantly recognizable as belonging to this person and no one else.
+            - Write 4-6 directives that describe how this character naturally behaves as a friend — their humor, energy, and conversational style
+            - Keep directives natural and grounded. Instead of theatrical behaviors, describe how they'd actually talk — their go-to jokes, what makes them laugh, how they show they care
+            - Let the character's interests come up organically, not as forced references. A sports fan might casually bring up a game, not deliver a monologue about their team's history
+            - Include how the character reads the room and adapts — but describe it naturally, not as a formula
+            - The character should feel like a real person having a real conversation, not performing their persona
+            - MECHANICS: Include 1-2 small conversational habits that feel natural — things that would come up in any hangout with this person, not elaborate interactive dynamics
             """
         case .roleplay:
             return """
