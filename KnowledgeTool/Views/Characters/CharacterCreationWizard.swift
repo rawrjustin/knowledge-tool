@@ -142,8 +142,7 @@ struct PathSelectionView: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(width: 200, height: 180)
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
+                    .sectionContainer(padding: 0)
                 }
                 .buttonStyle(.plain)
 
@@ -165,8 +164,7 @@ struct PathSelectionView: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(width: 200, height: 180)
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
+                    .sectionContainer(padding: 0)
                 }
                 .buttonStyle(.plain)
 
@@ -188,8 +186,7 @@ struct PathSelectionView: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(width: 200, height: 180)
-                    .background(Color(nsColor: .controlBackgroundColor))
-                    .cornerRadius(12)
+                    .sectionContainer(padding: 0)
                 }
                 .buttonStyle(.plain)
             }
@@ -224,7 +221,7 @@ struct UnifiedInputView: View {
                                 Text("Paste Your Persona")
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                     }
 
                     Text("Skip research and create a character by pasting an existing “## Your Persona …” block.")
@@ -238,7 +235,7 @@ struct UnifiedInputView: View {
                         .font(.headline)
 
                     TextField("Auto-detected if left empty", text: $viewModel.unifiedCharacterName)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                 }
 
                 // System Prompt Type
@@ -270,7 +267,7 @@ struct UnifiedInputView: View {
                         .font(.body)
                         .frame(height: 100)
                         .padding(4)
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .cornerRadius(DesignSystem.CornerRadius.medium)
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
@@ -315,7 +312,7 @@ struct UnifiedInputView: View {
                                     .foregroundStyle(linkTypeColor(for: viewModel.webLinks[index]))
 
                                 TextField("https://...", text: $viewModel.webLinks[index])
-                                    .textFieldStyle(.roundedBorder)
+                                    .polishedInput()
                                     .focused($focusedLinkIndex, equals: index)
 
                                 Button {
@@ -456,7 +453,7 @@ struct UnifiedInputView: View {
                         }
                         .frame(maxWidth: 280)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .controlSize(.large)
                     .disabled(!viewModel.canGenerateUnified)
                 }
@@ -547,7 +544,7 @@ struct ManualPersonaInputView: View {
                         .font(.headline)
 
                     TextField("Required", text: $viewModel.manualCharacterName)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
 
                     Text("This will be used as the character’s folder + display name.")
                         .font(.caption)
@@ -579,7 +576,7 @@ struct ManualPersonaInputView: View {
                         .font(.system(.body, design: .monospaced))
                         .frame(minHeight: 320)
                         .padding(4)
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .cornerRadius(DesignSystem.CornerRadius.medium)
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
@@ -611,7 +608,7 @@ struct ManualPersonaInputView: View {
                     Button("Continue") {
                         viewModel.processManualPersonaInput()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(viewModel.manualPersonaText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
@@ -675,7 +672,7 @@ struct ManualPersonaResolveView: View {
                                 .lineLimit(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(DesignSystem.Spacing.sm)
-                                .background(Color(nsColor: .controlBackgroundColor))
+                                .background(.regularMaterial)
                                 .cornerRadius(DesignSystem.CornerRadius.small)
                         }
                         .padding(DesignSystem.Spacing.md)
@@ -708,7 +705,7 @@ struct ManualPersonaResolveView: View {
                     Button("Continue to Review") {
                         viewModel.finalizeManualPersona()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                 }
             }
             .padding(DesignSystem.Spacing.xl)
@@ -770,7 +767,7 @@ struct UnifiedProcessingView: View {
                     }
                 }
                 .frame(maxWidth: 350, maxHeight: 280)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(10)
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
@@ -826,7 +823,7 @@ struct UnifiedProcessingView: View {
                     Button("Go Back") {
                         viewModel.goBackFromUnifiedProcessing()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                 }
                 .padding()
                 .background(Color.red.opacity(0.1))
@@ -904,7 +901,7 @@ struct WikipediaInputView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     TextField("https://en.wikipedia.org/wiki/...", text: $viewModel.wikipediaURL)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.body)
 
                     Text("Paste the Wikipedia URL for the character or celebrity")
@@ -929,7 +926,7 @@ struct WikipediaInputView: View {
                             await viewModel.fetchWikipediaPreview()
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(viewModel.wikipediaURL.isEmpty)
                 }
             }
@@ -972,7 +969,7 @@ struct WikipediaPreviewView: View {
                         }
                         .frame(height: 200)
                         .padding()
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .cornerRadius(8)
                     }
                     .frame(maxWidth: 500)
@@ -1009,7 +1006,7 @@ struct WikipediaPreviewView: View {
                             await viewModel.generateFromWikipedia()
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                 }
             }
 
@@ -1074,7 +1071,7 @@ struct OriginalInputView: View {
                             await viewModel.generateOriginal()
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(viewModel.originalDescription.isEmpty)
                 }
             }
@@ -1115,7 +1112,7 @@ struct YouTubeInputView: View {
                             .foregroundStyle(.secondary)
 
                         TextField("Auto-detected from videos if left empty", text: $viewModel.youtubeCharacterName)
-                            .textFieldStyle(.roundedBorder)
+                            .polishedInput()
                     }
 
                     Divider()
@@ -1152,7 +1149,7 @@ struct YouTubeInputView: View {
                                     .frame(width: 24, alignment: .trailing)
 
                                 TextField("https://youtube.com/watch?v=...", text: $viewModel.youtubeURLs[index])
-                                    .textFieldStyle(.roundedBorder)
+                                    .polishedInput()
                                     .focused($focusedFieldIndex, equals: index)
 
                                 Button {
@@ -1190,7 +1187,7 @@ struct YouTubeInputView: View {
                             await viewModel.processYouTubeVideos()
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(viewModel.youtubeURLs.allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty })
                 }
             }
@@ -1272,7 +1269,7 @@ struct YouTubeProcessingView: View {
                     }
                 }
                 .frame(maxWidth: 350, maxHeight: 280)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(10)
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
@@ -1328,7 +1325,7 @@ struct YouTubeProcessingView: View {
                     Button("Go Back") {
                         viewModel.goBackFromYouTubeProcessing()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                 }
                 .padding()
                 .background(Color.red.opacity(0.1))
@@ -1452,7 +1449,7 @@ struct ActivityLogView: View {
                 }
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -1646,7 +1643,7 @@ struct ReviewView: View {
                             }
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                 }
             }
             .padding()

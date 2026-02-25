@@ -236,7 +236,7 @@ struct CharacterDashboardView: View {
                 } label: {
                     Label("Augment", systemImage: "sparkles")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .help("Add source content to enhance this persona")
 
                 Button {
@@ -246,7 +246,7 @@ struct CharacterDashboardView: View {
                 } label: {
                     Label("Rename", systemImage: "pencil")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .disabled(editorViewModel.hasUnsavedChanges || isRenaming)
                 .help(editorViewModel.hasUnsavedChanges ? "Save or revert changes before renaming" : "Rename this character")
 
@@ -256,7 +256,7 @@ struct CharacterDashboardView: View {
                     } label: {
                         Label("Revert", systemImage: "arrow.uturn.backward")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .help("Revert all changes")
                 }
 
@@ -267,14 +267,14 @@ struct CharacterDashboardView: View {
                 } label: {
                     Label("Save", systemImage: "square.and.arrow.down")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .disabled(!editorViewModel.hasUnsavedChanges || editorViewModel.isSaving)
                 .help("Save changes (Cmd+S)")
                 .keyboardShortcut("s", modifiers: .command)
             }
         }
         .padding(DesignSystem.Spacing.lg)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
     }
 
     // MARK: - Tab Bar
@@ -297,7 +297,7 @@ struct CharacterDashboardView: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.lg)
         .padding(.vertical, DesignSystem.Spacing.sm)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        .background(.regularMaterial)
     }
 
     private func badgeFor(_ tab: DashboardTab) -> String? {
@@ -430,7 +430,7 @@ private struct RenameCharacterSheet: View {
                 Text("New Name")
                     .font(.headline)
                 TextField("Name", text: $draftName)
-                    .textFieldStyle(.roundedBorder)
+                    .polishedInput()
                 Text("Current: \(currentName)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -453,7 +453,7 @@ private struct RenameCharacterSheet: View {
                 Spacer()
 
                 Button(isSaving ? "Renaming..." : "Rename") { onConfirm() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(isSaving || draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .keyboardShortcut(.defaultAction)
             }
@@ -732,13 +732,13 @@ struct PersonaSectionCard: View {
                             Button("Cancel") {
                                 onCancelEditing()
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .keyboardShortcut(.cancelAction)
 
                             Button("Done") {
                                 onDoneEditing()
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.modernPrimary)
                             .keyboardShortcut(.defaultAction)
                         }
                     }
@@ -785,8 +785,7 @@ struct PersonaSectionCard: View {
                 .background(Color.purple.opacity(0.05))
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+        .sectionContainer(padding: 0)
         .onChange(of: isEditing) { _, newValue in
             if newValue && !isExpanded {
                 withAnimation(DesignSystem.Animation.quick) {

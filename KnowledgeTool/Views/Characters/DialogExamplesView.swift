@@ -190,11 +190,11 @@ struct DialogExamplesView: View {
                         .foregroundStyle(.secondary)
 
                     TextField("Tone (e.g., casual, formal, energetic)", text: $viewModel.toneGuidance)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.subheadline)
 
                     TextField("Style notes", text: $viewModel.styleNotes)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.subheadline)
                 }
 
@@ -218,12 +218,12 @@ struct DialogExamplesView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, DesignSystem.Spacing.sm)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .disabled(viewModel.isGenerating || viewModel.selectedCategoryIds.isEmpty)
             }
             .padding(DesignSystem.Spacing.lg)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
     }
 
     // MARK: - Examples Panel
@@ -255,14 +255,14 @@ struct DialogExamplesView: View {
                     } label: {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
 
                     Button(role: .destructive) {
                         viewModel.deleteAllExamples()
                     } label: {
                         Label("Clear All", systemImage: "trash")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                 }
 
                 Button {
@@ -271,10 +271,10 @@ struct DialogExamplesView: View {
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 
@@ -338,7 +338,7 @@ struct DialogExamplesView: View {
                                     )
                                 }
                             }
-                            .background(Color(nsColor: .controlBackgroundColor))
+                            .background(.regularMaterial)
                             .cornerRadius(DesignSystem.CornerRadius.medium)
                         } header: {
                             CategorySectionHeader(
@@ -493,11 +493,11 @@ struct CompactDialogRow: View {
                     HStack {
                         Spacer()
                         Button("Cancel", action: onCancelEdit)
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .controlSize(.small)
 
                         Button("Save", action: onSaveEdit)
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.modernPrimary)
                             .controlSize(.small)
                     }
                 }
@@ -595,10 +595,10 @@ struct AddDialogSheet: View {
 
             HStack {
                 Button("Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
 
                 Button("Add", action: onAdd)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(dialogText.isEmpty)
             }
         }
@@ -651,7 +651,7 @@ struct ExportDialogSheet: View {
                         Text(copied ? "Copied!" : "Copy to Clipboard")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
 
                 Spacer()
             }

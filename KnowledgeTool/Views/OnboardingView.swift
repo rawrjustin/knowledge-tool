@@ -132,13 +132,13 @@ struct OnboardingView: View {
                             currentPage += 1
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(currentPage == 1 && !connectionTestPassed)
                 } else {
                     Button("Get Started") {
                         completeOnboarding()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(!canContinue)
                     .help(missingKeysMessage ?? "Complete setup")
                 }
@@ -299,7 +299,7 @@ struct WelcomePage: View {
                     )
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
             }
 
@@ -363,7 +363,7 @@ struct SupabaseSetupPage: View {
                             .font(.headline)
 
                         TextField("https://xxxx.supabase.co", text: $supabaseURL)
-                            .textFieldStyle(.roundedBorder)
+                            .polishedInput()
                             .font(.body)
                             .focused(focusedField, equals: .supabaseURL)
                     }
@@ -373,7 +373,7 @@ struct SupabaseSetupPage: View {
                             .font(.headline)
 
                         SecureField("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", text: $supabaseAnonKey)
-                            .textFieldStyle(.roundedBorder)
+                            .polishedInput()
                             .font(.body)
                             .focused(focusedField, equals: .supabaseAnonKey)
                     }
@@ -395,7 +395,7 @@ struct SupabaseSetupPage: View {
                                 Text(connectionTestPassed ? "Connected" : "Test Connection")
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .disabled(supabaseURL.isEmpty || supabaseAnonKey.isEmpty || isTestingConnection)
 
                         Spacer()
@@ -419,7 +419,7 @@ struct SupabaseSetupPage: View {
                     .padding(.top, 4)
                 }
                 .padding(20)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
                 .frame(maxWidth: 500)
             }
@@ -483,7 +483,7 @@ struct AssemblyAIKeyPage: View {
                         .font(.headline)
 
                     SecureField("API Key", text: $assemblyAIKey)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.body)
                         .focused(focusedField, equals: .assemblyAI)
 
@@ -499,7 +499,7 @@ struct AssemblyAIKeyPage: View {
                     .padding(.top, 4)
                 }
                 .padding(20)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
                 .frame(maxWidth: 500)
             }
@@ -563,7 +563,7 @@ struct OpenAIKeyPage: View {
                         .font(.headline)
 
                     SecureField("API Key", text: $openAIKey)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.body)
                         .focused(focusedField, equals: .openAI)
 
@@ -579,7 +579,7 @@ struct OpenAIKeyPage: View {
                     .padding(.top, 4)
                 }
                 .padding(20)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
                 .frame(maxWidth: 500)
             }
@@ -643,7 +643,7 @@ struct PerplexityKeyPage: View {
                         .font(.headline)
 
                     SecureField("API Key", text: $perplexityKey)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.body)
                         .focused(focusedField, equals: .perplexity)
 
@@ -659,7 +659,7 @@ struct PerplexityKeyPage: View {
                     .padding(.top, 4)
                 }
                 .padding(20)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
                 .frame(maxWidth: 500)
             }

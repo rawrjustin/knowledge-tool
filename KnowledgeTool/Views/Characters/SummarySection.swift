@@ -96,7 +96,7 @@ struct SummarySection: View {
                 }
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
     }
 
@@ -122,7 +122,7 @@ struct SummarySection: View {
             } label: {
                 Label("Generate Summary", systemImage: "sparkles")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.modernSecondary)
             .controlSize(.small)
         }
         .frame(maxWidth: .infinity)
@@ -219,7 +219,7 @@ struct SummarySection: View {
                             systemImage: copiedToClipboard ? "checkmark" : "doc.on.doc"
                         )
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.small)
 
                     Spacer()

@@ -107,13 +107,13 @@ struct VersionHistoryPanel: View {
                             .font(.subheadline.weight(.medium))
                             .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .padding(DesignSystem.Spacing.md)
                     }
                 }
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
     }
 
@@ -281,7 +281,7 @@ struct VersionDiffView: View {
                 Button("Close") {
                     onClose()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
             .padding(DesignSystem.Spacing.lg)
             .background(.regularMaterial)

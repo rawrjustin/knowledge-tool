@@ -33,7 +33,7 @@ struct SystemPromptEditorView: View {
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .disabled(viewModel.isLoading)
             }
             .padding()
@@ -198,7 +198,7 @@ struct SystemPromptEditorView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .cornerRadius(6)
                     }
                 } else {
@@ -232,7 +232,7 @@ struct SystemPromptEditorView: View {
                     Button("Discard") {
                         onDiscard()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                 }
 
                 Button {
@@ -240,11 +240,11 @@ struct SystemPromptEditorView: View {
                 } label: {
                     Label("Apply Changes", systemImage: "arrow.up.circle.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .disabled(!hasChanges || viewModel.isSaving)
             }
             .padding()
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+            .background(.thinMaterial)
 
             Divider()
 
@@ -451,7 +451,7 @@ struct SystemPromptSaveConfirmationSheet: View {
                         Text("Save Changes")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .disabled(isSaving)
                 .keyboardShortcut(.defaultAction)
             }

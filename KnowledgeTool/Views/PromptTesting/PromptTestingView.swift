@@ -80,11 +80,11 @@ struct PromptTestingView: View {
                 } label: {
                     Label("Reset", systemImage: "arrow.counterclockwise")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
+            .background(.ultraThinMaterial)
 
             // Variants area
             ScrollView(.horizontal, showsIndicators: true) {
@@ -114,7 +114,7 @@ struct PromptTestingView: View {
                 .padding(16)
             }
             .frame(maxHeight: .infinity)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+            .background(.thinMaterial)
 
             // Input area (only in chat mode)
             if mode == .chat {
@@ -170,7 +170,7 @@ struct PromptTestingView: View {
             }
             .frame(width: 400)
             .frame(maxHeight: .infinity)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.3))
+            .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -187,7 +187,7 @@ struct PromptTestingView: View {
             TextField("Type a message to test all variants...", text: $userInput)
                 .textFieldStyle(.plain)
                 .padding(10)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
@@ -381,7 +381,7 @@ struct VariantColumn: View {
                     .foregroundStyle(.secondary)
             }
             .padding(8)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+            .background(.thinMaterial)
 
             // System prompt editor - full height
             TextEditor(text: $localSystemPrompt)

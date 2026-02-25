@@ -113,7 +113,7 @@ struct SourceDeletionSheet: View {
                 Button("Cancel") {
                     onCancel()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .keyboardShortcut(.cancelAction)
 
                 Spacer()
@@ -130,7 +130,7 @@ struct SourceDeletionSheet: View {
                         Label("Delete Source", systemImage: "trash")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .tint(.red)
                 .disabled(isDeleting)
             }

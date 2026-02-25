@@ -98,7 +98,7 @@ struct VersionComparisonChatView: View {
                 Label("Add Version", systemImage: "plus")
                     .font(.subheadline)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.modernSecondary)
             .disabled(viewModel.selectedVersions.count >= VersionComparisonViewModel.maxVersionsToCompare)
             .popover(isPresented: $showVersionPicker, arrowEdge: .bottom) {
                 versionPickerPopover
@@ -112,7 +112,7 @@ struct VersionComparisonChatView: View {
                     Label("Clear Chat", systemImage: "trash")
                         .font(.subheadline)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
 
             // Close button
@@ -157,13 +157,13 @@ struct VersionComparisonChatView: View {
                 } label: {
                     Label("Select Versions", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
             }
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        .background(.thinMaterial)
     }
 
     // MARK: - Chat Columns
@@ -193,7 +193,7 @@ struct VersionComparisonChatView: View {
             .padding(DesignSystem.Spacing.lg)
         }
         .frame(maxHeight: .infinity)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+        .background(.thinMaterial)
     }
 
     // MARK: - Add Version Column
@@ -241,7 +241,7 @@ struct VersionComparisonChatView: View {
             TextField("Type a message to test all versions...", text: $userInput)
                 .textFieldStyle(.plain)
                 .padding(DesignSystem.Spacing.md)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
                 .disabled(viewModel.isAnyExecuting)
                 .focused($isInputFocused)
@@ -285,7 +285,7 @@ struct VersionComparisonChatView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 

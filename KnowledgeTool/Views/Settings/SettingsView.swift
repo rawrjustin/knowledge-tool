@@ -142,7 +142,7 @@ struct SettingsView: View {
                             }
 
                             TextField("your-index-name", text: $pineconeIndexName)
-                                .textFieldStyle(.roundedBorder)
+                                .polishedInput()
                                 .onChange(of: pineconeIndexName) { _, newValue in
                                     apiKeyManager.pineconeIndexName = newValue
                                 }
@@ -217,7 +217,7 @@ struct SettingsView: View {
                                 .font(.subheadline.weight(.semibold))
 
                             TextField("https://xxxx.supabase.co", text: $supabaseURL)
-                                .textFieldStyle(.roundedBorder)
+                                .polishedInput()
                                 .onChange(of: supabaseURL) { _, newValue in
                                     apiKeyManager.supabaseURL = newValue
                                     supabaseConnectionStatus = .notConfigured
@@ -231,7 +231,7 @@ struct SettingsView: View {
                                 .font(.subheadline.weight(.semibold))
 
                             SecureField("sb_publishable_...", text: $supabaseAnonKey)
-                                .textFieldStyle(.roundedBorder)
+                                .polishedInput()
                                 .onChange(of: supabaseAnonKey) { _, newValue in
                                     apiKeyManager.supabaseAnonKey = newValue
                                     supabaseConnectionStatus = .notConfigured
@@ -248,7 +248,7 @@ struct SettingsView: View {
                             } label: {
                                 Label("Test Connection", systemImage: "antenna.radiowaves.left.and.right")
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .disabled(supabaseConnectionStatus == .testing)
                         }
                     }
@@ -294,9 +294,7 @@ struct SettingsView: View {
                                 StatusBadge(text: "Custom", status: .info, showIcon: false)
                             }
                         }
-                        .padding(DesignSystem.Spacing.md)
-                        .background(Color(nsColor: .controlBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+                        .sectionContainer(padding: DesignSystem.Spacing.md)
 
                         // Action buttons
                         HStack(spacing: DesignSystem.Spacing.sm) {
@@ -306,7 +304,7 @@ struct SettingsView: View {
                             } label: {
                                 Label("Choose Folder", systemImage: "folder.badge.plus")
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .disabled(isSelectingFolder)
 
                             if apiKeyManager.hasCustomRepositoryPath {
@@ -510,7 +508,7 @@ struct APIKeyRow: View {
                         SecureField(placeholder, text: $key)
                     }
                 }
-                .textFieldStyle(.roundedBorder)
+                .polishedInput(isFocused: isFocused)
                 .focused($isFocused)
                 .onChange(of: key) { _, newValue in
                     onSave(newValue)
@@ -522,7 +520,7 @@ struct APIKeyRow: View {
                     Image(systemName: isVisible ? "eye.slash" : "eye")
                         .font(.subheadline)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .help(isVisible ? "Hide key" : "Show key")
             }
 
@@ -556,10 +554,10 @@ struct APIKeyField: View {
             HStack {
                 if isVisible {
                     TextField("Enter API key", text: $key)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                 } else {
                     SecureField("Enter API key", text: $key)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                 }
 
                 Button {
@@ -567,7 +565,7 @@ struct APIKeyField: View {
                 } label: {
                     Image(systemName: isVisible ? "eye.slash.fill" : "eye.fill")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .help(isVisible ? "Hide API key" : "Show API key")
             }
         }
@@ -602,9 +600,7 @@ struct BundledDependencyRow: View {
                 .foregroundStyle(DesignSystem.Colors.success)
                 .font(.caption)
         }
-        .padding(DesignSystem.Spacing.md)
-        .background(Color(nsColor: .textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
+        .sectionContainer(padding: DesignSystem.Spacing.md)
     }
 }
 

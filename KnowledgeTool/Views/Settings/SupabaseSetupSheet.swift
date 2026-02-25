@@ -55,7 +55,7 @@ struct SupabaseSetupSheet: View {
                             .font(.subheadline.weight(.semibold))
 
                         TextField("https://xxxx.supabase.co", text: $supabaseURL)
-                            .textFieldStyle(.roundedBorder)
+                            .polishedInput()
 
                         HelperText(text: "Your Supabase project URL", icon: "info.circle")
                     }
@@ -65,7 +65,7 @@ struct SupabaseSetupSheet: View {
                             .font(.subheadline.weight(.semibold))
 
                         SecureField("sb_publishable_...", text: $supabaseAnonKey)
-                            .textFieldStyle(.roundedBorder)
+                            .polishedInput()
 
                         HelperText(text: "Your public anon key (safe to use in apps)", icon: "info.circle")
                     }
@@ -121,7 +121,7 @@ struct SupabaseSetupSheet: View {
                     UserDefaults.standard.set(true, forKey: "hasSkippedSupabaseSetup")
                     dismiss()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
 
                 Spacer()
 
@@ -129,7 +129,7 @@ struct SupabaseSetupSheet: View {
                     Button("Complete Setup") {
                         saveAndComplete()
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                 } else {
                     Button {
                         Task {
@@ -143,7 +143,7 @@ struct SupabaseSetupSheet: View {
                             Text("Test Connection")
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(!isConfigValid || isTestingConnection)
                 }
             }

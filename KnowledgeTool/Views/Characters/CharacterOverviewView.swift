@@ -74,7 +74,7 @@ struct CharacterOverviewView: View {
                         } label: {
                             Label("Augment", systemImage: "sparkles")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                         .help("Add source content to enhance this persona")
 
                         // Edit button
@@ -83,11 +83,11 @@ struct CharacterOverviewView: View {
                         } label: {
                             Label("Edit", systemImage: "square.and.pencil")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                     }
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
 
                 // Persona markdown preview with knowledge indicators
@@ -126,7 +126,7 @@ struct CharacterOverviewView: View {
                     .cornerRadius(8)
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
 
                 // Knowledge Sources section (if exists)
@@ -156,7 +156,7 @@ struct CharacterOverviewView: View {
                         }
                     }
                     .padding()
-                    .background(Color(nsColor: .controlBackgroundColor))
+                    .background(.regularMaterial)
                     .cornerRadius(12)
                 }
 
@@ -240,7 +240,7 @@ struct CharacterOverviewView: View {
                                 Text(hasMemories ? "Regenerate Memories" : "Generate Memories")
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                         .disabled(isGeneratingMemories || isUploadingToRAG)
 
                         // Upload to RAG button
@@ -252,7 +252,7 @@ struct CharacterOverviewView: View {
                                 Text("Upload to Pinecone")
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .disabled(isGeneratingMemories || isUploadingToRAG || (!hasMemories && !hasVideoKnowledge))
                     }
 
@@ -276,7 +276,7 @@ struct CharacterOverviewView: View {
                     }
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
 
                 // Quick stats
@@ -292,7 +292,7 @@ struct CharacterOverviewView: View {
                     }
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
             }
             .padding(24)
@@ -554,7 +554,7 @@ struct PersonaSectionWithKnowledge: View {
             }
         }
         .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 

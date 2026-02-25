@@ -66,7 +66,7 @@ struct RawMarkdownView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.xs)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
             .clipShape(Capsule())
 
             // Copy All button
@@ -77,7 +77,7 @@ struct RawMarkdownView: View {
             } label: {
                 Label("Copy All", systemImage: "doc.on.doc")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.modernPrimary)
             .help("Copy full markdown to clipboard")
         }
         .padding(DesignSystem.Spacing.lg)
@@ -170,7 +170,7 @@ struct RawMarkdownView: View {
         }
         .padding(DesignSystem.Spacing.lg)
         .frame(minWidth: 250, idealWidth: 280, maxWidth: 320)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
     }
 
     // MARK: - Markdown Content
@@ -325,7 +325,7 @@ struct SaveConfirmationSheet: View {
                         Label("Save Changes", systemImage: "checkmark.circle.fill")
                     }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .help("Save changes")
                 }
             }
@@ -341,7 +341,7 @@ struct SaveConfirmationSheet: View {
                     .foregroundStyle(.secondary)
 
                 TextField("Version name (e.g. \"new info\", \"justin\")", text: $viewModel.versionName)
-                    .textFieldStyle(.roundedBorder)
+                    .polishedInput()
                     .font(.subheadline)
 
                 Text("Optional")
@@ -350,7 +350,7 @@ struct SaveConfirmationSheet: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.lg)
             .padding(.vertical, DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 
@@ -362,7 +362,7 @@ struct SaveConfirmationSheet: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.lg)
             .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 

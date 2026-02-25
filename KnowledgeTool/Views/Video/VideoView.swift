@@ -39,7 +39,7 @@ struct VideoView: View {
                                 .textFieldStyle(.plain)
                         }
                         .padding(DesignSystem.Spacing.md)
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
@@ -55,7 +55,7 @@ struct VideoView: View {
                             Label("Process", systemImage: "play.fill")
                                 .font(.subheadline.weight(.medium))
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .disabled(viewModel.urlInput.isEmpty || viewModel.processingState.isProcessing)
                         .help("Process video from URL")
                     }
@@ -313,7 +313,7 @@ struct ResultsSection: View {
                         Label("Export", systemImage: "square.and.arrow.up")
                             .font(.subheadline)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .help("Export results")
 
                     Button {
@@ -322,7 +322,7 @@ struct ResultsSection: View {
                         Label("New Video", systemImage: "plus")
                             .font(.subheadline)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .help("Process another video")
                 }
             }
@@ -451,7 +451,7 @@ struct SummaryTabContent: View {
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
 
                 Button {
@@ -459,7 +459,7 @@ struct SummaryTabContent: View {
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
             }
             .padding(10)
@@ -506,7 +506,7 @@ struct DialogueTabContent: View {
                 } label: {
                     Label("Copy All", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
 
                 Button {
@@ -514,7 +514,7 @@ struct DialogueTabContent: View {
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
             }
             .padding(10)
@@ -654,7 +654,7 @@ struct TranscriptTabContent: View {
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
 
                 Button {
@@ -662,7 +662,7 @@ struct TranscriptTabContent: View {
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
             }
             .padding(10)
@@ -778,7 +778,7 @@ struct VideoInfoCard: View {
             Spacer()
         }
         .padding(DesignSystem.Spacing.md)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)

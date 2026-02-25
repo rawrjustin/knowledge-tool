@@ -47,7 +47,7 @@ struct CharacterSelectorView: View {
                 }
                 .padding(.horizontal, DesignSystem.Spacing.lg)
                 .padding(.vertical, DesignSystem.Spacing.sm)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
             } else {
                 // Character selector with avatar
@@ -170,7 +170,7 @@ struct CharacterSelectorView: View {
                         }
                         .padding(.horizontal, DesignSystem.Spacing.md)
                         .padding(.vertical, DesignSystem.Spacing.sm)
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small))
                     }
                     .fixedSize()
@@ -187,7 +187,7 @@ struct CharacterSelectorView: View {
                     }
                     .padding(.horizontal, DesignSystem.Spacing.md)
                     .padding(.vertical, DesignSystem.Spacing.sm)
-                    .background(Color(nsColor: .controlBackgroundColor))
+                    .background(.regularMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small))
                 }
             }
@@ -201,7 +201,7 @@ struct CharacterSelectorView: View {
                 Label("New", systemImage: "plus")
                     .font(.subheadline.weight(.medium))
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.modernPrimary)
             .help("Create new character (⌘N)")
 
             // Sync button
@@ -216,7 +216,7 @@ struct CharacterSelectorView: View {
                     .font(.subheadline)
                     .symbolEffect(.rotate, isActive: isSyncing)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.modernSecondary)
             .disabled(isSyncing)
             .help("Refresh characters (⌘R)")
         }
@@ -270,7 +270,7 @@ struct CharacterPickerPopover: View {
                 KeyboardShortcutHint(keys: "⌘K")
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 

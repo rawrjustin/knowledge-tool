@@ -5,6 +5,7 @@ struct KnowledgeToolApp: App {
     @State private var apiKeyManager = APIKeyManager()
     @State private var syncManager: SyncManager
     @State private var backgroundJobManager = BackgroundJobManager()
+    @State private var authViewModel = AuthViewModel()
     @State private var showSupabaseSetup = false
 
     init() {
@@ -28,9 +29,13 @@ struct KnowledgeToolApp: App {
                 .environment(apiKeyManager)
                 .environment(syncManager)
                 .environment(backgroundJobManager)
+                .environment(authViewModel)
                 .frame(minWidth: 900, minHeight: 600)
                 .task {
                     NotificationService.shared.requestAuthorization()
+                }
+                .task {
+                    await authViewModel.checkExistingSession()
                 }
                 .task {
                     // For users who completed old onboarding without Supabase, prompt them to set it up

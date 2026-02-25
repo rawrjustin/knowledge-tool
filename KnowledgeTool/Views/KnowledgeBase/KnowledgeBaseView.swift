@@ -105,7 +105,7 @@ struct KnowledgeBaseView: View {
                                 Label("YouTube", systemImage: "play.rectangle")
                                     .font(.caption)
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .controlSize(.small)
                             .disabled(isProcessingRAG || isUploadingToRAG)
                             .help("Generate memories from YouTube video")
@@ -116,7 +116,7 @@ struct KnowledgeBaseView: View {
                                 Label("Text", systemImage: "doc.text")
                                     .font(.caption)
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .controlSize(.small)
                             .disabled(isProcessingRAG || isUploadingToRAG)
                             .help("Generate memories from free-form text")
@@ -132,7 +132,7 @@ struct KnowledgeBaseView: View {
                                 Label("Sync", systemImage: "arrow.triangle.2.circlepath")
                                     .font(.caption)
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.modernSecondary)
                             .controlSize(.small)
                             .disabled(isProcessingRAG || isUploadingToRAG || isSyncingWithPinecone || pineconeNamespace.isEmpty)
                             .help("Sync with Pinecone to check upload status")
@@ -143,7 +143,7 @@ struct KnowledgeBaseView: View {
                                 Label("Upload", systemImage: "icloud.and.arrow.up")
                                     .font(.caption)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.modernPrimary)
                             .controlSize(.small)
                             .disabled(isProcessingRAG || isUploadingToRAG || !hasUploadableContent)
                             .help("Upload to Pinecone")
@@ -165,7 +165,7 @@ struct KnowledgeBaseView: View {
                         .textFieldStyle(.plain)
                 }
                 .padding(8)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(8)
                 .padding(10)
 
@@ -651,7 +651,7 @@ struct PineconeUploadSheet: View {
                     .font(.headline)
 
                 TextField("CHAR_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", text: $namespace)
-                    .textFieldStyle(.roundedBorder)
+                    .polishedInput()
                     .font(.system(.body, design: .monospaced))
 
                 Text("Enter the Character ID from your backend system.")
@@ -670,7 +670,7 @@ struct PineconeUploadSheet: View {
                 Button("Upload") {
                     onUpload()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .keyboardShortcut(.defaultAction)
                 .disabled(namespace.isEmpty)
             }
@@ -701,7 +701,7 @@ struct YouTubeInputSheet: View {
                     .font(.headline)
 
                 TextField("https://www.youtube.com/watch?v=...", text: $youtubeURL)
-                    .textFieldStyle(.roundedBorder)
+                    .polishedInput()
                     .font(.system(.body, design: .monospaced))
 
                 Text("Enter a YouTube video URL to download, transcribe, and generate a knowledge base.")
@@ -720,7 +720,7 @@ struct YouTubeInputSheet: View {
                 Button("Process") {
                     onProcess(youtubeURL)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .keyboardShortcut(.defaultAction)
                 .disabled(youtubeURL.isEmpty || !isValidYouTubeURL)
             }
@@ -756,7 +756,7 @@ struct FreeTextInputSheet: View {
                     .font(.headline)
 
                 TextField("e.g., interview_2024, article_notes", text: $sourceLabel)
-                    .textFieldStyle(.roundedBorder)
+                    .polishedInput()
 
                 Text("A short identifier for the source of this content.")
                     .font(.caption)
@@ -771,7 +771,10 @@ struct FreeTextInputSheet: View {
                     .font(.body)
                     .scrollContentBackground(.hidden)
                     .background(Color(nsColor: .textBackgroundColor))
-                    .border(Color.gray.opacity(0.2), width: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                            .stroke(DesignSystem.Colors.inputBorder, lineWidth: 1)
+                    )
                     .frame(minHeight: 200)
 
                 Text("Paste any text content (interview transcript, article, notes, etc.) to generate memories.")
@@ -790,7 +793,7 @@ struct FreeTextInputSheet: View {
                 Button("Generate") {
                     onGenerate(textContent, sourceLabel)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .keyboardShortcut(.defaultAction)
                 .disabled(textContent.isEmpty || sourceLabel.isEmpty)
             }
@@ -933,7 +936,7 @@ struct KnowledgeFileDetailView: View {
                             isEditing = false
                             hasUnsavedChanges = false
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .keyboardShortcut("s", modifiers: .command)
                     } else {
                         Button {
@@ -1010,7 +1013,7 @@ struct NewKnowledgeFileSheet: View {
                         .font(.headline)
 
                     TextField("e.g., interview_summary", text: $fileName)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
 
                     Text("Will be saved as .txt")
                         .font(.caption)
@@ -1025,7 +1028,10 @@ struct NewKnowledgeFileSheet: View {
                         .font(.body)
                         .scrollContentBackground(.hidden)
                         .background(Color(nsColor: .textBackgroundColor))
-                        .border(Color.gray.opacity(0.2), width: 1)
+                        .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                            .stroke(DesignSystem.Colors.inputBorder, lineWidth: 1)
+                    )
                         .frame(minHeight: 200)
                 }
             }
@@ -1043,7 +1049,7 @@ struct NewKnowledgeFileSheet: View {
                     let finalFileName = fileName.hasSuffix(".txt") ? fileName : "\(fileName).txt"
                     onCreate(finalFileName, content)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .disabled(fileName.isEmpty || content.isEmpty)
                 .keyboardShortcut(.defaultAction)
             }

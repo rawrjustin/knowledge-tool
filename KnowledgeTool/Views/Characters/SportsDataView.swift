@@ -122,7 +122,7 @@ struct SportsDataView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
             .frame(maxWidth: 250)
         }
@@ -439,7 +439,7 @@ struct SportsDataView: View {
                         Task { await vm.loadPlayerStats(teamKey: team.key) }
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
             .padding()
         } else {
@@ -529,7 +529,7 @@ struct SportsDataView: View {
                         Task { await vm.loadTeamSchedule(teamKey: team.key) }
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
             .padding()
         } else {
@@ -635,7 +635,7 @@ struct SportsDataView: View {
                     } label: {
                         Label("Refresh Now", systemImage: "arrow.clockwise")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .disabled(vm.isRefreshing)
 
                     Button(role: .destructive) {
@@ -665,7 +665,7 @@ struct SportsDataView: View {
                     } label: {
                         Label("Attach \(team.fullName) to \(character.name)", systemImage: "paperclip")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
 
                     HelperText(
                         text: "Adds roster, stats, and schedule as knowledge entries",
@@ -711,7 +711,7 @@ struct SportsDataView: View {
                         }
                         .padding(DesignSystem.Spacing.md)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .controlBackgroundColor))
+                        .background(.regularMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
                     }
                 }
@@ -731,7 +731,7 @@ struct SportsDataView: View {
                 } label: {
                     Label("Attach to \(character.name)", systemImage: "paperclip")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
             }
             .padding(DesignSystem.Spacing.lg)
         }

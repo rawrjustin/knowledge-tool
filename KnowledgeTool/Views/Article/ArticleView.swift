@@ -19,7 +19,7 @@ struct ArticleView: View {
 
                     HStack(spacing: 12) {
                         TextField("Enter article URL", text: $viewModel.urlInput)
-                            .textFieldStyle(.roundedBorder)
+                            .polishedInput()
                             .disabled(viewModel.processingState.isProcessing)
 
                         Button {
@@ -29,7 +29,7 @@ struct ArticleView: View {
                         } label: {
                             Label("Process", systemImage: "arrow.right.circle.fill")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .disabled(viewModel.urlInput.isEmpty || viewModel.processingState.isProcessing)
                         .keyboardShortcut(.return, modifiers: .command)
                     }
@@ -39,7 +39,7 @@ struct ArticleView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
 
                 // Processing State
@@ -113,7 +113,7 @@ struct ArticleResultsSection: View {
                 } label: {
                     Label("New", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
 
             // Article Info
@@ -190,7 +190,7 @@ struct ArticleInfoCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .cornerRadius(12)
     }
 }
@@ -213,14 +213,14 @@ struct ArticleContentCard: View {
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
 
                 Button {
                     copyToClipboard(content)
                 } label: {
                     Label("Copy", systemImage: "doc.on.doc")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
 
             ScrollView {
@@ -235,7 +235,7 @@ struct ArticleContentCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .cornerRadius(12)
     }
 

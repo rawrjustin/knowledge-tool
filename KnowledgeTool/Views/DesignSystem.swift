@@ -190,6 +190,177 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// Modern primary button — replaces .borderedProminent
+/// Tinted background with accent color, hover glow, press feedback
+struct ModernPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(
+                        isEnabled
+                            ? Color.accentColor
+                            : Color.accentColor.opacity(0.35)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(Color.white.opacity(isHovered && isEnabled ? 0.12 : 0))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+            )
+            .shadow(color: Color.accentColor.opacity(isHovered && isEnabled ? 0.3 : 0.15), radius: isHovered ? 6 : 3, y: 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(DesignSystem.Animation.quick, value: configuration.isPressed)
+            .animation(DesignSystem.Animation.quick, value: isHovered)
+            .onHover { hovering in isHovered = hovering }
+    }
+}
+
+/// Modern secondary button — replaces .bordered
+/// Subtle material background with border, hover highlight, press feedback
+struct ModernSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(isEnabled ? .primary : .tertiary)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(
+                        isHovered && isEnabled
+                            ? Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.06)
+                            : Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.03)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .stroke(
+                        isHovered && isEnabled
+                            ? Color.primary.opacity(0.2)
+                            : DesignSystem.Colors.inputBorder,
+                        lineWidth: 0.5
+                    )
+            )
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(DesignSystem.Animation.quick, value: configuration.isPressed)
+            .animation(DesignSystem.Animation.quick, value: isHovered)
+            .onHover { hovering in isHovered = hovering }
+    }
+}
+
+/// Modern icon-only button — for toolbar icon buttons
+/// Circular/rounded with subtle hover effect
+struct ModernIconButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(isEnabled ? .primary : .tertiary)
+            .padding(7)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(
+                        isHovered && isEnabled
+                            ? Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.06)
+                            : Color.clear
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .stroke(
+                        isHovered && isEnabled
+                            ? Color.primary.opacity(0.15)
+                            : Color.clear,
+                        lineWidth: 0.5
+                    )
+            )
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(DesignSystem.Animation.quick, value: configuration.isPressed)
+            .animation(DesignSystem.Animation.quick, value: isHovered)
+            .onHover { hovering in isHovered = hovering }
+    }
+}
+
+/// Modern destructive button — red-tinted for dangerous actions
+struct ModernDestructiveButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(isEnabled ? DesignSystem.Colors.error : DesignSystem.Colors.error.opacity(0.5))
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(
+                        isHovered && isEnabled
+                            ? DesignSystem.Colors.error.opacity(0.12)
+                            : DesignSystem.Colors.error.opacity(0.05)
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .stroke(
+                        isHovered && isEnabled
+                            ? DesignSystem.Colors.error.opacity(0.3)
+                            : DesignSystem.Colors.error.opacity(0.15),
+                        lineWidth: 0.5
+                    )
+            )
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(DesignSystem.Animation.quick, value: configuration.isPressed)
+            .animation(DesignSystem.Animation.quick, value: isHovered)
+            .onHover { hovering in isHovered = hovering }
+    }
+}
+
+// MARK: - Button Style Extensions
+
+extension ButtonStyle where Self == ModernPrimaryButtonStyle {
+    /// Modern primary button with accent color fill and hover glow
+    static var modernPrimary: ModernPrimaryButtonStyle { ModernPrimaryButtonStyle() }
+}
+
+extension ButtonStyle where Self == ModernSecondaryButtonStyle {
+    /// Modern secondary button with subtle material background
+    static var modernSecondary: ModernSecondaryButtonStyle { ModernSecondaryButtonStyle() }
+}
+
+extension ButtonStyle where Self == ModernIconButtonStyle {
+    /// Modern icon-only button with hover highlight
+    static var modernIcon: ModernIconButtonStyle { ModernIconButtonStyle() }
+}
+
+extension ButtonStyle where Self == ModernDestructiveButtonStyle {
+    /// Modern destructive button with red tint
+    static var modernDestructive: ModernDestructiveButtonStyle { ModernDestructiveButtonStyle() }
+}
+
 /// Keyboard shortcut hint badge
 struct KeyboardShortcutHint: View {
     let keys: String
@@ -363,7 +534,7 @@ struct SectionHeader: View {
                         Text(actionLabel ?? "")
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
             }
         }
@@ -578,6 +749,85 @@ struct ShimmerEffect: ViewModifier {
 extension View {
     func shimmer() -> some View {
         modifier(ShimmerEffect())
+    }
+}
+
+// MARK: - Polished Input Field Style
+
+/// Custom text field modifier that replaces .textFieldStyle(.roundedBorder)
+/// with a polished design: plain style + custom background + focus-aware border
+struct PolishedInputStyle: ViewModifier {
+    let isFocused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .textFieldStyle(.plain)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                    .stroke(
+                        isFocused ? Color.accentColor.opacity(0.5) : DesignSystem.Colors.inputBorder,
+                        lineWidth: isFocused ? 1.5 : 1
+                    )
+            )
+    }
+}
+
+/// Frosted glass card with material background and fine border
+struct FrostedCardStyle: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    var padding: CGFloat = DesignSystem.Spacing.lg
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large))
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.06), radius: 8, y: 2)
+    }
+}
+
+/// Section container with material background and subtle border (no shadow)
+struct SectionContainerStyle: ViewModifier {
+    var padding: CGFloat = DesignSystem.Spacing.lg
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                    .fill(.regularMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                    .stroke(DesignSystem.Colors.cardBorder, lineWidth: 1)
+            )
+    }
+}
+
+extension View {
+    /// Polished input field style — use instead of .textFieldStyle(.roundedBorder)
+    func polishedInput(isFocused: Bool = false) -> some View {
+        modifier(PolishedInputStyle(isFocused: isFocused))
+    }
+
+    /// Frosted glass card with material + border + shadow
+    func frostedCard(padding: CGFloat = DesignSystem.Spacing.lg) -> some View {
+        modifier(FrostedCardStyle(padding: padding))
+    }
+
+    /// Section container with material background and border (no shadow)
+    func sectionContainer(padding: CGFloat = DesignSystem.Spacing.lg) -> some View {
+        modifier(SectionContainerStyle(padding: padding))
     }
 }
 

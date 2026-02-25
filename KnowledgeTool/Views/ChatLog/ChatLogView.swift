@@ -75,7 +75,7 @@ struct ChatLogView: View {
                     } label: {
                         Label("Load Sample", systemImage: "doc.text")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.regular)
 
                     Button {
@@ -83,7 +83,7 @@ struct ChatLogView: View {
                     } label: {
                         Label("Render Chat", systemImage: "eye")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .controlSize(.regular)
                     .disabled(viewModel.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
@@ -108,7 +108,7 @@ struct ChatLogView: View {
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.regular)
 
                 Divider()
@@ -140,7 +140,7 @@ struct ChatLogView: View {
                 } label: {
                     Label("Export PNG", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .controlSize(.regular)
                 .disabled(viewModel.isExporting)
             }

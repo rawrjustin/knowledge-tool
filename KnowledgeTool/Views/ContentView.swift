@@ -82,6 +82,7 @@ struct ContentView: View {
     @Environment(APIKeyManager.self) private var apiKeyManager
     @Environment(SyncManager.self) private var syncManager
     @Environment(BackgroundJobManager.self) private var backgroundJobManager
+    @Environment(AuthViewModel.self) private var authViewModel
     @State private var selectedItem: NavigationItem? = .dashboard // Optional for sidebar selection
     @State private var showingSettings = false
     @State private var showingOnboarding = false
@@ -138,40 +139,63 @@ struct ContentView: View {
     @State private var showingDeleteConfirmation = false
 
     var body: some View {
+        Group {
+            switch authViewModel.authState {
+            case .unknown:
+                ProgressView("Loading...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .loggedOut:
+                LoginView(authViewModel: authViewModel)
+            case .loggedIn:
+                mainContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
         NavigationSplitView {
             SidebarView(
                 selectedItem: $selectedItem,
                 hasCharacterSelected: selectedCharacter != nil,
+                authViewModel: authViewModel,
                 isVideoProcessing: videoViewModel.processingState.isProcessing,
                 hasUnsavedChanges: hasUnsavedEditorChanges,
                 isScenarioGenerating: selectedCharacter.map { backgroundJobManager.isGenerating(characterName: $0.name, type: .scenarioGeneration) } ?? false,
-                isDashboardGenerating: selectedCharacter.map { backgroundJobManager.isGenerating(characterName: $0.name, type: .characterCreation) } ?? false
+                isDashboardGenerating: selectedCharacter.map { backgroundJobManager.isGenerating(characterName: $0.name, type: .characterCreation) } ?? false,
+                onGoHome: {
+                    withAnimation(DesignSystem.Animation.standard) {
+                        selectedCharacter = nil
+                    }
+                }
             )
         } detail: {
-            VStack(spacing: 0) {
-                // Character Selector Bar (Filter Bar Pattern)
-                CharacterSelectorView(
-                    selectedCharacter: $selectedCharacter,
+            if selectedCharacter == nil {
+                // Homepage — character picker
+                CharacterHomepageView(
                     characters: allCharacters,
-                    availableVersions: availableVersions,
                     isLoading: isLoadingCharacters,
-                    onSync: syncCharacters,
+                    backgroundJobs: backgroundJobManager.jobs,
+                    onSelectCharacter: { character in
+                        withAnimation(DesignSystem.Animation.standard) {
+                            selectedCharacter = character
+                            selectedItem = .dashboard
+                        }
+                        Task {
+                            await loadVersions(for: character)
+                        }
+                    },
                     onNewCharacter: {
                         characterToEdit = nil
                         showingCharacterEditor = true
                     },
-                    onVersionSelected: { version in
-                        selectedCharacter = version
-                    },
+                    onSync: syncCharacters,
                     onDelete: { characterName in
                         characterToDelete = characterName
                         showingDeleteConfirmation = true
                     }
                 )
-                .background(.regularMaterial)
-
-                Divider()
-
+            } else {
                 DetailView(
                     selectedItem: selectedItem ?? .dashboard,
                     selectedCharacter: selectedCharacter,
@@ -432,11 +456,10 @@ struct ContentView: View {
 
         NSLog("[KnowledgeTool] Total characters loaded: %d", characters.count)
 
-        // Auto-select first character if none selected
-        if selectedCharacter == nil, let firstCharacter = characters.first {
-            selectedCharacter = firstCharacter
-            NSLog("[KnowledgeTool] Auto-selected first character: %@", firstCharacter.name)
-            await loadVersions(for: firstCharacter)
+        // If the currently selected character was reloaded, update it in place
+        if let selected = selectedCharacter,
+           let updated = characters.first(where: { $0.name == selected.name && $0.version == selected.version }) {
+            selectedCharacter = updated
         }
     }
 
@@ -522,10 +545,12 @@ struct ContentView: View {
 struct SidebarView: View {
     @Binding var selectedItem: NavigationItem?
     let hasCharacterSelected: Bool
+    var authViewModel: AuthViewModel?
     var isVideoProcessing: Bool = false
     var hasUnsavedChanges: Bool = false
     var isScenarioGenerating: Bool = false
     var isDashboardGenerating: Bool = false
+    var onGoHome: (() -> Void)?
 
     private func isItemProcessing(_ item: NavigationItem) -> Bool {
         switch item {
@@ -537,12 +562,44 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selectedItem) {
+            // Home button
+            Section {
+                Button {
+                    onGoHome?()
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: hasCharacterSelected ? "square.grid.2x2" : "square.grid.2x2.fill")
+                            .font(.system(size: 14, weight: hasCharacterSelected ? .regular : .semibold))
+                            .foregroundStyle(hasCharacterSelected ? .secondary : .primary)
+                            .frame(width: 20)
+
+                        Text("Characters")
+                            .font(.subheadline)
+                            .fontWeight(hasCharacterSelected ? .regular : .medium)
+                            .foregroundStyle(hasCharacterSelected ? .secondary : .primary)
+
+                        Spacer()
+
+                        if !hasCharacterSelected {
+                            Image(systemName: "checkmark")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } header: {
+                SidebarSectionHeader(title: "Home", icon: "house.fill")
+            }
+
             // Character section
             Section {
                 ForEach(NavigationItem.items(for: .character)) { item in
                     SidebarNavigationItem(
                         item: item,
-                        isSelected: selectedItem == item,
+                        isSelected: selectedItem == item && hasCharacterSelected,
                         isDisabled: !hasCharacterSelected && item.requiresCharacter,
                         showActivityDot: false,
                         isProcessing: isItemProcessing(item)
@@ -557,7 +614,7 @@ struct SidebarView: View {
                 ForEach(NavigationItem.items(for: .characterRefinement)) { item in
                     SidebarNavigationItem(
                         item: item,
-                        isSelected: selectedItem == item,
+                        isSelected: selectedItem == item && hasCharacterSelected,
                         isDisabled: !hasCharacterSelected && item.requiresCharacter,
                         isProcessing: isItemProcessing(item)
                     )
@@ -584,7 +641,7 @@ struct SidebarView: View {
                 ForEach(NavigationItem.items(for: .systemPromptRefinement)) { item in
                     SidebarNavigationItem(
                         item: item,
-                        isSelected: selectedItem == item,
+                        isSelected: selectedItem == item && hasCharacterSelected,
                         isDisabled: !hasCharacterSelected && item.requiresCharacter
                     )
                 }
@@ -606,6 +663,10 @@ struct SidebarView: View {
                         Label("Settings", systemImage: "gear")
                     }
                     .help("Open Settings (⌘,)")
+
+                    if let authVM = authViewModel {
+                        ProfileMenuView(authViewModel: authVM)
+                    }
                 }
             }
         }
@@ -813,7 +874,7 @@ struct QuickCharacterSwitcher: View {
                 KeyboardShortcutHint(keys: "⌘K")
             }
             .padding(DesignSystem.Spacing.lg)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 

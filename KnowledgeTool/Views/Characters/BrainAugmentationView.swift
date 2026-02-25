@@ -73,14 +73,14 @@ struct BrainAugmentationView: View {
                     Button("Start Over") {
                         viewModel.reset()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
 
                     Button {
                         viewModel.showPreview()
                     } label: {
                         Label("Preview", systemImage: "eye")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .disabled(viewModel.selectedAugmentationsCount == 0)
 
                     Button {
@@ -92,13 +92,13 @@ struct BrainAugmentationView: View {
                     } label: {
                         Label("Apply Changes", systemImage: "checkmark.circle.fill")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(viewModel.selectedAugmentationsCount == 0 && viewModel.selectedRAGEntriesCount == 0)
                 } else {
                     Button("Cancel") {
                         onCancel()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .keyboardShortcut(.cancelAction)
                 }
             }
@@ -134,7 +134,7 @@ struct BrainAugmentationView: View {
                         .foregroundStyle(.secondary)
 
                     TextField("e.g., Interview 2024, Podcast Episode, Article", text: $viewModel.sourceLabel)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                 }
                 .padding(.horizontal, DesignSystem.Spacing.lg)
             }
@@ -177,7 +177,7 @@ struct BrainAugmentationView: View {
                         }
                 } else {
                     TextField(viewModel.inputPlaceholder, text: $viewModel.sourceInput)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.system(.body, design: .monospaced))
                 }
             }
@@ -231,7 +231,7 @@ struct BrainAugmentationView: View {
                         Text("Analyze & Extract")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .controlSize(.large)
                 .disabled(!viewModel.canSubmit || viewModel.isProcessing)
             }
@@ -294,7 +294,7 @@ struct BrainAugmentationView: View {
                     }
                 }
                 .padding(DesignSystem.Spacing.md)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
             }
 
             Divider()
@@ -346,7 +346,7 @@ struct BrainAugmentationView: View {
                 .background(Color.purple.opacity(0.05))
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
     }
 
     private var detailsPanel: some View {
@@ -359,7 +359,7 @@ struct BrainAugmentationView: View {
                 Spacer()
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 

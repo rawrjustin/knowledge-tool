@@ -68,7 +68,7 @@ struct KnowledgeSourcesPanel: View {
                 .frame(width: 30)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 
@@ -143,7 +143,7 @@ struct KnowledgeSourcesPanel: View {
             } label: {
                 Label("Add First Source", systemImage: "plus")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.modernPrimary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(DesignSystem.Spacing.xxl)
@@ -278,7 +278,7 @@ struct SourceTypeGroup: View {
                 }
             }
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium))
     }
 
@@ -494,7 +494,7 @@ struct SourceDetailView: View {
                 }
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 
@@ -712,7 +712,7 @@ struct KnowledgeEntryRow: View {
             }
         }
         .padding(DesignSystem.Spacing.sm)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small))
     }
 }

@@ -25,7 +25,7 @@ struct TextSnippetView: View {
                         } label: {
                             Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                     }
 
                     TextEditor(text: $viewModel.textInput)
@@ -54,13 +54,13 @@ struct TextSnippetView: View {
                         } label: {
                             Label("Analyze", systemImage: "sparkles")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                         .disabled(viewModel.textInput.isEmpty || viewModel.processingState.isProcessing)
                         .keyboardShortcut(.return, modifiers: .command)
                     }
                 }
                 .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(.regularMaterial)
                 .cornerRadius(12)
 
                 // Processing State
@@ -128,7 +128,7 @@ struct TextSnippetResultsSection: View {
                 } label: {
                     Label("New", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
 
             // Statistics
@@ -178,7 +178,7 @@ struct TextStatisticsCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .cornerRadius(12)
     }
 }
@@ -243,7 +243,7 @@ struct OriginalTextCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
         .cornerRadius(12)
     }
 }

@@ -46,7 +46,7 @@ struct ChatVariantView: View {
                 }
             }
             .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             // System prompt editor (collapsible)
             if showingSystemPrompt {
@@ -153,7 +153,7 @@ struct DiffView: View {
                 }
             }
             .padding(8)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+            .background(.thinMaterial)
             .cornerRadius(8)
         }
     }

@@ -108,7 +108,7 @@ struct ScenarioGeneratorView: View {
                         .foregroundStyle(.secondary)
 
                     TextField("e.g., High Stakes, Emotional Moments, First Meetings", text: $viewModel.theme)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                         .font(.subheadline)
 
                     Text("Leave blank for general scenarios")
@@ -200,13 +200,13 @@ struct ScenarioGeneratorView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, DesignSystem.Spacing.sm)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
                 .disabled(viewModel.isGenerating)
 
             }
             .padding(DesignSystem.Spacing.lg)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.regularMaterial)
     }
 
     // MARK: - Scenarios Panel
@@ -246,7 +246,7 @@ struct ScenarioGeneratorView: View {
                     } label: {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
 
                     if viewModel.activeScenario != nil {
                         Button {
@@ -256,7 +256,7 @@ struct ScenarioGeneratorView: View {
                         } label: {
                             Label("Deactivate", systemImage: "stop.circle")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                     }
 
                     Button(role: .destructive) {
@@ -264,7 +264,7 @@ struct ScenarioGeneratorView: View {
                     } label: {
                         Label("Clear All", systemImage: "trash")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                 }
 
                 Button {
@@ -272,10 +272,10 @@ struct ScenarioGeneratorView: View {
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
             }
             .padding(DesignSystem.Spacing.md)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
 
             Divider()
 
@@ -503,7 +503,7 @@ struct ScenarioCard: View {
                 if isEditing {
                     TextField("Title", text: $editedTitle)
                         .font(.headline)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                 } else {
                     Text(scenario.title)
                         .font(.headline)
@@ -531,11 +531,11 @@ struct ScenarioCard: View {
             // Action buttons
             if isEditing {
                 Button("Cancel", action: onCancelEdit)
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.small)
 
                 Button("Save", action: onSaveEdit)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .controlSize(.small)
             } else if isHovered {
                 HStack(spacing: DesignSystem.Spacing.xs) {
@@ -650,7 +650,7 @@ struct ScenarioCard: View {
                         )
                         .font(.caption)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.small)
                 }
             }
@@ -718,7 +718,7 @@ struct AddScenarioSheet: View {
                         .foregroundStyle(.secondary)
 
                     TextField("Brief, evocative title", text: $title)
-                        .textFieldStyle(.roundedBorder)
+                        .polishedInput()
                 }
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -758,10 +758,10 @@ struct AddScenarioSheet: View {
 
             HStack {
                 Button("Cancel", action: onCancel)
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
 
                 Button("Add", action: onAdd)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.modernPrimary)
                     .disabled(title.isEmpty || situation.isEmpty || objective.isEmpty)
             }
         }
@@ -813,7 +813,7 @@ struct ExportScenarioSheet: View {
                         Text(copied ? "Copied!" : "Copy to Clipboard")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.modernPrimary)
 
                 Spacer()
             }

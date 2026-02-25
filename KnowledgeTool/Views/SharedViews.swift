@@ -196,7 +196,7 @@ struct ErrorBanner: View {
                     Button("Retry") {
                         onRetry()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.small)
                 }
 
@@ -282,7 +282,7 @@ struct WarningBanner: View {
                 Button(actionLabel) {
                     onAction()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.modernSecondary)
                 .controlSize(.small)
             }
         }
@@ -358,7 +358,7 @@ struct ResultCard: View {
                     } label: {
                         Label("Copy", systemImage: "doc.on.doc")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.small)
                     .help("Copy to clipboard (⌘C)")
 
@@ -367,7 +367,7 @@ struct ResultCard: View {
                     } label: {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.modernSecondary)
                     .controlSize(.small)
                     .help("Export to file")
                 }
@@ -462,14 +462,14 @@ struct EmptyStateView: View {
                         Button(secondaryActionLabel) {
                             secondaryAction()
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.modernSecondary)
                     }
 
                     if let actionLabel = actionLabel, let action = action {
                         Button(actionLabel) {
                             action()
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.modernPrimary)
                     }
                 }
                 .padding(.top, DesignSystem.Spacing.sm)

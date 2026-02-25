@@ -125,7 +125,7 @@ struct CharacterChatView: View {
                 Image(systemName: "trash")
                     .font(.subheadline)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.modernSecondary)
             .tint(.red)
             .help("Clear conversation")
             .disabled(viewModel.messages.isEmpty)
@@ -228,7 +228,7 @@ struct CharacterChatView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
@@ -364,7 +364,7 @@ struct TypingIndicatorView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(.regularMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
         }
