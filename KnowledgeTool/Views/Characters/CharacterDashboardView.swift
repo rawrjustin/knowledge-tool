@@ -50,6 +50,8 @@ struct CharacterDashboardView: View {
     @State private var isRenaming = false
     @State private var renameDraft: String = ""
     @State private var renameError: String?
+    @State private var showingPublishSheet = false
+    @State private var publishViewModel = PublishViewModel()
 
     init(
         character: Character,
@@ -166,8 +168,24 @@ struct CharacterDashboardView: View {
                 CharacterAvatar(name: character.name, size: 48)
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxs) {
-                    Text(character.name)
-                        .font(.title2.weight(.semibold))
+                    // Name + rename inline
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Text(character.name)
+                            .font(.title2.weight(.semibold))
+
+                        Button {
+                            renameDraft = character.name
+                            renameError = nil
+                            showingRenameSheet = true
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(editorViewModel.hasUnsavedChanges || isRenaming)
+                        .help(editorViewModel.hasUnsavedChanges ? "Save or revert changes before renaming" : "Rename this character")
+                    }
 
                     HStack(spacing: DesignSystem.Spacing.sm) {
                         // Version badge
@@ -187,6 +205,9 @@ struct CharacterDashboardView: View {
                             .background(Color.blue.opacity(0.15))
                             .foregroundStyle(.blue)
                             .clipShape(Capsule())
+
+                        // Genies publish status
+                        PublishStatusBadge(character: character, repository: repository)
 
                         // Cloud sync status
                         if syncManager.canSync {
@@ -239,17 +260,6 @@ struct CharacterDashboardView: View {
                 .buttonStyle(.modernSecondary)
                 .help("Add source content to enhance this persona")
 
-                Button {
-                    renameDraft = character.name
-                    renameError = nil
-                    showingRenameSheet = true
-                } label: {
-                    Label("Rename", systemImage: "pencil")
-                }
-                .buttonStyle(.modernSecondary)
-                .disabled(editorViewModel.hasUnsavedChanges || isRenaming)
-                .help(editorViewModel.hasUnsavedChanges ? "Save or revert changes before renaming" : "Rename this character")
-
                 if editorViewModel.hasUnsavedChanges {
                     Button {
                         showingDiscardAlert = true
@@ -260,6 +270,7 @@ struct CharacterDashboardView: View {
                     .help("Revert all changes")
                 }
 
+                // Save button
                 Button {
                     if editorViewModel.hasUnsavedChanges {
                         showingSaveConfirmation = true
@@ -267,14 +278,95 @@ struct CharacterDashboardView: View {
                 } label: {
                     Label("Save", systemImage: "square.and.arrow.down")
                 }
-                .buttonStyle(.modernPrimary)
+                .buttonStyle(.modernSecondary)
                 .disabled(!editorViewModel.hasUnsavedChanges || editorViewModel.isSaving)
                 .help("Save changes (Cmd+S)")
                 .keyboardShortcut("s", modifiers: .command)
+
+                // Save & Publish / Publish / Update — primary action
+                publishActionButton
             }
         }
         .padding(DesignSystem.Spacing.lg)
         .background(.regularMaterial)
+        .task {
+            await publishViewModel.loadPublishState(for: character, repository: repository)
+        }
+        .onChange(of: character.sha) { _, _ in
+            Task {
+                await publishViewModel.loadPublishState(for: character, repository: repository)
+            }
+        }
+        .sheet(isPresented: $showingPublishSheet) {
+            PublishSheet(
+                character: character,
+                repository: repository,
+                publishViewModel: publishViewModel,
+                onDismiss: { showingPublishSheet = false }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var publishActionButton: some View {
+        switch publishViewModel.publishState {
+        case .unpublished:
+            if editorViewModel.hasUnsavedChanges {
+                // Has unsaved changes + not published → Save & Publish
+                Button {
+                    Task {
+                        if await editorViewModel.save() {
+                            showSaveSuccess = true
+                            if let character = editorViewModel.character {
+                                onCharacterUpdated(character)
+                            }
+                            showingPublishSheet = true
+                        }
+                    }
+                } label: {
+                    Label("Save & Publish", systemImage: "arrow.up.circle.fill")
+                }
+                .buttonStyle(.modernPrimary)
+                .disabled(editorViewModel.isSaving)
+            } else {
+                Button {
+                    showingPublishSheet = true
+                } label: {
+                    Label("Publish", systemImage: "arrow.up.circle.fill")
+                }
+                .buttonStyle(.modernPrimary)
+            }
+
+        case .clean:
+            // Already published and clean — no action needed, badge shows status
+            EmptyView()
+
+        case .dirtyEdits:
+            if editorViewModel.hasUnsavedChanges {
+                Button {
+                    Task {
+                        if await editorViewModel.save() {
+                            showSaveSuccess = true
+                            if let character = editorViewModel.character {
+                                onCharacterUpdated(character)
+                            }
+                            showingPublishSheet = true
+                        }
+                    }
+                } label: {
+                    Label("Save & Update", systemImage: "arrow.up.circle.fill")
+                }
+                .buttonStyle(.modernPrimary)
+                .disabled(editorViewModel.isSaving)
+            } else {
+                Button {
+                    showingPublishSheet = true
+                } label: {
+                    Label("Update Config", systemImage: "arrow.up.circle")
+                }
+                .buttonStyle(.modernPrimary)
+            }
+        }
     }
 
     // MARK: - Tab Bar

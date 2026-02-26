@@ -58,6 +58,13 @@ actor ScenarioGenerationService {
         - Vary scenarios across different vibes — fun, chill, deep, playful, random — so it doesn't feel one-note.
         - Scenarios should be accessible to ANYONE. A user shouldn't need to know the character's lore to enjoy the conversation.
 
+        DIVERSITY REQUIREMENT:
+        - Each scenario MUST be substantially different from the others — different setting, different vibe, different conversational dynamic.
+        - No two scenarios should share the same location or activity. If one is at a restaurant, none of the others should be at a restaurant. If one involves food, the others should not.
+        - Spread across distinct categories like: active/outdoors, cozy/indoor, social/group-adjacent, transit/travel, late-night/reflective. Don't cluster multiple scenarios in the same category.
+        - The emotional tone should vary: one playful, one chill, one deeper/more personal, one silly/random, one energetic. Avoid making all scenarios feel the same mood.
+        - If the character has multiple distinct interests or personality facets, each scenario should highlight a different one rather than repeating the same trait.
+
         Guidelines:
         - Use COMMON, relatable settings — restaurants, cars, couches, walks, parties, kitchens, etc. The character's personality makes it unique, not the location.
         - Each scenario should work as a standalone conversation starter

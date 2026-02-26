@@ -612,4 +612,14 @@ actor CombinedCharacterRepository {
 
         NSLog("[CombinedRepository] Pull completed")
     }
+
+    // MARK: - Publish Metadata
+
+    func loadPublishMetadata(characterName: String) async -> LocalCharacterRepository.PublishMetadata? {
+        return await local.loadPublishMetadata(characterName: characterName)
+    }
+
+    func savePublishMetadata(configId: String, sha: String, publishedAt: String, characterName: String) async {
+        await local.savePublishMetadata(configId: configId, sha: sha, publishedAt: publishedAt, characterName: characterName)
+    }
 }

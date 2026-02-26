@@ -9,6 +9,9 @@ actor LocalCharacterRepository {
     private struct CharacterMetadata: Codable {
         var systemPromptType: SystemPromptType
         var versionNames: [String: String]?  // "2" -> "justin", "3" -> "new information"
+        var geniesConfigId: String?
+        var geniesPublishedSha: String?
+        var geniesPublishedAt: String?
     }
 
     init(baseURL: URL) {
@@ -561,6 +564,37 @@ actor LocalCharacterRepository {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(metadata)
         try data.write(to: metadataURL, options: [.atomic])
+    }
+
+    // MARK: - Publish Metadata (Public)
+
+    struct PublishMetadata {
+        let configId: String?
+        let publishedSha: String?
+        let publishedAt: String?
+    }
+
+    func loadPublishMetadata(characterName: String) -> PublishMetadata? {
+        let directoryURL = baseURL.appendingPathComponent("Personas").appendingPathComponent(characterName)
+        guard let metadata = loadCharacterMetadata(from: directoryURL) else { return nil }
+        return PublishMetadata(
+            configId: metadata.geniesConfigId,
+            publishedSha: metadata.geniesPublishedSha,
+            publishedAt: metadata.geniesPublishedAt
+        )
+    }
+
+    func savePublishMetadata(configId: String, sha: String, publishedAt: String, characterName: String) {
+        let directoryURL = baseURL.appendingPathComponent("Personas").appendingPathComponent(characterName)
+        var metadata = loadCharacterMetadata(from: directoryURL) ?? CharacterMetadata(systemPromptType: .conversational)
+        metadata.geniesConfigId = configId
+        metadata.geniesPublishedSha = sha
+        metadata.geniesPublishedAt = publishedAt
+        do {
+            try saveCharacterMetadata(metadata, to: directoryURL)
+        } catch {
+            NSLog("[LocalCharacterRepository] Failed to save publish metadata: %@", error.localizedDescription)
+        }
     }
 
     // MARK: - Knowledge File Management

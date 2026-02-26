@@ -43,6 +43,19 @@ enum SystemPromptType: String, CaseIterable, Codable {
 
     /// Types available for selection in UI
     static let availableTypes: [SystemPromptType] = [.conversational, .roleplay, .action]
+
+    /// The PromptLayer key used by Genies Chat API for this prompt type.
+    /// Maps the system prompt type to the correct chat_prompt template on the backend.
+    var chatPromptKey: String {
+        switch self {
+        case .conversational:
+            return "csp_chat_prompt_template"
+        case .roleplay:
+            return "rsp_chat_prompt_template"
+        case .action:
+            return "asp_chat_prompt_template"
+        }
+    }
 }
 
 // MARK: - Knowledge File

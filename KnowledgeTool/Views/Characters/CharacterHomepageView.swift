@@ -8,6 +8,7 @@ struct CharacterHomepageView: View {
     let characters: [Character]
     let isLoading: Bool
     let backgroundJobs: [BackgroundJob]
+    let repository: CombinedCharacterRepository
     let onSelectCharacter: (Character) -> Void
     let onNewCharacter: () -> Void
     let onSync: () async -> Void
@@ -16,6 +17,7 @@ struct CharacterHomepageView: View {
     @State private var searchText = ""
     @State private var sortOrder: SortOrder = .name
     @State private var isSyncing = false
+    @State private var showingImportSheet = false
 
     enum SortOrder: String, CaseIterable {
         case name = "Name"
@@ -194,6 +196,15 @@ struct CharacterHomepageView: View {
             .help("Refresh characters (⌘R)")
 
             Button {
+                showingImportSheet = true
+            } label: {
+                Label("Import", systemImage: "arrow.down.circle")
+                    .font(.subheadline.weight(.medium))
+            }
+            .buttonStyle(.modernSecondary)
+            .help("Import config from Genies dev")
+
+            Button {
                 onNewCharacter()
             } label: {
                 Label("New", systemImage: "plus")
@@ -205,6 +216,16 @@ struct CharacterHomepageView: View {
         .padding(.horizontal, DesignSystem.Spacing.xl)
         .padding(.vertical, DesignSystem.Spacing.md)
         .background(.regularMaterial)
+        .sheet(isPresented: $showingImportSheet) {
+            ImportConfigView(
+                repository: repository,
+                onImported: { character in
+                    showingImportSheet = false
+                    onSelectCharacter(character)
+                },
+                onDismiss: { showingImportSheet = false }
+            )
+        }
     }
 
     // MARK: - Character Grid
@@ -229,6 +250,7 @@ struct CharacterHomepageView: View {
                     ForEach(data) { item in
                         CompactCharacterCard(
                             data: item,
+                            repository: repository,
                             onSelect: {
                                 // Don't allow selecting generating characters
                                 guard !item.character.isGenerating else { return }
@@ -306,11 +328,13 @@ struct CardData: Identifiable {
 /// Lightweight, compact card optimized for density and scroll performance.
 struct CompactCharacterCard: View {
     let data: CardData
+    let repository: CombinedCharacterRepository
     let onSelect: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
     @State private var showDeleteConfirm = false
+    @State private var publishState: PublishState = .unpublished
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -356,6 +380,9 @@ struct CompactCharacterCard: View {
                 } else {
                     // Stats inline
                     HStack(spacing: DesignSystem.Spacing.sm) {
+                        // Publish state dot
+                        publishStateDot
+
                         if data.sourceCount > 0 {
                             miniStat(icon: "folder.fill", value: "\(data.sourceCount)")
                         }
@@ -401,6 +428,19 @@ struct CompactCharacterCard: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in isHovered = hovering }
+        .task {
+            let metadata = await repository.loadPublishMetadata(characterName: data.character.name)
+            if let configId = metadata?.configId {
+                let currentSha = PublishViewModel.contentSha(for: data.character)
+                if currentSha == metadata?.publishedSha {
+                    publishState = .clean(configId: configId, publishedAt: metadata?.publishedAt ?? "")
+                } else {
+                    publishState = .dirtyEdits(configId: configId, publishedAt: metadata?.publishedAt ?? "")
+                }
+            } else {
+                publishState = .unpublished
+            }
+        }
         .contextMenu {
             if !data.isGenerating {
                 Button {
@@ -417,6 +457,24 @@ struct CompactCharacterCard: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var publishStateDot: some View {
+        switch publishState {
+        case .unpublished:
+            EmptyView()
+        case .clean:
+            Circle()
+                .fill(Color.green)
+                .frame(width: 6, height: 6)
+                .help("Published")
+        case .dirtyEdits:
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 6, height: 6)
+                .help("Unpublished changes")
         }
     }
 
@@ -451,6 +509,10 @@ struct CompactCharacterCard: View {
         characters: [],
         isLoading: false,
         backgroundJobs: [],
+        repository: CombinedCharacterRepository(
+            localBaseURL: URL(fileURLWithPath: "/tmp"),
+            syncConfig: SupabaseSyncConfig(supabaseURL: "", supabaseAnonKey: "", syncEnabled: false)
+        ),
         onSelectCharacter: { _ in },
         onNewCharacter: {},
         onSync: {},

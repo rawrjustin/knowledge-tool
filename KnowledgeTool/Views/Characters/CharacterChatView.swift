@@ -4,23 +4,27 @@ struct CharacterChatView: View {
     @State private var viewModelState: CharacterChatViewModel
     let character: Character
     @State private var showingClearConfirmation = false
+    @State private var showingPublishSheet = false
     @Environment(\.colorScheme) private var colorScheme
+
+    private let repository: CombinedCharacterRepository
 
     private var viewModel: CharacterChatViewModel {
         viewModelState
     }
 
-    init(character: Character, apiKeyManager: APIKeyManager) {
+    init(character: Character, repository: CombinedCharacterRepository) {
         self.character = character
+        self.repository = repository
         self._viewModelState = State(initialValue: CharacterChatViewModel(
             character: character,
-            apiKeyManager: apiKeyManager
+            repository: repository
         ))
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header with prompt type selector
+            // Header
             chatHeader
 
             // Error banner
@@ -30,7 +34,7 @@ struct CharacterChatView: View {
                     onDismiss: { viewModel.error = nil },
                     onRetry: {
                         Task {
-                            await viewModel.loadSystemPrompt()
+                            await viewModel.loadChat()
                         }
                     }
                 )
@@ -39,25 +43,31 @@ struct CharacterChatView: View {
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Loading system prompt indicator
-            if viewModel.isLoadingSystemPrompt {
-                loadingSystemPromptBanner
+            // Loading chat indicator
+            if viewModel.isLoadingChat {
+                loadingChatBanner
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            // Chat messages area
-            chatMessagesArea
+            // Main content: unpublished gate or chat
+            if !viewModel.isPublished && !viewModel.isLoadingChat {
+                unpublishedGate
+            } else {
+                // Chat messages area
+                chatMessagesArea
 
-            Divider()
+                Divider()
 
-            // Input area
-            inputArea
+                // Input area
+                inputArea
+            }
         }
         .animation(DesignSystem.Animation.smooth, value: viewModel.error != nil)
-        .animation(DesignSystem.Animation.smooth, value: viewModel.isLoadingSystemPrompt)
+        .animation(DesignSystem.Animation.smooth, value: viewModel.isLoadingChat)
+        .animation(DesignSystem.Animation.smooth, value: viewModel.isPublished)
         .onAppear {
             Task {
-                await viewModel.loadSystemPrompt()
+                await viewModel.loadChat()
             }
         }
         .onChange(of: character.id) { _, _ in
@@ -76,6 +86,54 @@ struct CharacterChatView: View {
         } message: {
             Text("This will remove all messages from this conversation.")
         }
+        .sheet(isPresented: $showingPublishSheet) {
+            PublishSheet(
+                character: character,
+                repository: repository,
+                publishViewModel: PublishViewModel(),
+                onDismiss: {
+                    showingPublishSheet = false
+                    // Reload chat state after publish
+                    Task {
+                        await viewModel.loadChat()
+                    }
+                }
+            )
+        }
+    }
+
+    // MARK: - Unpublished Gate
+
+    private var unpublishedGate: some View {
+        VStack(spacing: DesignSystem.Spacing.xl) {
+            Spacer()
+
+            Image(systemName: "icloud.and.arrow.up")
+                .font(.system(size: 48))
+                .foregroundStyle(.tertiary)
+
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                Text("Not Published")
+                    .font(.title2.weight(.semibold))
+
+                Text("This character hasn't been published to the Genies dev environment yet. Publish it to start chatting.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 400)
+            }
+
+            Button {
+                showingPublishSheet = true
+            } label: {
+                Label("Publish Now", systemImage: "arrow.up.circle.fill")
+            }
+            .buttonStyle(.modernPrimary)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .textBackgroundColor))
     }
 
     // MARK: - Header
@@ -90,32 +148,41 @@ struct CharacterChatView: View {
                     Text(character.name)
                         .font(.headline)
 
-                    Text("Test conversation")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if viewModel.isPublished {
+                        Text("Genies Chat")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Not published")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
 
             Spacer()
 
-            // System prompt type picker with label
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                Text("Mode:")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Picker("Mode", selection: $viewModelState.selectedPromptType) {
-                    ForEach(SystemPromptType.availableTypes, id: \.self) { type in
-                        Text(type.shortDisplayName).tag(type)
+            // Config ID badge (if published)
+            if let configId = viewModel.configId {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(configId, forType: .string)
+                } label: {
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                        Text(String(configId.prefix(8)))
+                            .font(.caption.monospaced())
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.1))
+                    .foregroundStyle(.green)
+                    .clipShape(Capsule())
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 240)
-                .onChange(of: viewModel.selectedPromptType) { _, _ in
-                    Task {
-                        await viewModel.loadSystemPrompt()
-                    }
-                }
+                .buttonStyle(.plain)
+                .help("Copy config ID")
             }
 
             // Clear chat button
@@ -128,20 +195,20 @@ struct CharacterChatView: View {
             .buttonStyle(.modernSecondary)
             .tint(.red)
             .help("Clear conversation")
-            .disabled(viewModel.messages.isEmpty)
+            .disabled(viewModel.messages.isEmpty || !viewModel.isPublished)
         }
         .padding(DesignSystem.Spacing.lg)
         .background(.regularMaterial)
     }
 
-    // MARK: - Loading System Prompt Banner
+    // MARK: - Loading Chat Banner
 
-    private var loadingSystemPromptBanner: some View {
+    private var loadingChatBanner: some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             ProgressView()
                 .controlSize(.small)
 
-            Text("Loading \(viewModel.selectedPromptType.displayName)...")
+            Text("Connecting to Genies...")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -258,7 +325,8 @@ struct CharacterChatView: View {
     private var canSend: Bool {
         !viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !viewModel.isLoading &&
-        viewModel.systemPromptLoaded
+        viewModel.isPublished &&
+        viewModel.configId != nil
     }
 }
 
@@ -396,8 +464,6 @@ struct AvatarView: View {
     }
 }
 
-// MARK: - Preview
-
 #Preview {
     CharacterChatView(
         character: Character(
@@ -406,7 +472,10 @@ struct AvatarView: View {
             personaFileName: "jakepaul.md",
             markdownContent: "# Jake Paul\n\nA famous YouTuber and boxer."
         ),
-        apiKeyManager: APIKeyManager()
+        repository: CombinedCharacterRepository(
+            localBaseURL: URL(fileURLWithPath: "/tmp"),
+            syncConfig: SupabaseSyncConfig(supabaseURL: "", supabaseAnonKey: "", syncEnabled: false)
+        )
     )
     .frame(width: 800, height: 600)
 }

@@ -176,6 +176,7 @@ struct ContentView: View {
                     characters: allCharacters,
                     isLoading: isLoadingCharacters,
                     backgroundJobs: backgroundJobManager.jobs,
+                    repository: combinedRepository,
                     onSelectCharacter: { character in
                         withAnimation(DesignSystem.Animation.standard) {
                             selectedCharacter = character
@@ -795,7 +796,7 @@ struct DetailView: View {
                     RawMarkdownView(character: character)
                         .id(character.id)
                 case .chat:
-                    CharacterChatView(character: character, apiKeyManager: apiKeyManager)
+                    CharacterChatView(character: character, repository: repository)
                         .id(character.id)
                 case .versionCompare:
                     VersionComparisonChatView(

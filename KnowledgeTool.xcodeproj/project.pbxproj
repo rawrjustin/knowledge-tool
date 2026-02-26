@@ -114,6 +114,12 @@
 		A282 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B282 /* LoginView.swift */; };
 		A283 /* ProfileMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B283 /* ProfileMenuView.swift */; };
 		A284 /* CharacterHomepageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B284 /* CharacterHomepageView.swift */; };
+		A285 /* GeniesConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B285 /* GeniesConfig.swift */; };
+		A286 /* GeniesPersonaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B286 /* GeniesPersonaService.swift */; };
+		A287 /* PublishViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B287 /* PublishViewModel.swift */; };
+		A288 /* PublishView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B288 /* PublishView.swift */; };
+		A289 /* ImportConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B289 /* ImportConfigViewModel.swift */; };
+		A290 /* ImportConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B290 /* ImportConfigView.swift */; };
 		BIN1 /* yt-dlp in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF1 /* yt-dlp */; };
 		BIN2 /* ffmpeg in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF2 /* ffmpeg */; };
 		BIN3 /* ffprobe in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF3 /* ffprobe */; };
@@ -195,6 +201,12 @@
 		B282 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		B283 /* ProfileMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMenuView.swift; sourceTree = "<group>"; };
 		B284 /* CharacterHomepageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterHomepageView.swift; sourceTree = "<group>"; };
+		B285 /* GeniesConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeniesConfig.swift; sourceTree = "<group>"; };
+		B286 /* GeniesPersonaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeniesPersonaService.swift; sourceTree = "<group>"; };
+		B287 /* PublishViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishViewModel.swift; sourceTree = "<group>"; };
+		B288 /* PublishView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishView.swift; sourceTree = "<group>"; };
+		B289 /* ImportConfigViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigViewModel.swift; sourceTree = "<group>"; };
+		B290 /* ImportConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigView.swift; sourceTree = "<group>"; };
 		B140 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		B141 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
 		B142 /* VersionComparisonChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonChatView.swift; sourceTree = "<group>"; };
@@ -354,6 +366,8 @@
 				B255 /* SportsDataViewModel.swift */,
 				B271 /* ChatLogViewModel.swift */,
 			B281 /* AuthViewModel.swift */,
+				B287 /* PublishViewModel.swift */,
+				B289 /* ImportConfigViewModel.swift */,
 			);
 			name = ViewModels;
 			path = KnowledgeTool/ViewModels;
@@ -377,6 +391,7 @@
 				B250 /* SportsData.swift */,
 				B251 /* SportsDataProtocol.swift */,
 				B270 /* ChatLogMessage.swift */,
+				B285 /* GeniesConfig.swift */,
 			);
 			name = Models;
 			path = KnowledgeTool/Models;
@@ -413,6 +428,7 @@
 				B273 /* BackgroundJobManager.swift */,
 				B274 /* NotificationService.swift */,
 			B280 /* AuthService.swift */,
+				B286 /* GeniesPersonaService.swift */,
 			);
 			name = Services;
 			path = KnowledgeTool/Services;
@@ -495,6 +511,8 @@
 				B256 /* SportsDataView.swift */,
 				B275 /* CharacterGeneratingView.swift */,
 				B284 /* CharacterHomepageView.swift */,
+				B288 /* PublishView.swift */,
+				B290 /* ImportConfigView.swift */,
 			);
 			path = Characters;
 			sourceTree = "<group>";
@@ -707,6 +725,12 @@
 				A281 /* AuthViewModel.swift in Sources */,
 				A282 /* LoginView.swift in Sources */,
 				A283 /* ProfileMenuView.swift in Sources */,
+				A285 /* GeniesConfig.swift in Sources */,
+				A286 /* GeniesPersonaService.swift in Sources */,
+				A287 /* PublishViewModel.swift in Sources */,
+				A288 /* PublishView.swift in Sources */,
+				A289 /* ImportConfigViewModel.swift in Sources */,
+				A290 /* ImportConfigView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
