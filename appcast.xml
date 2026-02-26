@@ -6,18 +6,18 @@
         <description>Most recent changes with links to updates.</description>
         <language>en</language>
         <item>
-            <title>Version 1.7.0</title>
+            <title>Version 1.8.0</title>
             <description><![CDATA[
-                <h2>What's New in 1.7.0</h2>
-                <p>Auth system with login/signup, character homepage grid view, modernized button styles, static universal ffmpeg/ffprobe builds, knowledge file sync fixes</p>
+                <h2>What's New in 1.8.0</h2>
+                <p>Publish/import Genies config, chat UX improvements, scenario generation diversity</p>
             ]]></description>
-            <pubDate>Tue, 24 Feb 2026 19:06:36 -0700</pubDate>
+            <pubDate>Thu, 26 Feb 2026 15:18:02 -0500</pubDate>
             <enclosure
-                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.7.0/KnowledgeTool-1.7.0.zip"
-                sparkle:version="202602241904"
-                sparkle:shortVersionString="1.7.0"
-                sparkle:edSignature="f2zKSgYf8+mQ/1xE+ne64HSiW8+y/WlX9TNaLGm//1cVKjQPqPcdgZ2N3SwhjIsrCWf7npHd6V0nWN8ZhnR/Cg=="
-                length="186621215"
+                url="https://github.com/geniesinc/knowledgetool/releases/download/v1.8.0/KnowledgeTool-1.8.0.zip"
+                sparkle:version="202602261515"
+                sparkle:shortVersionString="1.8.0"
+                sparkle:edSignature="1uB7ygzOF7NzC5Yv6rd0Tll7FPK/SwRFAmwdCIRFDFfsYOp+DlEbJFaCYEQn6uaFgGDcyt4ZTRrMolN++zuhAA=="
+                length="187145273"
                 type="application/octet-stream"/>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
         </item>
