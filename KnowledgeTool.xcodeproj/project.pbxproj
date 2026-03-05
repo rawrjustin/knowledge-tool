@@ -120,6 +120,10 @@
 		A288 /* PublishView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B288 /* PublishView.swift */; };
 		A289 /* ImportConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B289 /* ImportConfigViewModel.swift */; };
 		A290 /* ImportConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B290 /* ImportConfigView.swift */; };
+		A300 /* PersonaTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B300 /* PersonaTest.swift */; };
+		A301 /* PersonaTestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B301 /* PersonaTestViewModel.swift */; };
+		A302 /* PersonaTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B302 /* PersonaTestView.swift */; };
+		A303 /* PersonaTestReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B303 /* PersonaTestReportView.swift */; };
 		BIN1 /* yt-dlp in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF1 /* yt-dlp */; };
 		BIN2 /* ffmpeg in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF2 /* ffmpeg */; };
 		BIN3 /* ffprobe in CopyFiles */ = {isa = PBXBuildFile; fileRef = BINREF3 /* ffprobe */; };
@@ -207,6 +211,10 @@
 		B288 /* PublishView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublishView.swift; sourceTree = "<group>"; };
 		B289 /* ImportConfigViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigViewModel.swift; sourceTree = "<group>"; };
 		B290 /* ImportConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportConfigView.swift; sourceTree = "<group>"; };
+		B300 /* PersonaTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaTest.swift; sourceTree = "<group>"; };
+		B301 /* PersonaTestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaTestViewModel.swift; sourceTree = "<group>"; };
+		B302 /* PersonaTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaTestView.swift; sourceTree = "<group>"; };
+		B303 /* PersonaTestReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaTestReportView.swift; sourceTree = "<group>"; };
 		B140 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		B141 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
 		B142 /* VersionComparisonChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparisonChatView.swift; sourceTree = "<group>"; };
@@ -341,6 +349,7 @@
 				F116 /* KnowledgeBase */,
 				F117 /* ChatLog */,
 				F118 /* Auth */,
+				F119 /* PersonaTest */,
 			);
 			name = Views;
 			path = KnowledgeTool/Views;
@@ -368,6 +377,7 @@
 			B281 /* AuthViewModel.swift */,
 				B287 /* PublishViewModel.swift */,
 				B289 /* ImportConfigViewModel.swift */,
+				B301 /* PersonaTestViewModel.swift */,
 			);
 			name = ViewModels;
 			path = KnowledgeTool/ViewModels;
@@ -392,6 +402,7 @@
 				B251 /* SportsDataProtocol.swift */,
 				B270 /* ChatLogMessage.swift */,
 				B285 /* GeniesConfig.swift */,
+				B300 /* PersonaTest.swift */,
 			);
 			name = Models;
 			path = KnowledgeTool/Models;
@@ -550,6 +561,15 @@
 				B283 /* ProfileMenuView.swift */,
 			);
 			path = Auth;
+			sourceTree = "<group>";
+		};
+		F119 /* PersonaTest */ = {
+			isa = PBXGroup;
+			children = (
+				B302 /* PersonaTestView.swift */,
+				B303 /* PersonaTestReportView.swift */,
+			);
+			path = PersonaTest;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -731,6 +751,10 @@
 				A288 /* PublishView.swift in Sources */,
 				A289 /* ImportConfigViewModel.swift in Sources */,
 				A290 /* ImportConfigView.swift in Sources */,
+				A300 /* PersonaTest.swift in Sources */,
+				A301 /* PersonaTestViewModel.swift in Sources */,
+				A302 /* PersonaTestView.swift in Sources */,
+				A303 /* PersonaTestReportView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

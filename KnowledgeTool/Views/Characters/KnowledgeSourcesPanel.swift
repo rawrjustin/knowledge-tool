@@ -317,19 +317,15 @@ struct SourceRow: View {
                     Text(source.title)
                         .font(.subheadline)
                         .lineLimit(1)
+                        .truncationMode(.tail)
 
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Text("\(source.entryCount) memories")
-                            .font(.caption2)
-
-                        Text("\(source.totalWordCount) words")
-                            .font(.caption2)
-
-                        Text(source.createdAt.formatted(.relative(presentation: .named)))
-                            .font(.caption2)
-                    }
-                    .foregroundStyle(.tertiary)
+                    Text("\(source.entryCount) memories • \(source.totalWordCount) words • \(source.createdAt.formatted(.relative(presentation: .named)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
+                .layoutPriority(1)
 
                 Spacer()
 

@@ -28,6 +28,7 @@ enum NavigationItem: String, Identifiable {
 
     // System Prompt Refinement section
     case promptTesting = "Prompt Testing"
+    case personaTest = "Persona Test"
 
     var id: String { rawValue }
 
@@ -42,6 +43,7 @@ enum NavigationItem: String, Identifiable {
         case .sportsData: return "sportscourt.fill"
         case .chatLogVisualizer: return "text.bubble"
         case .promptTesting: return "network"
+        case .personaTest: return "checkmark.shield"
         }
     }
 
@@ -53,7 +55,7 @@ enum NavigationItem: String, Identifiable {
             return .characterRefinement
         case .chatLogVisualizer:
             return .tools
-        case .promptTesting:
+        case .promptTesting, .personaTest:
             return .systemPromptRefinement
         }
     }
@@ -68,7 +70,7 @@ enum NavigationItem: String, Identifiable {
     }
 
     static var allItems: [NavigationItem] {
-        [.dashboard, .rawMarkdown, .chat, .versionCompare, .videos, .knowledgeBase, .sportsData, .chatLogVisualizer, .promptTesting]
+        [.dashboard, .rawMarkdown, .chat, .versionCompare, .videos, .knowledgeBase, .sportsData, .chatLogVisualizer, .promptTesting, .personaTest]
     }
 
     static func items(for section: NavigationSection) -> [NavigationItem] {
@@ -232,8 +234,9 @@ struct ContentView: View {
                 case 3: selectedItem = .videos
                 case 4: selectedItem = .knowledgeBase
                 case 5: selectedItem = .promptTesting
-                case 6: selectedItem = .sportsData
-                case 7: selectedItem = .chatLogVisualizer
+                case 6: selectedItem = .personaTest
+                case 7: selectedItem = .sportsData
+                case 8: selectedItem = .chatLogVisualizer
                 default: break
                 }
             }
@@ -754,6 +757,7 @@ struct SidebarNavigationItem: View {
         case .sportsData: return "sportscourt.fill"
         case .chatLogVisualizer: return "text.bubble.fill"
         case .promptTesting: return "network"
+        case .personaTest: return "checkmark.shield.fill"
         }
     }
 }
@@ -819,6 +823,9 @@ struct DetailView: View {
                         .id(character.id)
                 case .promptTesting:
                     PromptTestingView(character: character, apiKeyManager: apiKeyManager)
+                        .id(character.id)
+                case .personaTest:
+                    PersonaTestView(character: character, repository: repository, apiKeyManager: apiKeyManager)
                         .id(character.id)
                 case .chatLogVisualizer:
                     ChatLogView()

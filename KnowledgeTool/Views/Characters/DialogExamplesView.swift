@@ -10,6 +10,7 @@ struct DialogExamplesView: View {
 
     @State private var showingExportSheet = false
     @State private var exportContent: String = ""
+    @State private var copiedAll = false
     @State private var showingAddDialog = false
     @State private var newDialogCategory: String = ""
     @State private var newDialogText: String = ""
@@ -249,6 +250,17 @@ struct DialogExamplesView: View {
                 Spacer()
 
                 if viewModel.hasExamples {
+                    Button {
+                        copyToPasteboard(viewModel.exportPlainText())
+                        copiedAll = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            copiedAll = false
+                        }
+                    } label: {
+                        Label(copiedAll ? "Copied" : "Copy All", systemImage: copiedAll ? "checkmark" : "doc.on.doc")
+                    }
+                    .buttonStyle(.modernSecondary)
+
                     Button {
                         exportContent = viewModel.exportPlainText()
                         showingExportSheet = true
@@ -509,11 +521,29 @@ struct CompactDialogRow: View {
                         .font(.body)
                         .foregroundStyle(.primary)
                         .lineLimit(3)
+                        .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .contextMenu {
+                            Button {
+                                copyToPasteboard(example.dialog)
+                            } label: {
+                                Label("Copy", systemImage: "doc.on.doc")
+                            }
+                        }
 
                     // Action buttons on hover
                     if isHovered {
                         HStack(spacing: DesignSystem.Spacing.xs) {
+                            Button {
+                                copyToPasteboard(example.dialog)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                            .help("Copy")
+
                             Button(action: onEdit) {
                                 Image(systemName: "pencil")
                                     .font(.caption)
@@ -625,13 +655,14 @@ struct ExportDialogSheet: View {
                 }
             }
 
-            ScrollView {
-                Text(content)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(DesignSystem.Spacing.md)
-            }
+            TextEditor(text: Binding<String>(
+                get: { content },
+                set: { _ in }
+            ))
+            .font(.body)
+            .textSelection(.enabled)
+            .scrollContentBackground(.hidden)
+            .padding(DesignSystem.Spacing.md)
             .background(Color(nsColor: .textBackgroundColor))
             .cornerRadius(DesignSystem.CornerRadius.small)
 
@@ -659,4 +690,11 @@ struct ExportDialogSheet: View {
         .padding(DesignSystem.Spacing.xl)
         .frame(width: 600, height: 500)
     }
+}
+
+// MARK: - Pasteboard Helpers
+
+private func copyToPasteboard(_ text: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(text, forType: .string)
 }

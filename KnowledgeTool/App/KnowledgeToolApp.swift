@@ -107,15 +107,20 @@ struct KnowledgeToolApp: App {
                 }
                 .keyboardShortcut("5", modifiers: .command)
 
-                Button("Sports Data") {
+                Button("Persona Test") {
                     NotificationCenter.default.post(name: .navigateToSection, object: 6)
                 }
                 .keyboardShortcut("6", modifiers: .command)
 
-                Button("Chat Visualizer") {
+                Button("Sports Data") {
                     NotificationCenter.default.post(name: .navigateToSection, object: 7)
                 }
                 .keyboardShortcut("7", modifiers: .command)
+
+                Button("Chat Visualizer") {
+                    NotificationCenter.default.post(name: .navigateToSection, object: 8)
+                }
+                .keyboardShortcut("8", modifiers: .command)
 
                 Divider()
 
