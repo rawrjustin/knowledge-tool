@@ -523,6 +523,30 @@ actor LocalCharacterRepository {
         return try await loadCharacter(from: newCharacterURL)
     }
 
+    // MARK: - Version Restore
+
+    /// Restore an older version by creating a new version with its content.
+    /// All existing versions and their descriptions are preserved.
+    func restoreVersion(_ versionToRestore: Character) async throws -> Character {
+        // Create a new version with the old version's content, labeled as restored
+        let restoredCharacter = Character(
+            name: versionToRestore.name,
+            directoryPath: versionToRestore.directoryPath,
+            personaFileName: versionToRestore.personaFileName,
+            markdownContent: versionToRestore.markdownContent,
+            knowledgeFiles: versionToRestore.knowledgeFiles,
+            sha: versionToRestore.sha,
+            systemPromptType: versionToRestore.systemPromptType,
+            version: versionToRestore.version,
+            versionName: "Restored from \(versionToRestore.versionDisplay)",
+            createdAt: versionToRestore.createdAt,
+            lastModified: versionToRestore.lastModified,
+            isLocalOnly: versionToRestore.isLocalOnly
+        )
+
+        return try await saveCharacterAsNewVersion(restoredCharacter)
+    }
+
     // MARK: - Character Deletion
 
     /// Delete a character by removing its entire directory

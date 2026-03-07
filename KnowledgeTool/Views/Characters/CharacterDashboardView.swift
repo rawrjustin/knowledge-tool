@@ -52,6 +52,11 @@ struct CharacterDashboardView: View {
     @State private var renameError: String?
     @State private var showingPublishSheet = false
     @State private var publishViewModel = PublishViewModel()
+    @State private var allVersions: [Character] = []
+    @State private var isLoadingVersions = false
+    @State private var versionToRestore: Character?
+    @State private var showingRestoreConfirmation = false
+    @State private var isRestoring = false
 
     init(
         character: Character,
@@ -188,14 +193,59 @@ struct CharacterDashboardView: View {
                     }
 
                     HStack(spacing: DesignSystem.Spacing.sm) {
-                        // Version badge
-                        Text(character.versionDisplay)
-                            .font(.caption.weight(.medium))
+                        // Version badge with history menu
+                        Menu {
+                            if allVersions.count > 1 {
+                                Section("Version History") {
+                                    ForEach(allVersions.sorted(by: { $0.version > $1.version })) { version in
+                                        Button {
+                                            if version.version != character.version {
+                                                onCharacterUpdated(version)
+                                            }
+                                        } label: {
+                                            HStack {
+                                                Text(version.versionDisplay)
+                                                if version.version == character.version {
+                                                    Text("(current)")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                let latestVersion = allVersions.max(by: { $0.version < $1.version })
+                                if character.version != latestVersion?.version {
+                                    Divider()
+
+                                    Button {
+                                        versionToRestore = character
+                                        showingRestoreConfirmation = true
+                                    } label: {
+                                        Label("Restore \(character.versionDisplay) as New Version", systemImage: "arrow.uturn.backward")
+                                    }
+                                }
+                            } else {
+                                Text("Only one version")
+                                    .foregroundStyle(.secondary)
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(character.versionDisplay)
+                                    .font(.caption.weight(.medium))
+                                if allVersions.count > 1 {
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8, weight: .semibold))
+                                }
+                            }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.purple.opacity(0.15))
                             .foregroundStyle(.purple)
                             .clipShape(Capsule())
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
 
                         // System prompt type
                         Text(character.systemPromptType.shortDisplayName)
@@ -291,10 +341,16 @@ struct CharacterDashboardView: View {
         .background(.regularMaterial)
         .task {
             await publishViewModel.loadPublishState(for: character, repository: repository)
+            await loadVersionHistory()
         }
         .onChange(of: character.sha) { _, _ in
             Task {
                 await publishViewModel.loadPublishState(for: character, repository: repository)
+            }
+        }
+        .onChange(of: character.version) { _, _ in
+            Task {
+                await loadVersionHistory()
             }
         }
         .sheet(isPresented: $showingPublishSheet) {
@@ -304,6 +360,23 @@ struct CharacterDashboardView: View {
                 publishViewModel: publishViewModel,
                 onDismiss: { showingPublishSheet = false }
             )
+        }
+        .alert("Restore Version", isPresented: $showingRestoreConfirmation) {
+            Button("Cancel", role: .cancel) {
+                versionToRestore = nil
+            }
+            Button("Restore") {
+                if let version = versionToRestore {
+                    Task {
+                        await restoreVersion(version)
+                    }
+                }
+                versionToRestore = nil
+            }
+        } message: {
+            if let version = versionToRestore {
+                Text("This will create a new version with the content from \(version.versionDisplay). All existing versions will be preserved.")
+            }
         }
     }
 
@@ -465,6 +538,31 @@ struct CharacterDashboardView: View {
 
     private func wordCount(_ text: String) -> Int {
         text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+    }
+
+    @MainActor
+    private func loadVersionHistory() async {
+        isLoadingVersions = true
+        defer { isLoadingVersions = false }
+        do {
+            allVersions = try await repository.loadAllVersions(for: character.name)
+        } catch {
+            NSLog("[CharacterDashboard] Failed to load version history: %@", error.localizedDescription)
+            allVersions = [character]
+        }
+    }
+
+    @MainActor
+    private func restoreVersion(_ version: Character) async {
+        isRestoring = true
+        defer { isRestoring = false }
+        do {
+            let restored = try await repository.restoreVersion(version)
+            await loadVersionHistory()
+            onCharacterUpdated(restored)
+        } catch {
+            NSLog("[CharacterDashboard] Failed to restore version: %@", error.localizedDescription)
+        }
     }
 
     @MainActor

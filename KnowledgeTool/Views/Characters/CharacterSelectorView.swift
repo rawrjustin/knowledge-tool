@@ -8,6 +8,7 @@ struct CharacterSelectorView: View {
     let onSync: () async -> Void
     let onNewCharacter: () -> Void
     let onVersionSelected: (Character) -> Void
+    var onRestoreVersion: ((Character) -> Void)? = nil
     var onDelete: ((String) -> Void)? = nil
 
     @Environment(BackgroundJobManager.self) private var backgroundJobManager
@@ -153,6 +154,20 @@ struct CharacterSelectorView: View {
                                         Image(systemName: "checkmark")
                                     }
                                 }
+                            }
+                        }
+
+                        // Restore option for non-current versions
+                        if let selected = selectedCharacter,
+                           let onRestore = onRestoreVersion,
+                           let latestVersion = availableVersions.max(by: { $0.version < $1.version }),
+                           selected.version != latestVersion.version {
+                            Divider()
+
+                            Button {
+                                onRestore(selected)
+                            } label: {
+                                Label("Restore \(selected.versionDisplay) as New Version", systemImage: "arrow.uturn.backward")
                             }
                         }
                     } label: {
@@ -430,6 +445,7 @@ struct CharacterPickerRow: View {
         onSync: {},
         onNewCharacter: {},
         onVersionSelected: { _ in },
+        onRestoreVersion: { _ in },
         onDelete: { _ in }
     )
     .frame(width: 800)

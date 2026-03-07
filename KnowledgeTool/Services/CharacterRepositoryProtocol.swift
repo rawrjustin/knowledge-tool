@@ -290,6 +290,25 @@ actor CombinedCharacterRepository {
         return try await local.loadAllVersions(for: characterName)
     }
 
+    /// Restore an older version by creating a new version with its content
+    func restoreVersion(_ versionToRestore: Character) async throws -> Character {
+        let restored = try await local.restoreVersion(versionToRestore)
+        NSLog("[CombinedRepository] Restored %@ as new v%d", versionToRestore.versionDisplay, restored.version)
+
+        if syncEnabled, let supabase = supabase {
+            Task {
+                do {
+                    _ = try await supabase.saveCharacterAsNewVersion(restored)
+                    NSLog("[CombinedRepository] Synced restored version to Supabase: %@", restored.name)
+                } catch {
+                    NSLog("[CombinedRepository] Failed to sync restored version to Supabase: %@", error.localizedDescription)
+                }
+            }
+        }
+
+        return restored
+    }
+
     // MARK: - Knowledge File Operations
 
     /// Create or update a knowledge file locally, then sync to Supabase
